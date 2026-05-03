@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="VectorFlow.Api/VectorFlow.Api.csproj" />
+  <Project Path="VectorFlow.Client/VectorFlow.Client.csproj" />
+  <Project Path="VectorFlow.Shared/VectorFlow.Shared.csproj" />
+  <Project Path="VectorFlow.Tests/VectorFlow.Tests.csproj" />
+</Solution>
