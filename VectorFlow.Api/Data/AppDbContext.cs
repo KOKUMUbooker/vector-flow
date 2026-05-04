@@ -23,7 +23,7 @@ public class AppDbContext (DbContextOptions<AppDbContext> options)
         // Must be called first — wires up all ASP.NET Identity tables
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.HasDefaultSchema("app");
+        modelBuilder.HasDefaultSchema("vflow");
 
         // Picks up every IEntityTypeConfiguration<T> in this assembly automatically.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

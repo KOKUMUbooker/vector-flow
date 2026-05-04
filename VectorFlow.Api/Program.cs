@@ -13,13 +13,14 @@ public class Program
 
         // Load .env file into configuration
         DotNetEnv.Env.Load();
-
-        // ── Database ────────────────────────────────────────────────
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection is not configured.");
+        builder.Configuration.AddEnvironmentVariables();
 
         builder.Services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        {
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("ConnectionStrings__DefaultConnection is not configured in .env.");
+            options.UseNpgsql(connectionString);
+        });
 
         // ── Identity ─────────────────────────────────────────────────
         builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
@@ -31,13 +32,12 @@ public class Program
 
             options.User.RequireUniqueEmail = true;
 
-            // We handle email verification manually via our own token flow
+            // Email verification handled manually via own token flow
             options.SignIn.RequireConfirmedEmail = false;
         })
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
 
-        // ── Other services ───────────────────────────────────────────
         builder.Services.AddAuthorization();
         builder.Services.AddOpenApi();
 
