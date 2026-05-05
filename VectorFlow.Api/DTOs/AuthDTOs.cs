@@ -38,11 +38,25 @@ public class RegisterRequest
 /// </summary>
 public class AuthResult
 {
-    public string AccessToken { get; set; } = string.Empty;
-    public string RefreshToken { get; set; } = string.Empty;
+    public bool Succeeded { get; set; }
+    public bool EmailNotVerified { get; set; }
 
-    /// <summary>User details returned to the client for UI state.</summary>
-    public UserDto User { get; set; } = null!;
+    // Only populated on success
+    public string? AccessToken { get; set; }
+    public string? RefreshToken { get; set; }
+    public UserDto? User { get; set; }
+
+    // Only populated when EmailNotVerified = true
+    // Sent back so the client can pass it to the resend-verification page
+    public string? EmailVerificationToken { get; set; }
+
+    public static AuthResult Success(string accessToken, string refreshToken, UserDto user) =>
+        new() { Succeeded = true, AccessToken = accessToken, RefreshToken = refreshToken, User = user };
+
+    public static AuthResult UnverifiedEmail(string emailVerificationToken) =>
+        new() { EmailNotVerified = true, EmailVerificationToken = emailVerificationToken };
+
+    public static AuthResult InvalidCredentials() => new();
 }
 
 /// <summary>
