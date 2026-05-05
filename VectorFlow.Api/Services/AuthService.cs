@@ -1,12 +1,13 @@
-﻿using VectorFlow.Api.Data;
-using VectorFlow.Api.DTOs;
-using VectorFlow.Api.Models;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
+using VectorFlow.Api.Data;
+using VectorFlow.Api.DTOs;
+using VectorFlow.Api.Models;
 using VectorFlow.Api.Services.Interfaces;
 
 namespace VectorFlow.Api.Services;
@@ -14,28 +15,57 @@ namespace VectorFlow.Api.Services;
 public class AuthService(
     UserManager<AppUser> userManager,
     AppDbContext db,
-    IConfiguration configuration) : IAuthService
+    IConfiguration configuration,
+    IEmailService emailService,
+    IEmailTemplateService templateService) : IAuthService
 {
-    public async Task<AuthResult?> LoginAsync(LoginRequest request)
+    private const string AppName = "VectorFlow";
+
+    // ── Login ────────────────────────────────────────────────────────────────
+
+public async Task<AuthResult> LoginAsync(LoginRequest request)
+{
+    var user = await userManager.FindByEmailAsync(request.Email);
+    if (user is null) return AuthResult.InvalidCredentials();
+
+    var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
+    if (!passwordValid) return AuthResult.InvalidCredentials();
+
+    // Check email verification before issuing tokens
+    if (!user.EmailConfirmed)
     {
-        var user = await userManager.FindByEmailAsync(request.Email);
-        if (user is null) return null;
+        // Rotate the verification token on each failed login attempt
+        // so the link in any previous email is immediately invalidated
+        user.EmailVerificationToken = GenerateSecureToken();
+        user.EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(24);
+        await db.SaveChangesAsync();
 
-        var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
-        if (!passwordValid) return null;
+        // Send a fresh verification email automatically
+        // so the user doesn't have to go request one manually
+        var baseUrl = configuration["ApiBaseUrl"]
+            ?? throw new InvalidOperationException("ApiBaseUrl not configured.");
+        var verificationUrl = $"{baseUrl}/api/auth/verify-email?token={user.EmailVerificationToken}";
+        var html = await templateService.GenerateVerificationEmail(AppName, user.DisplayName, verificationUrl);
+        await emailService.SendEmailAsync(user.Email!, "Verify your email", html);
 
-        return await BuildAuthResultAsync(user);
+        return AuthResult.UnverifiedEmail(user.EmailVerificationToken);
     }
 
+    return await BuildAuthResultAsync(user);
+}
 
-    public async Task<RegisterResult> RegisterAsync(RegisterRequest request)
+    // ── Register ──────────────────────────────────────────────────────────────
+
+    public async Task<RegisterResult> RegisterAsync(RegisterRequest request, string baseUrl)
     {
         var user = new AppUser
         {
             Email = request.Email,
-            UserName = request.Email, // Identity uses UserName for lookups
+            UserName = request.Email,
             DisplayName = request.DisplayName,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            EmailVerificationToken = GenerateSecureToken(),
+            EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(24)
         };
 
         var result = await userManager.CreateAsync(user, request.Password);
@@ -43,44 +73,134 @@ public class AuthService(
         if (!result.Succeeded)
             return RegisterResult.Failure(result.Errors.Select(e => e.Description));
 
-        // TODO: send verification email here once email service is wired up
+        var verificationUrl = $"{baseUrl}/api/auth/verify-email?token={user.EmailVerificationToken}";
+        var html = await templateService.GenerateVerificationEmail(AppName, user.DisplayName, verificationUrl);
+        await emailService.SendEmailAsync(user.Email!, "Verify your email", html);
 
         return RegisterResult.Success();
     }
 
-
+    // ── Get current user ──────────────────────────────────────────────────────
     public async Task<UserDto?> GetUserAsync(string userId)
     {
         var user = await userManager.FindByIdAsync(userId);
         return user is null ? null : MapToDto(user);
     }
 
-    public async Task<AuthResult?> RefreshAsync(string refreshToken)
+    // ── Email verification ────────────────────────────────────────────────────
+    public async Task<EmailVerificationResult> VerifyEmailAsync(string token)
     {
-        // Find the token record — eagerly load the user
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.EmailVerificationToken == token);
+
+        if (user is null) return EmailVerificationResult.Invalid();
+        if (user.EmailConfirmed) return EmailVerificationResult.Already();
+        if (user.EmailVerificationTokenExpiry < DateTime.UtcNow) return EmailVerificationResult.Expired();
+
+        user.EmailConfirmed = true;
+        user.EmailVerificationToken = null;
+        user.EmailVerificationTokenExpiry = null;
+        await db.SaveChangesAsync();
+
+        return EmailVerificationResult.Success(user.Email!);
+    }
+
+    // ── Resend verification ───────────────────────────────────────────────────
+    public async Task ResendVerificationAsync(string email, string baseUrl)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+
+        // Silently exit — don't reveal whether the email is registered
+        if (user is null || user.EmailConfirmed) return;
+
+        user.EmailVerificationToken = GenerateSecureToken();
+        user.EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(24);
+        await db.SaveChangesAsync();
+
+        var verificationUrl = $"{baseUrl}/api/auth/verify-email?token={user.EmailVerificationToken}";
+        var html = await templateService.GenerateVerificationEmail(AppName, user.DisplayName, verificationUrl);
+        await emailService.SendEmailAsync(user.Email!, "Verify your email", html);
+    }
+
+    // ── Forgot password ───────────────────────────────────────────────────────
+    public async Task ForgotPasswordAsync(string email, string baseUrl)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+
+        // Always return silently — never reveal whether the email exists
+        if (user is null) return;
+
+        var rawToken = GenerateSecureToken();
+        var hashedToken = Convert.ToBase64String(
+            SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
+
+        user.PasswordResetTokenHash = hashedToken;
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(30);
+        await db.SaveChangesAsync();
+
+        var resetUrl = $"{baseUrl}/reset-password?tkn={rawToken}&email={user.Email}";
+        var html = await templateService.GeneratePasswordResetEmail(AppName, user.DisplayName, resetUrl);
+        await emailService.SendEmailAsync(user.Email!, "Reset your password", html);
+    }
+
+    // ── Reset password ────────────────────────────────────────────────────────
+    public async Task<PasswordResetResult> ResetPasswordAsync(PasswordResetDto dto)
+    {
+        var hashedToken = Convert.ToBase64String(
+            SHA256.HashData(Encoding.UTF8.GetBytes(dto.PasswordVerificationToken)));
+
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.PasswordResetTokenHash == hashedToken);
+
+        if (user is null)
+            return PasswordResetResult.Failure("Invalid or expired token.");
+
+        if (user.PasswordResetTokenExpiry < DateTime.UtcNow)
+            return PasswordResetResult.Failure("Invalid or expired token.");
+
+        // Delegate hashing to Identity — keeps algorithm consistent
+        var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await userManager.ResetPasswordAsync(user, resetToken, dto.NewPassword);
+
+        if (!result.Succeeded)
+            return PasswordResetResult.Failure(
+                string.Join(", ", result.Errors.Select(e => e.Description)));
+
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetTokenExpiry = null;
+
+        // Revoke all active sessions — user changed their password
+        await db.RefreshTokens
+            .Where(rt => rt.UserId == user.Id && rt.RevokedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAt, DateTime.UtcNow));
+
+        await db.SaveChangesAsync();
+
+        return PasswordResetResult.Success();
+    }
+
+    // ── Refresh ───────────────────────────────────────────────────────────────
+    public async Task<AuthResult> RefreshAsync(string refreshToken)
+    {
         var stored = await db.RefreshTokens
             .Include(rt => rt.User)
             .SingleOrDefaultAsync(rt => rt.Token == refreshToken);
 
-        // Reject if not found, already revoked, or expired
-        if (stored is null || !stored.IsActive) return null;
+        if (stored is null || !stored.IsActive) return AuthResult.InvalidCredentials();
 
-        // Rotate — revoke the old token and issue a new one
         stored.RevokedAt = DateTime.UtcNow;
-
-        var newRefreshToken = await CreateRefreshTokenAsync(stored.User);
+        var newToken = await CreateRefreshTokenAsync(stored.User);
         await db.SaveChangesAsync();
-
-        var accessToken = GenerateAccessToken(stored.User);
 
         return new AuthResult
         {
-            AccessToken = accessToken,
-            RefreshToken = newRefreshToken.Token,
+            AccessToken = GenerateAccessToken(stored.User),
+            RefreshToken = newToken.Token,
             User = MapToDto(stored.User)
         };
     }
 
+    // ── Revoke ────────────────────────────────────────────────────────────────
     public async Task RevokeRefreshTokenAsync(string refreshToken)
     {
         var stored = await db.RefreshTokens
@@ -92,12 +212,7 @@ public class AuthService(
         await db.SaveChangesAsync();
     }
 
-    // =======  Private helpers ======================================
-
-    /// <summary>
-    /// Builds a full AuthResult for a user — generates access token,
-    /// creates and persists a new refresh token, returns both.
-    /// </summary>
+    // ── Private helpers ───────────────────────────────────────────────────────
     private async Task<AuthResult> BuildAuthResultAsync(AppUser user)
     {
         var accessToken = GenerateAccessToken(user);
@@ -112,18 +227,17 @@ public class AuthService(
         };
     }
 
-    /// <summary>
-    /// Generates a signed JWT access token for the given user.
-    /// Short-lived — 15 minutes.
-    /// </summary>
     private string GenerateAccessToken(AppUser user)
     {
         var secretKey = configuration["JwtSettings:SecretKey"]
-            ?? throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
+            ?? throw new InvalidOperationException("JwtSettings:SecretKey not configured.");
+        var accessTokenExpirationMinutes = 
+            int.TryParse(configuration["JwtSettings:AccessTokenExpirationMinutes"], out var val) ? val : 15;
 
-        var keyBytes = Convert.FromBase64String(secretKey);
-        var signingKey = new SymmetricSecurityKey(keyBytes);
-        var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+        var credentials = new SigningCredentials(
+            new SymmetricSecurityKey(Convert.FromBase64String(secretKey)),
+            SecurityAlgorithms.HmacSha256
+        );
 
         var claims = new[]
         {
@@ -137,33 +251,38 @@ public class AuthService(
             issuer: configuration["JwtSettings:Issuer"],
             audience: configuration["JwtSettings:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(15),
+            expires: DateTime.UtcNow.AddMinutes(accessTokenExpirationMinutes),
             signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    /// <summary>
-    /// Creates a cryptographically secure refresh token and persists it.
-    /// Does NOT call SaveChangesAsync — caller is responsible for saving.
-    /// </summary>
     private async Task<RefreshToken> CreateRefreshTokenAsync(AppUser user)
     {
-        var tokenBytes = RandomNumberGenerator.GetBytes(64);
-        var token = Convert.ToBase64String(tokenBytes);
+        var refreshTokenExpirationDays = 
+            int.TryParse(configuration["JwtSettings:RefreshTokenExpirationDays"], out var val) ? val : 7;
 
-        var refreshToken = new RefreshToken
+        var token = new RefreshToken
         {
             UserId = user.Id,
-            Token = token,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            Token = GenerateSecureToken(),
+            ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenExpirationDays),
             CreatedAt = DateTime.UtcNow
         };
 
-        await db.RefreshTokens.AddAsync(refreshToken);
-        return refreshToken;
+        await db.RefreshTokens.AddAsync(token);
+        return token;
     }
+
+    /// <summary>
+    /// URL-safe base64 token — safe to embed in query strings without encoding.
+    /// </summary>
+    private static string GenerateSecureToken() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))
+            .Replace("+", "-")
+            .Replace("/", "_")
+            .TrimEnd('=');
 
     private static UserDto MapToDto(AppUser user) => new()
     {
