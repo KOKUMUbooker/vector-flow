@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 using VectorFlow.Api.Data;
 using VectorFlow.Api.Models;
 
@@ -22,7 +23,6 @@ public class Program
             options.UseNpgsql(connectionString);
         });
 
-        // ── Identity ─────────────────────────────────────────────────
         builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
         {
             options.Password.RequireDigit = true;
@@ -46,6 +46,7 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
+            app.MapScalarApiReference();
         }
 
         app.UseHttpsRedirection();
