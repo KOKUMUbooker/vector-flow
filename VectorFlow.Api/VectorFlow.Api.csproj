@@ -19,10 +19,17 @@
 	<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.18.0" />
 	<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
 	<PackageReference Include="Scalar.AspNetCore" Version="2.9.0" />
+  <PackageReference Include="Resend" Version="0.5.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\VectorFlow.Shared\VectorFlow.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+      <Content Include="EmailTemplates/**/*">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+  </ItemGroup>
 </Project>
