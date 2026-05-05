@@ -8,16 +8,26 @@ namespace VectorFlow.Api.Controllers;
 
 [ApiController]
 [Route("/api/auth/")]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(IAuthService authService, IHostEnvironment env) : ControllerBase
 {
-    [HttpPost("login")]
+   [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var result = await authService.LoginAsync(request);
-        if (result is null) return Unauthorized("Invalid credentials.");
 
-        AttachTokenCookies(result.AccessToken, result.RefreshToken);
-        return Ok(result.User); // return user details for initial state
+        if (!result.Succeeded && !result.EmailNotVerified)
+            return Unauthorized(new { Message = "Invalid email or password." });
+
+        // TODO: On client to check whether email is not verified, check for Forbidden HTTP status code
+        if (result.EmailNotVerified)
+            return StatusCode(403, new
+            {
+                Message = "Email not verified. A new verification link has been sent to your email.",
+                EmailVerificationToken = result.EmailVerificationToken
+            });
+
+        AttachTokenCookies(result.AccessToken!, result.RefreshToken!);
+        return Ok(result.User);
     }
 
     [HttpPost("register")]
