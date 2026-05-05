@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
+using Resend;
 using VectorFlow.Api.Data;
 using VectorFlow.Api.Models;
+using VectorFlow.Api.Services;
+using VectorFlow.Api.Services.Interfaces;
 
 namespace VectorFlow.Api;
 
@@ -22,7 +26,6 @@ public class Program
             options.UseNpgsql(connectionString);
         });
 
-        // ── Identity ─────────────────────────────────────────────────
         builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
         {
             options.Password.RequireDigit = true;
@@ -37,7 +40,17 @@ public class Program
         })
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
+        builder.Services.AddHttpClient<ResendClient>();
+        builder.Services.Configure<ResendClientOptions>( o =>
+        {
+            o.ApiToken = Environment.GetEnvironmentVariable("Resend__ApiKey")!;
+        });
 
+        builder.Services.AddTransient<IResend, ResendClient>();
+        builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<IEmailService, EmailService>();
+        builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+        builder.Services.AddControllers();
         builder.Services.AddAuthorization();
         builder.Services.AddOpenApi();
 
@@ -46,12 +59,16 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
+            app.MapScalarApiReference();
         }
 
         app.UseHttpsRedirection();
+        app.UseRouting();
 
         app.UseAuthentication();  
         app.UseAuthorization();
+
+        app.MapControllers();
 
         app.Run();
     }

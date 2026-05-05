@@ -224,6 +224,12 @@ namespace VectorFlow.Api.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("EmailVerificationToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("EmailVerificationTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean");
 
@@ -239,6 +245,12 @@ namespace VectorFlow.Api.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PasswordResetTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordResetTokenHash")
                         .HasColumnType("text");
 
                     b.Property<string>("PhoneNumber")

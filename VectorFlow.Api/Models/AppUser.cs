@@ -14,6 +14,10 @@ public class AppUser : IdentityUser
 
     /// <summary>Optional profile picture URL. Null means use a generated avatar.</summary>
     public string? AvatarUrl { get; set; }
+    public string? EmailVerificationToken { get; set; }
+    public DateTime? EmailVerificationTokenExpiry { get; set; }
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

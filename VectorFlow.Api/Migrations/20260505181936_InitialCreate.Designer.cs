@@ -12,7 +12,7 @@ using VectorFlow.Api.Data;
 namespace VectorFlow.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260504203644_InitialCreate")]
+    [Migration("20260505181936_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -227,6 +227,12 @@ namespace VectorFlow.Api.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("EmailVerificationToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("EmailVerificationTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean");
 
@@ -242,6 +248,12 @@ namespace VectorFlow.Api.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PasswordResetTokenExpiry")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordResetTokenHash")
                         .HasColumnType("text");
 
                     b.Property<string>("PhoneNumber")
