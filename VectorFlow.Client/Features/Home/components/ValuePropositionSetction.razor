@@ -1,0 +1,72 @@
+<MudPaper Class=" pa-8" Elevation="0">
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="10">
+                <MudText Typo="Typo.h4" Class="text-center font-weight-bold mb-8">
+                    Built for the way small teams actually work
+                </MudText>
+                
+                <MudGrid>
+                    @foreach (var value in valueProps)
+                    {
+                        <MudItem xs="12" md="4" Class="mb-6">
+                            <MudPaper Elevation="2" Class="value-card pa-6" Style="height: 100%; border-radius: 20px; background-color: var(--mud-palette-background)">
+                                <div class="d-flex align-center gap-3 mb-4">
+                                    <MudAvatar Size="Size.Medium" Style="background: linear-gradient(135deg, var(--mud-palette-primary), var(--mud-palette-secondary));">
+                                        <MudIcon Icon="@value.Icon" Color="Color.Inherit" />
+                                    </MudAvatar>
+                                    <MudText Typo="Typo.h6" Class="font-weight-bold">@value.Title</MudText>
+                                </div>
+                                
+                                <MudText Typo="Typo.body2" Color="Color.Inherit">
+                                    @value.Description
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+@code {
+    private class ValueProposition
+    {
+        public string Title { get; set; } = String.Empty;
+        public string Icon { get; set; } = String.Empty;
+        public string Description { get; set; } = String.Empty;
+    }
+    
+    private List<ValueProposition> valueProps = new()
+    {
+        new() { 
+            Title = "Lightning Fast Setup", 
+            Icon = Icons.Material.Filled.Bolt,
+            Description = "Get your entire team up and running in under 5 minutes. No complex configuration or admin overhead."
+        },
+        new() { 
+            Title = "Intuitive by Design", 
+            Icon = Icons.Material.Filled.Psychology,
+            Description = "Zero learning curve. Your team will be productive from day one with our clean, straightforward interface."
+        },
+        new() { 
+            Title = "Real-time Collaboration", 
+            Icon = Icons.Material.Filled.People,
+            Description = "Built-in SignalR support means everyone sees updates instantly. No more 'is this up to date?' questions."
+        },
+        new() { 
+            Title = "Performance First", 
+            Icon = Icons.Material.Filled.Speed,
+            Description = "Blazing fast loads and snappy interactions. No lag, even with hundreds of issues."
+        },
+        new() { 
+            Title = "Transparent Pricing", 
+            Icon = Icons.Material.Filled.PriceCheck,
+            Description = "Simple, predictable pricing with no hidden fees or surprise charges. Free tier available forever."
+        },
+        new() { 
+            Title = "Built for Small Teams", 
+            Icon = Icons.Material.Filled.Diversity3,
+            Description = "Every feature is designed specifically for teams of 5-50 people. No enterprise bloat, just what you need."
+        }
+    };
+}
