@@ -1,0 +1,39 @@
+<MudAppBar Elevation="0" Class="landing-appbar">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-center justify-space-between">
+        <div class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.ShowChart" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" Class="ml-2"  Color="Color.Primary">
+                Vector Flow
+            </MudText>
+        </div>
+        <div class="d-none d-md-flex gap-4">
+            <MudLink Href="#" Underline="Underline.None" Class="nav-link">Features</MudLink>
+            <MudLink Href="#" Underline="Underline.None" Class="nav-link">Pricing</MudLink>
+            <MudLink Href="#" Underline="Underline.None" Class="nav-link">About</MudLink>
+        </div>
+        <div class="d-flex gap-2 align-center">
+            <MudButton Variant="Variant.Text" Color="Color.Primary">Log In</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-2">Get Started</MudButton>
+            <!-- Dark Mode Toggle -->
+            <MudIconButton 
+                Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                OnClick="@ToggleDarkMode"
+                Size="Size.Medium" />
+        </div>
+    </MudContainer>
+</MudAppBar>
+
+@code {
+    [Inject]
+    private ThemeService ThemeService { get; set; } = default!;
+    
+    private bool _isDarkMode => ThemeService?.IsDarkMode ?? false;
+
+    private void ToggleDarkMode()
+    {
+        if (ThemeService is not null)
+        {
+            ThemeService.IsDarkMode = !ThemeService.IsDarkMode;
+        }
+    }
+}
