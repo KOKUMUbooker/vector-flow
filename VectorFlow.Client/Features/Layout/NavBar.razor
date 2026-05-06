@@ -23,6 +23,24 @@
     </MudContainer>
 </MudAppBar>
 
+<style>
+    .landing-appbar {
+        background-color: rgba(var(--mud-palette-background-rgb), 0.85) !important;
+        backdrop-filter: blur(10px);
+        transition: background-color 0.3s ease;
+    }
+    
+     .landing-appbar {
+        border-bottom: 1px solid rgba(var(--mud-palette-primary-rgb), 0.1);
+    }
+    
+     @@media (prefers-color-scheme: dark) {
+        .landing-appbar {
+            background-color: rgba(var(--mud-palette-background-rgb), 0.9) !important;
+        }
+    }
+</style>
+
 @code {
     [Inject]
     private ThemeService ThemeService { get; set; } = default!;
