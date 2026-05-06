@@ -28,6 +28,7 @@ public class EmailTemplateService : IEmailTemplateService
             {
                 "EmailVerificationTemplate.html" => GetFallbackVerificationTemplate(),
                 "PasswordResetTemplate.html" => GetFallbackPasswordResetTemplate(),
+                "WorkspaceInvitationEmail.html" => GetFallbackWorkSpaceInvitationTemplate(),
                 _ => throw new FileNotFoundException($"Template not found: {templateName}")
             };
         }
@@ -35,7 +36,7 @@ public class EmailTemplateService : IEmailTemplateService
         _templateCache[templateName] = template;
         return template;
     }
-    
+
 
     public async Task<string> GenerateVerificationEmail(string appName, string userName, string verificationUrl)
     {
@@ -59,6 +60,19 @@ public class EmailTemplateService : IEmailTemplateService
             .Replace("{{CurrentYear}}", DateTime.Now.Year.ToString());
     }
 
+    public async Task<string> GenerateInvitationEmail(string appName, string recipientName, string inviterName, string workspaceName, string inviteUrl) {
+        var template = await LoadTemplateAsync("WorkspaceInvitationEmail.html");
+
+        return template
+           .Replace("{{AppName}}", appName)
+           .Replace("{{recipientName}}", recipientName)
+           .Replace("{{inviterName}}", inviterName)
+           .Replace("{{workspaceName}}", workspaceName)
+           .Replace("{{inviteUrl}}", inviteUrl)
+           .Replace("{{CurrentYear}}", DateTime.Now.Year.ToString());
+    }
+
+
     // Fallback templates in case HTML files are not found
     private static string GetFallbackVerificationTemplate()
     {
@@ -79,6 +93,19 @@ public class EmailTemplateService : IEmailTemplateService
             <p>Reset your {{AppName}} password by clicking: <a href='{{ResetUrl}}'>{{ResetUrl}}</a></p>
             <p>This link expires in 1 hour.</p>
             <p>&copy; {{CurrentYear}} {{AppName}}</p>
+        </body></html>";
+    }
+
+    private static string GetFallbackWorkSpaceInvitationTemplate()
+    {
+        return @"<!DOCTYPE html><html><body>
+            <h2>You're Invited</h2>
+            <p>Hi {{recipientName}},</p>
+            <p><strong>{{inviterName}}</strong> has invited you to join the <strong>{{workspaceName}}</strong> workspace on {{appName}}.</p>
+            <p>Accept your invitation: <a href=""{{inviteUrl}}"">{{inviteUrl}}</a></p>
+            <p>This invitation expires in 7 days.</p>
+            <p>If you don't want to join, you can ignore this email.</p>
+            <p>&copy; {{CurrentYear}} {{appName}}</p>
         </body></html>";
     }
 }
