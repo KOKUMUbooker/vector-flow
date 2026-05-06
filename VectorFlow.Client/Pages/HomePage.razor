@@ -1,0 +1,347 @@
+﻿@page "/"
+
+<PageTitle>Vector Flow - Lightweight Project Management for Small Teams</PageTitle>
+
+<MudThemeProvider />
+<MudLayout>
+    <MudAppBar Elevation="0" Class="landing-appbar">
+        <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-center justify-space-between">
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.ShowChart" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h6" Class="ml-2 font-weight-bold">
+                    Vector Flow
+                </MudText>
+            </div>
+            <div class="d-none d-md-flex gap-4">
+                <MudLink Href="#" Underline="Underline.None" Class="nav-link">Features</MudLink>
+                <MudLink Href="#" Underline="Underline.None" Class="nav-link">Pricing</MudLink>
+                <MudLink Href="#" Underline="Underline.None" Class="nav-link">About</MudLink>
+            </div>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Text" Color="Color.Primary">Log In</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-2">Get Started</MudButton>
+            </div>
+        </MudContainer>
+    </MudAppBar>
+
+    <MudMainContent>
+        <!-- Hero Section -->
+        <MudContainer MaxWidth="MaxWidth.Large" Class="hero-section">
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="8" Class="text-center">
+                    <MudText Typo="Typo.h2" Class="hero-title font-weight-black">
+                        Project Management <MudHighlighter Text="Simplified" HighlightedText="Simplified" Color="Color.Primary" Class="d-inline" />
+                    </MudText>
+                    <MudText Typo="Typo.h5" Class="hero-subtitle mt-4 text-grey">
+                        The lightweight Jira alternative built for small dev teams.
+                        Speed, simplicity, and zero overhead.
+                    </MudText>
+                    <div class="d-flex justify-center gap-3 mt-8">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">
+                            Start Free Trial
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large">
+                            Watch Demo
+                        </MudButton>
+                    </div>
+                    <MudText Typo="Typo.body2" Class="mt-4 text-grey">
+                        No credit card required • Free for teams up to 5
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+
+        <!-- Stats Section -->
+        <MudContainer MaxWidth="MaxWidth.Large" Class="stats-section">
+            <MudGrid>
+                <MudItem xs="6" md="3" Class="text-center">
+                    <MudText Typo="Typo.h3" Color="Color.Primary" Class="font-weight-bold">⏱️</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold mt-2">5-Min Setup</MudText>
+                    <MudText Typo="Typo.body2" Class="text-grey">Get your team running instantly</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3" Class="text-center">
+                    <MudText Typo="Typo.h3" Color="Color.Primary" Class="font-weight-bold">🚀</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold mt-2">Blazing Fast</MudText>
+                    <MudText Typo="Typo.body2" Class="text-grey">Real-time updates with SignalR</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3" Class="text-center">
+                    <MudText Typo="Typo.h3" Color="Color.Primary" Class="font-weight-bold">📊</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold mt-2">Insightful Charts</MudText>
+                    <MudText Typo="Typo.body2" Class="text-grey">Burndown & velocity tracking</MudText>
+                </MudItem>
+                <MudItem xs="6" md="3" Class="text-center">
+                    <MudText Typo="Typo.h3" Color="Color.Primary" Class="font-weight-bold">🔒</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold mt-2">Secure by Default</MudText>
+                    <MudText Typo="Typo.body2" Class="text-grey">JWT auth with refresh tokens</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+
+        <!-- Features Grid -->
+        <MudContainer MaxWidth="MaxWidth.Large" Class="features-section">
+            <MudText Typo="Typo.h3" Class="text-center font-weight-bold mb-4">
+                Everything you need, nothing you don't
+            </MudText>
+            <MudText Typo="Typo.body1" Class="text-center text-grey mb-12">
+                Built specifically for small dev teams who want to ship faster
+            </MudText>
+
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudCard Class="feature-card" Elevation="0">
+                        <MudCardContent>
+                            <MudIcon Icon="@Icons.Material.Filled.Workspaces" Color="Color.Primary" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Workspaces & Projects</MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2 text-grey">
+                                Fully isolated workspaces with multiple projects. Perfect for managing multiple teams or clients.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudCard Class="feature-card" Elevation="0">
+                        <MudCardContent>
+                            <MudIcon Icon="@Icons.Material.Filled.TableBar" Color="Color.Primary" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Kanban Board</MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2 text-grey">
+                                Drag-and-drop issues between columns. Real-time updates with SignalR for seamless team collaboration.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudCard Class="feature-card" Elevation="0">
+                        <MudCardContent>
+                            <MudIcon Icon="@Icons.Material.Filled.Label" Color="Color.Primary" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Smart Labels</MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2 text-grey">
+                                Organize issues with custom labels and colors. Filter and search across your entire project.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudCard Class="feature-card" Elevation="0">
+                        <MudCardContent>
+                            <MudIcon Icon="@Icons.Material.Filled.Chat" Color="Color.Primary" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Activity Feed</MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2 text-grey">
+                                Full audit log of every change. Comments with markdown support for rich discussions.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudCard Class="feature-card" Elevation="0">
+                        <MudCardContent>
+                            <MudIcon Icon="@Icons.Material.Filled.ShowChart" Color="Color.Primary" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Sprint Planning</MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2 text-grey">
+                                Drag-and-drop issue assignment. Burndown charts and velocity tracking for data-driven decisions.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudCard Class="feature-card" Elevation="0">
+                        <MudCardContent>
+                            <MudIcon Icon="@Icons.Material.Filled.Code" Color="Color.Primary" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Markdown Support</MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2 text-grey">
+                                Write rich issue descriptions and comments with full markdown formatting.
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+
+        <!-- Comparison Section -->
+        <MudContainer MaxWidth="MaxWidth.Large" Class="comparison-section">
+            <MudPaper Class="comparison-paper pa-8" Elevation="0">
+                <MudGrid Justify="Justify.Center">
+                    <MudItem xs="12" md="10">
+                        <MudText Typo="Typo.h4" Class="text-center font-weight-bold mb-8">
+                            Why teams choose Vector Flow over Jira
+                        </MudText>
+                        
+                        @foreach (var comparison in comparisons)
+                        {
+                            <div class="comparison-row d-flex align-center justify-space-between py-3">
+                                <div class="d-flex align-center gap-3">
+                                    <MudIcon Icon="@comparison.VectorIcon" Color="Color.Success" Size="Size.Small" />
+                                    <MudText Typo="Typo.body1" Class="font-weight-medium">@comparison.Feature</MudText>
+                                </div>
+                                <div class="d-none d-md-flex gap-6">
+                                    <MudText Typo="Typo.body1" Color="Color.Primary" Class="font-weight-bold">Vector Flow</MudText>
+                                    <MudText Typo="Typo.body1" Color="Color.Default" Class="text-grey">@comparison.JiraText</MudText>
+                                </div>
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
+                            </div>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudContainer>
+
+        <!-- CTA Section -->
+        <MudContainer MaxWidth="MaxWidth.Large" Class="cta-section text-center">
+            <MudText Typo="Typo.h3" Class="font-weight-bold">
+                Ready to simplify your workflow?
+            </MudText>
+            <MudText Typo="Typo.body1" Class="mt-4 mb-8 text-grey">
+                Join hundreds of small teams shipping faster with Vector Flow
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">
+                Start Your Free Trial
+            </MudButton>
+        </MudContainer>
+
+        <!-- Footer -->
+        <MudContainer MaxWidth="MaxWidth.Large" Class="footer-section">
+            <MudDivider />
+            <MudGrid Class="mt-8" Justify="Justify.Center">
+                <MudItem xs="12" Class="text-center">
+                    <MudText Typo="Typo.body2" Class="text-grey">
+                        © 2025 Vector Flow. Built for small dev teams who want to ship faster.
+                    </MudText>
+                    <div class="d-flex justify-center gap-4 mt-4">
+                        <MudLink Href="#" Typo="Typo.body2">Privacy</MudLink>
+                        <MudLink Href="#" Typo="Typo.body2">Terms</MudLink>
+                        <MudLink Href="#" Typo="Typo.body2">Contact</MudLink>
+                        <MudLink Href="#" Typo="Typo.body2">GitHub</MudLink>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    .landing-appbar {
+        background-color: transparent !important;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+    
+    .hero-section {
+        padding: 120px 0 80px 0;
+    }
+    
+    .hero-title {
+        font-size: 3.5rem;
+        line-height: 1.2;
+    }
+    
+    .hero-subtitle {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .stats-section {
+        padding: 60px 0;
+    }
+    
+    .features-section {
+        padding: 80px 0;
+    }
+    
+    .feature-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        height: 100%;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    
+    .comparison-section {
+        padding: 80px 0;
+    }
+    
+    .comparison-paper {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 16px;
+    }
+    
+    .comparison-row {
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+    
+    .comparison-row:last-child {
+        border-bottom: none;
+    }
+    
+    .cta-section {
+        padding: 100px 0 80px 0;
+    }
+    
+    .footer-section {
+        padding: 40px 0 60px 0;
+    }
+    
+    .gap-2 {
+        gap: 8px;
+    }
+    
+    .gap-3 {
+        gap: 12px;
+    }
+    
+    .gap-4 {
+        gap: 16px;
+    }
+    
+    .gap-6 {
+        gap: 24px;
+    }
+    
+    .mt-12 {
+        margin-top: 48px;
+    }
+    
+    .mb-12 {
+        margin-bottom: 48px;
+    }
+    
+    @@media (max-width: 960px) {
+        .hero-title {
+            font-size: 2rem;
+        }
+        
+        .hero-section {
+            padding: 80px 0 40px 0;
+        }
+        
+        .features-section {
+            padding: 40px 0;
+        }
+    }
+</style>
+
+@code {
+    private List<ComparisonItem> comparisons = new()
+    {
+        new() { Feature = "Setup Time", VectorIcon = Icons.Material.Filled.Check, JiraText = "Days to configure" },
+        new() { Feature = "Learning Curve", VectorIcon = Icons.Material.Filled.Check, JiraText = "Weeks to master" },
+        new() { Feature = "Performance", VectorIcon = Icons.Material.Filled.Check, JiraText = "Sluggish with large data" },
+        new() { Feature = "Small Team Focus", VectorIcon = Icons.Material.Filled.Check, JiraText = "Enterprise-first" },
+        new() { Feature = "Real-time Updates", VectorIcon = Icons.Material.Filled.Check, JiraText = "Limited or none" }
+    };
+
+    public class ComparisonItem
+    {
+        public string Feature { get; set; }
+        public string VectorIcon { get; set; }
+        public string JiraText { get; set; }
+    }
+}
