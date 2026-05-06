@@ -15,7 +15,8 @@ public class Program
 
         builder.Services.AddMudServices();
         builder.Services.AddSingleton<ThemeService>();
-        builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+        builder.Services.AddSingleton<ICustomLocalStorageService,CustomLocalStorageService>();
+         builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
         await builder.Build().RunAsync();
     }

@@ -2,6 +2,7 @@
 
 @inherits LayoutComponentBase
 @inject ThemeService ThemeService
+@implements IDisposable
 
 <MudThemeProvider Theme="_currentTheme" IsDarkMode="_isDarkMode" IsDarkModeChanged="OnDarkModeChanged" />
 <MudDialogProvider />
@@ -14,19 +15,36 @@
 @code {
     private bool _isDarkMode;
     private MudTheme _currentTheme = new();
+    private bool _isInitialized = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // Initialize theme service (load from localStorage or detect system)
+        await ThemeService.InitializeThemeAsync();
+        
+        // Set initial values
         _isDarkMode = ThemeService.IsDarkMode;
+        UpdateTheme();
         
         // Subscribe to theme changes
-        ThemeService.OnThemeChanged += () =>
+        ThemeService.OnThemeChanged += OnThemeChangedHandler;
+        
+        _isInitialized = true;
+        await base.OnInitializedAsync();
+    }
+    
+    private void OnThemeChangedHandler()
+    {
+        if (_isInitialized)
         {
             _isDarkMode = ThemeService.IsDarkMode;
+            UpdateTheme();
             InvokeAsync(StateHasChanged);
-        };
-        
-        // Initialize theme
+        }
+    }
+    
+    private void UpdateTheme()
+    {
         _currentTheme = new MudTheme
         {
             PaletteLight = new PaletteLight
@@ -80,6 +98,14 @@
 
     private void OnDarkModeChanged(bool isDarkMode)
     {
-        ThemeService.IsDarkMode = isDarkMode;
+        if (ThemeService.IsDarkMode != isDarkMode)
+        {
+            ThemeService.IsDarkMode = isDarkMode;
+        }
+    }
+    
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= OnThemeChangedHandler;
     }
 }
