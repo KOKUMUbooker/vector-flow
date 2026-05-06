@@ -1,3 +1,5 @@
+namespace VectorFlow.Client.Services;
+
 public class ThemeService
 {
     public event Action? OnThemeChanged;

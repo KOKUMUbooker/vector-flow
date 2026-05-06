@@ -1,4 +1,6 @@
-﻿@inherits LayoutComponentBase
+﻿@using VectorFlow.Client.Services
+
+@inherits LayoutComponentBase
 @inject ThemeService ThemeService
 
 <MudThemeProvider Theme="_currentTheme" IsDarkMode="_isDarkMode" IsDarkModeChanged="OnDarkModeChanged" />
