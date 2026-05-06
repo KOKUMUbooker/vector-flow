@@ -1,0 +1,111 @@
+﻿@using VectorFlow.Client.Services
+
+@inherits LayoutComponentBase
+@inject ThemeService ThemeService
+@implements IDisposable
+
+<MudThemeProvider Theme="_currentTheme" IsDarkMode="_isDarkMode" IsDarkModeChanged="OnDarkModeChanged" />
+<MudDialogProvider />
+<MudLayout>
+    <NavBar />
+    @Body
+</MudLayout>
+<MudSnackbarProvider />
+
+@code {
+    private bool _isDarkMode;
+    private MudTheme _currentTheme = new();
+    private bool _isInitialized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize theme service (load from localStorage or detect system)
+        await ThemeService.InitializeThemeAsync();
+        
+        // Set initial values
+        _isDarkMode = ThemeService.IsDarkMode;
+        UpdateTheme();
+        
+        // Subscribe to theme changes
+        ThemeService.OnThemeChanged += OnThemeChangedHandler;
+        
+        _isInitialized = true;
+        await base.OnInitializedAsync();
+    }
+    
+    private void OnThemeChangedHandler()
+    {
+        if (_isInitialized)
+        {
+            _isDarkMode = ThemeService.IsDarkMode;
+            UpdateTheme();
+            InvokeAsync(StateHasChanged);
+        }
+    }
+    
+    private void UpdateTheme()
+    {
+        _currentTheme = new MudTheme
+        {
+            PaletteLight = new PaletteLight
+            {
+                Primary = "#1976D2",
+                Secondary = "#42A5F5",
+                Tertiary = "#0D47A1",
+                Info = "#2196F3",
+                Success = "#4CAF50",
+                Warning = "#FFC107",
+                Error = "#FF5252",
+                
+                AppbarBackground = "#1976D2",
+                AppbarText = "#FFFFFF",
+                
+                Background = "#F5F7FA",
+                BackgroundGray = "#E8EEF4",
+                
+                Surface = "#FFFFFF",
+                TextPrimary = "#1A202C",
+                TextSecondary = "#4A5568",
+                
+                DrawerBackground = "#FFFFFF",
+                DrawerText = "#1A202C",
+            },
+            PaletteDark = new PaletteDark
+            {
+                Primary = "#64B5F6",
+                Secondary = "#90CAF9",
+                Tertiary = "#42A5F5",
+                Info = "#64B5F6",
+                Success = "#81C784",
+                Warning = "#FFD54F",
+                Error = "#EF5350",
+                
+                AppbarBackground = "#1A202C",
+                AppbarText = "#E2E8F0",
+                
+                Background = "#121212",
+                BackgroundGray = "#1E1E1E",
+                
+                Surface = "#1E1E1E",
+                TextPrimary = "#F7FAFC",
+                TextSecondary = "#A0AEC0",
+                
+                DrawerBackground = "#1E1E1E",
+                DrawerText = "#F7FAFC",
+            }
+        };
+    }
+
+    private void OnDarkModeChanged(bool isDarkMode)
+    {
+        if (ThemeService.IsDarkMode != isDarkMode)
+        {
+            ThemeService.IsDarkMode = isDarkMode;
+        }
+    }
+    
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= OnThemeChangedHandler;
+    }
+}
