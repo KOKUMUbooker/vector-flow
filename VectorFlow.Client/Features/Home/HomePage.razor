@@ -30,10 +30,10 @@
             <MudGrid Justify="Justify.Center">
                 <MudItem xs="12" md="8" Class="text-center">
                     <MudText Typo="Typo.h2" Class="hero-title font-weight-black">
-                        Project Management <MudHighlighter Text="Simplified" HighlightedText="Simplified" Color="Color.Primary" Class="d-inline" />
+                        Project Management <MudHighlighter Text="Simplified" HighlightedText="Simplified" Class="d-inline" />
                     </MudText>
                     <MudText Typo="Typo.h5" Class="hero-subtitle mt-4 text-grey">
-                        The lightweight Jira alternative built for small dev teams.
+                        The lightweight project management tool built for small dev teams.
                         Speed, simplicity, and zero overhead.
                     </MudText>
                     <div class="d-flex justify-center gap-3 mt-8">
@@ -44,9 +44,6 @@
                             Watch Demo
                         </MudButton>
                     </div>
-                    <MudText Typo="Typo.body2" Class="mt-4 text-grey">
-                        No credit card required • Free for teams up to 5
-                    </MudText>
                 </MudItem>
             </MudGrid>
         </MudContainer>
@@ -161,29 +158,34 @@
             </MudGrid>
         </MudContainer>
 
-        <!-- Comparison Section -->
-        <MudContainer MaxWidth="MaxWidth.Large" Class="comparison-section">
-            <MudPaper Class="comparison-paper pa-8" Elevation="0">
+        <!-- Value Proposition Section -->
+        <MudContainer MaxWidth="MaxWidth.Large" Class="value-section">
+            <MudPaper Class="value-paper pa-8" Elevation="0">
                 <MudGrid Justify="Justify.Center">
                     <MudItem xs="12" md="10">
                         <MudText Typo="Typo.h4" Class="text-center font-weight-bold mb-8">
-                            Why teams choose Vector Flow over Jira
+                            Built for the way small teams actually work
                         </MudText>
                         
-                        @foreach (var comparison in comparisons)
-                        {
-                            <div class="comparison-row d-flex align-center justify-space-between py-3">
-                                <div class="d-flex align-center gap-3">
-                                    <MudIcon Icon="@comparison.VectorIcon" Color="Color.Success" Size="Size.Small" />
-                                    <MudText Typo="Typo.body1" Class="font-weight-medium">@comparison.Feature</MudText>
-                                </div>
-                                <div class="d-none d-md-flex gap-6">
-                                    <MudText Typo="Typo.body1" Color="Color.Primary" Class="font-weight-bold">Vector Flow</MudText>
-                                    <MudText Typo="Typo.body1" Color="Color.Default" Class="text-grey">@comparison.JiraText</MudText>
-                                </div>
-                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
-                            </div>
-                        }
+                        <MudGrid>
+                            @foreach (var value in valueProps)
+                            {
+                                <MudItem xs="12" md="4" Class="mb-6">
+                                    <MudPaper Elevation="2" Class="value-card pa-6" Style="height: 100%; border-radius: 20px;">
+                                        <div class="d-flex align-center gap-3 mb-4">
+                                            <MudAvatar Size="Size.Medium" Style="background: linear-gradient(135deg, var(--mud-palette-primary), var(--mud-palette-secondary));">
+                                                <MudIcon Icon="@value.Icon" Color="Color.Inherit" />
+                                            </MudAvatar>
+                                            <MudText Typo="Typo.h6" Class="font-weight-bold">@value.Title</MudText>
+                                        </div>
+                                        
+                                        <MudText Typo="Typo.body2" Color="Color.Inherit">
+                                            @value.Description
+                                        </MudText>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                        </MudGrid>
                     </MudItem>
                 </MudGrid>
             </MudPaper>
@@ -264,25 +266,23 @@
         box-shadow: 0 8px 24px rgba(0,0,0,0.1);
     }
     
-    .comparison-section {
-        padding: 80px 0;
-    }
-    
-    .comparison-paper {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    .value-paper {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
         border-radius: 16px;
     }
     
-    .comparison-row {
-        border-bottom: 1px solid rgba(0,0,0,0.08);
+    .value-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     
-    .comparison-row:last-child {
-        border-bottom: none;
+    .value-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important;
     }
     
     .cta-section {
         padding: 100px 0 80px 0;
+        background-color: transparent;
     }
     
     .footer-section {
@@ -312,7 +312,7 @@
     .mb-12 {
         margin-bottom: 48px;
     }
-    
+     
     @@media (max-width: 960px) {
         .hero-title {
             font-size: 2rem;
@@ -329,19 +329,44 @@
 </style>
 
 @code {
-    private List<ComparisonItem> comparisons = new()
+    private class ValueProposition
     {
-        new() { Feature = "Setup Time", VectorIcon = Icons.Material.Filled.Check, JiraText = "Days to configure" },
-        new() { Feature = "Learning Curve", VectorIcon = Icons.Material.Filled.Check, JiraText = "Weeks to master" },
-        new() { Feature = "Performance", VectorIcon = Icons.Material.Filled.Check, JiraText = "Sluggish with large data" },
-        new() { Feature = "Small Team Focus", VectorIcon = Icons.Material.Filled.Check, JiraText = "Enterprise-first" },
-        new() { Feature = "Real-time Updates", VectorIcon = Icons.Material.Filled.Check, JiraText = "Limited or none" }
-    };
-
-    public class ComparisonItem
-    {
-        public string Feature { get; set; }
-        public string VectorIcon { get; set; }
-        public string JiraText { get; set; }
+        public string Title { get; set; } = String.Empty;
+        public string Icon { get; set; } = String.Empty;
+        public string Description { get; set; } = String.Empty;
     }
+    
+    private List<ValueProposition> valueProps = new()
+    {
+        new() { 
+            Title = "Lightning Fast Setup", 
+            Icon = Icons.Material.Filled.Bolt,
+            Description = "Get your entire team up and running in under 5 minutes. No complex configuration or admin overhead."
+        },
+        new() { 
+            Title = "Intuitive by Design", 
+            Icon = Icons.Material.Filled.Psychology,
+            Description = "Zero learning curve. Your team will be productive from day one with our clean, straightforward interface."
+        },
+        new() { 
+            Title = "Real-time Collaboration", 
+            Icon = Icons.Material.Filled.People,
+            Description = "Built-in SignalR support means everyone sees updates instantly. No more 'is this up to date?' questions."
+        },
+        new() { 
+            Title = "Performance First", 
+            Icon = Icons.Material.Filled.Speed,
+            Description = "Blazing fast loads and snappy interactions. No lag, even with hundreds of issues."
+        },
+        new() { 
+            Title = "Transparent Pricing", 
+            Icon = Icons.Material.Filled.PriceCheck,
+            Description = "Simple, predictable pricing with no hidden fees or surprise charges. Free tier available forever."
+        },
+        new() { 
+            Title = "Built for Small Teams", 
+            Icon = Icons.Material.Filled.Diversity3,
+            Description = "Every feature is designed specifically for teams of 5-50 people. No enterprise bloat, just what you need."
+        }
+    };
 }
