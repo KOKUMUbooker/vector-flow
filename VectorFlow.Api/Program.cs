@@ -54,6 +54,7 @@ public class Program
         builder.Services.AddScoped<IIssueService, IssueService>();
         builder.Services.AddScoped<IProjectService, ProjectService>();
         builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
+        builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddControllers();
         builder.Services.AddAuthorization();
         builder.Services.AddOpenApi();
