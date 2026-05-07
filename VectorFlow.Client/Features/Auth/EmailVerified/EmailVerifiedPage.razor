@@ -1,0 +1,532 @@
+@page "/email-verified"
+@inject NavigationManager Nav
+
+<PageTitle>Email verified — VectorFlow</PageTitle>
+
+<div class="auth-shell">
+
+    <!-- LEFT PANEL -->
+    <div class="auth-panel">
+        <a href="/" class="panel-brand">VectorFlow</a>
+
+        <div class="panel-body">
+            <div class="panel-kicker @(_alreadyVerified ? "kicker-muted" : "")">
+                @(_alreadyVerified ? "Already active" : "You're in")
+            </div>
+            <p class="panel-headline">
+                @(_alreadyVerified ? "Your account\nis active." : "Ready to\nship.")
+            </p>
+
+            <!-- Celebration / status strip -->
+            @if (!_alreadyVerified)
+            {
+                <div class="confetti-strip">
+                    @foreach (var dot in _dots)
+                    {
+                        <div class="conf-dot" style="background:@dot.Color; animation-delay:@(dot.Delay)s; left:@(dot.X)%"></div>
+                    }
+                </div>
+
+                <div class="unlocked-list">
+                    <div class="unlock-row">
+                        <div class="unlock-check">✓</div>
+                        <div class="unlock-text">
+                            <span class="unlock-title">Workspace access</span>
+                            <span class="unlock-desc">Create or join a workspace immediately</span>
+                        </div>
+                    </div>
+                    <div class="unlock-row">
+                        <div class="unlock-check">✓</div>
+                        <div class="unlock-text">
+                            <span class="unlock-title">Real-time Kanban</span>
+                            <span class="unlock-desc">Start tracking issues with your team</span>
+                        </div>
+                    </div>
+                    <div class="unlock-row">
+                        <div class="unlock-check">✓</div>
+                        <div class="unlock-text">
+                            <span class="unlock-title">Invitation emails</span>
+                            <span class="unlock-desc">Invite teammates to collaborate</span>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="already-box">
+                    <div class="already-icon">✓</div>
+                    <div class="already-content">
+                        <div class="already-title">Verification already complete</div>
+                        <div class="already-desc">
+                            Your email was verified previously. Sign in to continue.
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="panel-footer">
+            <div class="footer-mono">
+                <span class="mono-label">status</span>
+                <span class="mono-value @(_alreadyVerified ? "" : "mono-success")">
+                    @(_alreadyVerified ? "already_verified" : "email_verified ✓")
+                </span>
+            </div>
+            @if (!string.IsNullOrEmpty(_email))
+            {
+                <div class="footer-mono">
+                    <span class="mono-label">account</span>
+                    <span class="mono-value">@_email</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="auth-form-side">
+        <div class="auth-form-card">
+
+            @if (!_alreadyVerified)
+            {
+                <!-- Full success -->
+                <div class="success-burst">
+                    <div class="burst-ring burst-ring-outer"></div>
+                    <div class="burst-ring burst-ring-inner"></div>
+                    <div class="burst-icon-wrap">
+                        <MudIcon Icon="@Icons.Material.Outlined.Verified" Class="burst-icon" />
+                    </div>
+                </div>
+
+                <MudText Typo="Typo.h3" Class="form-title mt-6 mb-2">Email verified!</MudText>
+                <MudText Typo="Typo.body1" Class="form-subtitle mb-2">
+                    Your VectorFlow account is now fully active.
+                </MudText>
+
+                @if (!string.IsNullOrEmpty(_email))
+                {
+                    <div class="email-chip">
+                        <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Style="font-size:14px; color: var(--mud-palette-success)" />
+                        <span>@_email</span>
+                    </div>
+                }
+
+                <div class="action-stack mt-8">
+                    <MudButton Href="/login"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               FullWidth="true"
+                               Class="submit-btn"
+                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        Sign in to your account
+                    </MudButton>
+
+                    <MudButton Href="/"
+                               Variant="Variant.Text"
+                               Color="Color.Default"
+                               FullWidth="true"
+                               Class="ghost-btn">
+                        Back to homepage
+                    </MudButton>
+                </div>
+            }
+            else
+            {
+                <!-- Already verified -->
+                <div class="form-icon-wrap form-icon-muted">
+                    <MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" Class="form-icon-muted-icon" />
+                </div>
+
+                <MudText Typo="Typo.h3" Class="form-title mb-2">Already verified</MudText>
+                <MudText Typo="Typo.body2" Class="form-subtitle mb-6">
+                    Your email address was already confirmed.
+                    You can sign straight in — no action needed.
+                </MudText>
+
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-6 info-alert">
+                    <MudText Typo="Typo.body2">
+                        If you didn't request this, your account is safe. No changes were made.
+                    </MudText>
+                </MudAlert>
+
+                <div class="action-stack">
+                    <MudButton Href="/login"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               FullWidth="true"
+                               Class="submit-btn"
+                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        Sign in
+                    </MudButton>
+
+                    <MudButton Href="/"
+                               Variant="Variant.Text"
+                               Color="Color.Default"
+                               FullWidth="true"
+                               Class="ghost-btn">
+                        Back to homepage
+                    </MudButton>
+                </div>
+            }
+
+        </div>
+    </div>
+
+</div>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
+
+    .auth-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* LEFT */
+    .auth-panel {
+        background: var(--mud-palette-dark, #0D0D0F);
+        color: var(--mud-palette-white);
+        display: flex;
+        flex-direction: column;
+        padding: 40px 48px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .auth-panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(var(--mud-palette-primary) 1px, transparent 1px),
+            linear-gradient(90deg, var(--mud-palette-primary) 1px, transparent 1px);
+        background-size: 48px 48px;
+        opacity: 0.04;
+        pointer-events: none;
+    }
+
+    /* Animated success glow */
+    .auth-panel::after {
+        content: '';
+        position: absolute;
+        top: 20%;
+        right: -80px;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, var(--mud-palette-success) 0%, transparent 65%);
+        opacity: 0.07;
+        pointer-events: none;
+        animation: glow-pulse 3s ease-in-out infinite;
+    }
+
+    @@keyframes glow-pulse {
+        0%, 100% { opacity: 0.07; transform: scale(1); }
+        50%       { opacity: 0.12; transform: scale(1.1); }
+    }
+
+    .panel-brand {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: 1.25rem;
+        color: var(--mud-palette-white);
+        text-decoration: none;
+        position: relative;
+        z-index: 1;
+    }
+
+    .panel-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .panel-kicker {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--mud-palette-success);
+        margin-bottom: 16px;
+    }
+
+    .kicker-muted { color: var(--mud-palette-primary) !important; }
+
+    .panel-headline {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: clamp(2rem, 3vw, 3rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        color: var(--mud-palette-white);
+        margin: 0 0 36px;
+        white-space: pre-line;
+    }
+
+    /* Confetti dots */
+    .confetti-strip {
+        position: relative;
+        height: 32px;
+        margin-bottom: 28px;
+    }
+
+    .conf-dot {
+        position: absolute;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        top: 0;
+        animation: conf-fall 1.8s ease both infinite;
+    }
+
+    @@keyframes conf-fall {
+        0%   { transform: translateY(-8px) scale(0); opacity: 0; }
+        20%  { opacity: 1; transform: translateY(0) scale(1); }
+        80%  { opacity: 1; }
+        100% { transform: translateY(28px) scale(0.5); opacity: 0; }
+    }
+
+    /* Unlocked features */
+    .unlocked-list { display: flex; flex-direction: column; gap: 14px; }
+
+    .unlock-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        animation: feed-in 0.4s ease both;
+    }
+
+    .unlock-row:nth-child(1) { animation-delay: 0.2s; }
+    .unlock-row:nth-child(2) { animation-delay: 0.35s; }
+    .unlock-row:nth-child(3) { animation-delay: 0.5s; }
+
+    @@keyframes feed-in {
+        from { opacity: 0; transform: translateX(-8px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .unlock-check {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: var(--mud-palette-success);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .unlock-text  { display: flex; flex-direction: column; gap: 2px; }
+    .unlock-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+    .unlock-desc  { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.4; }
+
+    /* Already-verified card */
+    .already-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 18px;
+    }
+
+    .already-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .already-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px; }
+    .already-desc  { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.5; }
+
+    /* Footer mono */
+    .panel-footer { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
+
+    .footer-mono {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+    }
+
+    .mono-label  { color: rgba(255,255,255,0.25); }
+    .mono-value  { color: rgba(255,255,255,0.5); }
+    .mono-success { color: var(--mud-palette-success); }
+
+    /* RIGHT */
+    .auth-form-side {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 48px;
+        background: var(--mud-palette-background);
+    }
+
+    .auth-form-card {
+        width: 100%;
+        max-width: 400px;
+        animation: card-rise 0.5s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    @@keyframes card-rise {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Burst animation */
+    .success-burst {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .burst-ring {
+        position: absolute;
+        border-radius: 50%;
+        border: 2px solid var(--mud-palette-success);
+        animation: ring-expand 1.2s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    .burst-ring-outer {
+        width: 80px; height: 80px;
+        opacity: 0.25;
+        animation-delay: 0.1s;
+    }
+
+    .burst-ring-inner {
+        width: 60px; height: 60px;
+        opacity: 0.5;
+    }
+
+    @@keyframes ring-expand {
+        from { transform: scale(0.5); opacity: 0; }
+        to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .burst-icon-wrap {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(26,122,82,0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+        animation: icon-pop 0.5s cubic-bezier(.4,0,.2,1) 0.3s both;
+    }
+
+    @@keyframes icon-pop {
+        from { transform: scale(0); opacity: 0; }
+        to   { transform: scale(1); opacity: 1; }
+    }
+
+    .burst-icon { color: var(--mud-palette-success) !important; font-size: 26px !important; }
+
+    .form-title    { letter-spacing: -0.02em !important; color: var(--mud-palette-text-primary) !important; }
+    .form-subtitle { color: var(--mud-palette-text-secondary) !important; }
+
+    /* Verified email chip */
+    .email-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(26,122,82,0.08);
+        border: 1px solid rgba(26,122,82,0.25);
+        border-radius: 99px;
+        padding: 5px 12px;
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        color: var(--mud-palette-success);
+        margin-top: 8px;
+    }
+
+    /* Already-verified icon box */
+    .form-icon-wrap {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--mud-palette-primary-lighten);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    .form-icon-muted { background: var(--mud-palette-background-grey) !important; }
+    .form-icon-muted-icon { color: var(--mud-palette-primary) !important; font-size: 24px !important; }
+
+    .info-alert { border-radius: 10px !important; }
+
+    .action-stack { display: flex; flex-direction: column; gap: 10px; }
+
+    .submit-btn {
+        border-radius: 10px !important;
+        height: 48px !important;
+        font-size: 14px !important;
+        letter-spacing: 0 !important;
+    }
+
+    .ghost-btn { border-radius: 10px !important; }
+
+    @@media (max-width: 768px) {
+        .auth-shell     { grid-template-columns: 1fr; }
+        .auth-panel     { display: none; }
+        .auth-form-side { padding: 40px 24px; min-height: 100vh; }
+    }
+</style>
+
+@code {
+    private bool _alreadyVerified;
+    private string _email = string.Empty;
+
+    private record ConfDot(string Color, double Delay, int X);
+
+    private readonly List<ConfDot> _dots =
+    [
+        new("var(--mud-palette-primary)", 0.0,  8),
+        new("var(--mud-palette-success)", 0.3, 22),
+        new("var(--mud-palette-warning)", 0.1, 38),
+        new("var(--mud-palette-error)",   0.5, 52),
+        new("var(--mud-palette-info)",    0.2, 67),
+        new("var(--mud-palette-primary)", 0.4, 80),
+        new("var(--mud-palette-success)", 0.15,92),
+    ];
+
+    protected override void OnInitialized()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        // ?already=true  → already-verified path
+        if (query.TryGetValue("already", out var already) && already == "true")
+        {
+            _alreadyVerified = true;
+            return;
+        }
+
+        // ?email=...  → success path
+        if (query.TryGetValue("email", out var email))
+        {
+            _email = email.ToString();
+        }
+    }
+}
