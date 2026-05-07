@@ -1,0 +1,625 @@
+﻿@page "/register"
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Create your workspace — VectorFlow</PageTitle>
+
+<div class="auth-shell">
+
+    <!-- LEFT PANEL — decorative -->
+    <div class="auth-panel">
+        <a href="/" class="panel-brand">VectorFlow</a>
+
+        <div class="panel-body">
+            <div class="panel-kicker">Get started free</div>
+            <p class="panel-headline">Ship faster.<br /><em>Together.</em></p>
+
+            <!-- Feature checklist -->
+            <div class="feature-list">
+                @foreach (var item in _perks)
+                {
+                    <div class="perk-row">
+                        <div class="perk-check">✓</div>
+                        <div class="perk-content">
+                            <span class="perk-title">@item.Title</span>
+                            <span class="perk-desc">@item.Desc</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Kanban mini-badge strip -->
+        <div class="panel-footer">
+            <div class="badge-strip">
+                <span class="board-badge">Backlog</span>
+                <span class="badge-arrow">→</span>
+                <span class="board-badge badge-active">In Progress</span>
+                <span class="badge-arrow">→</span>
+                <span class="board-badge badge-done">Done</span>
+            </div>
+            <p class="panel-tagline">Real-time Kanban for the whole team.</p>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL — form -->
+    <div class="auth-form-side">
+        <div class="auth-form-card">
+
+            <div class="form-header">
+                <MudText Typo="Typo.h3" Class="form-title">Create your account</MudText>
+                <MudText Typo="Typo.body2" Class="form-subtitle">
+                    Already have one?
+                    <MudLink Href="/login" Color="Color.Primary" Underline="Underline.Always">Sign in</MudLink>
+                </MudText>
+            </div>
+
+            <MudForm @ref="_form" @bind-IsValid="_isValid" Class="auth-mud-form">
+
+                <div class="field-group">
+                    <label class="field-label">Display name</label>
+                    <MudTextField @bind-Value="_model.DisplayName"
+                                  Placeholder="Jane Smith"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  RequiredError="Display name is required"
+                                  MaxLength="100"
+                                  Counter="100"
+                                  Class="auth-field"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Outlined.Person"
+                                  AdornmentColor="Color.Default" />
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">Work email</label>
+                    <MudTextField @bind-Value="_model.Email"
+                                  Placeholder="jane@company.com"
+                                  InputType="InputType.Email"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  RequiredError="Email is required"
+                                  Validation="@(new EmailAddressAttribute() { ErrorMessage = "Enter a valid email address" })"
+                                  Class="auth-field"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Outlined.AlternateEmail"
+                                  AdornmentColor="Color.Default" />
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">Password</label>
+                    <MudTextField @bind-Value="_model.Password"
+                                  Placeholder="At least 8 characters"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  RequiredError="Password is required"
+                                  Validation="@ValidatePassword"
+                                  Class="auth-field"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
+                                  OnAdornmentClick="() => _showPassword = !_showPassword"
+                                  AdornmentColor="Color.Default"
+                                  @bind-Value:after="OnPasswordChanged" />
+
+                    <!-- Password strength meter -->
+                    @if (!string.IsNullOrEmpty(_model.Password))
+                    {
+                        <div class="strength-meter">
+                            <div class="strength-track">
+                                @for (int i = 0; i < 4; i++)
+                                {
+                                    var filled = i < _passwordStrength;
+                                    <div class="strength-seg @(filled ? $"strength-{_passwordStrength}" : "")"></div>
+                                }
+                            </div>
+                            <span class="strength-label" style="color:@_strengthColor">@_strengthLabel</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">Confirm password</label>
+                    <MudTextField @bind-Value="_confirmPassword"
+                                  Placeholder="••••••••"
+                                  InputType="@(_showConfirm ? InputType.Text : InputType.Password)"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  RequiredError="Please confirm your password"
+                                  Validation="@ValidateConfirm"
+                                  Class="auth-field"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showConfirm ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
+                                  OnAdornmentClick="() => _showConfirm = !_showConfirm"
+                                  AdornmentColor="Color.Default" />
+                </div>
+
+                <MudCheckBox @bind-Value="_agreedToTerms" Color="Color.Primary" Class="terms-check">
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        I agree to the
+                        <MudLink Href="/terms" Color="Color.Primary">Terms of Service</MudLink>
+                        and
+                        <MudLink Href="/privacy" Color="Color.Primary">Privacy Policy</MudLink>
+                    </MudText>
+                </MudCheckBox>
+
+                <MudButton OnClick="HandleRegister"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Large"
+                           FullWidth="true"
+                           Disabled="@(_loading || !_agreedToTerms)"
+                           Class="submit-btn">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Creating your workspace…</span>
+                    }
+                    else
+                    {
+                        <span>Create your workspace →</span>
+                    }
+                </MudButton>
+
+            </MudForm>
+
+            <div class="form-divider">
+                <span>or sign up with</span>
+            </div>
+
+            <div class="oauth-row">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                           StartIcon="@Icons.Custom.Brands.GitHub" Class="oauth-btn">
+                    GitHub
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                           StartIcon="@Icons.Custom.Brands.Google" Class="oauth-btn">
+                    Google
+                </MudButton>
+            </div>
+
+        </div>
+
+        <MudText Typo="Typo.caption" Class="form-legal">
+            We'll send a verification email to confirm your address.
+        </MudText>
+    </div>
+
+</div>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
+
+    /* ── SHELL ─────────────────────────────────────────────────────────── */
+    .auth-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* ── LEFT PANEL ────────────────────────────────────────────────────── */
+    .auth-panel {
+        background: var(--mud-palette-dark, #0D0D0F);
+        color: var(--mud-palette-white);
+        display: flex;
+        flex-direction: column;
+        padding: 40px 48px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .auth-panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(var(--mud-palette-primary) 1px, transparent 1px),
+            linear-gradient(90deg, var(--mud-palette-primary) 1px, transparent 1px);
+        background-size: 48px 48px;
+        opacity: 0.04;
+        pointer-events: none;
+    }
+
+    .auth-panel::after {
+        content: '';
+        position: absolute;
+        bottom: -100px;
+        right: -100px;
+        width: 480px;
+        height: 480px;
+        background: radial-gradient(circle, var(--mud-palette-primary) 0%, transparent 65%);
+        opacity: 0.07;
+        pointer-events: none;
+    }
+
+    .panel-brand {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: 1.25rem;
+        color: var(--mud-palette-white);
+        text-decoration: none;
+        position: relative;
+        z-index: 1;
+    }
+
+    .panel-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .panel-kicker {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--mud-palette-primary);
+        margin-bottom: 16px;
+    }
+
+    .panel-headline {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: clamp(2rem, 3vw, 3rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        color: var(--mud-palette-white);
+        margin: 0 0 40px;
+    }
+
+    .panel-headline em {
+        font-style: italic;
+        color: var(--mud-palette-primary);
+    }
+
+    /* Perk checklist */
+    .feature-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .perk-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        animation: feed-in 0.4s ease both;
+    }
+
+    .perk-row:nth-child(1) { animation-delay: 0.1s; }
+    .perk-row:nth-child(2) { animation-delay: 0.2s; }
+    .perk-row:nth-child(3) { animation-delay: 0.3s; }
+
+    @@keyframes feed-in {
+        from { opacity: 0; transform: translateX(-10px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .perk-check {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: var(--mud-palette-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .perk-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .perk-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255,255,255,0.9);
+    }
+
+    .perk-desc {
+        font-size: 12px;
+        color: rgba(255,255,255,0.45);
+        line-height: 1.4;
+    }
+
+    /* Footer badge strip */
+    .panel-footer {
+        position: relative;
+        z-index: 1;
+    }
+
+    .badge-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .board-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        padding: 3px 9px;
+        border-radius: 99px;
+        border: 1px solid rgba(255,255,255,0.12);
+        color: rgba(255,255,255,0.4);
+    }
+
+    .badge-active {
+        border-color: var(--mud-palette-primary);
+        color: var(--mud-palette-primary);
+        background: rgba(67,57,202,0.12);
+    }
+
+    .badge-done {
+        border-color: var(--mud-palette-success);
+        color: var(--mud-palette-success);
+        background: rgba(26,122,82,0.1);
+    }
+
+    .badge-arrow {
+        font-size: 11px;
+        color: rgba(255,255,255,0.2);
+    }
+
+    .panel-tagline {
+        font-size: 12px;
+        color: rgba(255,255,255,0.3);
+        font-family: 'DM Mono', monospace;
+        margin: 0;
+    }
+
+    /* ── RIGHT / FORM SIDE ─────────────────────────────────────────────── */
+    .auth-form-side {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 48px;
+        background: var(--mud-palette-background);
+        gap: 20px;
+        overflow-y: auto;
+    }
+
+    .auth-form-card {
+        width: 100%;
+        max-width: 400px;
+        animation: card-rise 0.5s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    @@keyframes card-rise {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-header {
+        margin-bottom: 32px;
+    }
+
+    .form-title {
+        letter-spacing: -0.02em !important;
+        margin-bottom: 6px !important;
+        color: var(--mud-palette-text-primary) !important;
+    }
+
+    .form-subtitle {
+        color: var(--mud-palette-text-secondary) !important;
+    }
+
+    .auth-mud-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        font-family: 'DM Sans', system-ui, sans-serif;
+        letter-spacing: 0.01em;
+    }
+
+    .auth-field .mud-input-outlined .mud-notched-outline {
+        border-radius: 10px !important;
+    }
+
+    /* Password strength */
+    .strength-meter {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+    }
+
+    .strength-track {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+    }
+
+    .strength-seg {
+        flex: 1;
+        height: 3px;
+        border-radius: 99px;
+        background: var(--mud-palette-lines-default);
+        transition: background 0.25s;
+    }
+
+    .strength-seg.strength-1 { background: var(--mud-palette-error); }
+    .strength-seg.strength-2 { background: var(--mud-palette-warning); }
+    .strength-seg.strength-3 { background: var(--mud-palette-info); }
+    .strength-seg.strength-4 { background: var(--mud-palette-success); }
+
+    .strength-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        width: 48px;
+        text-align: right;
+        transition: color 0.25s;
+    }
+
+    .terms-check {
+        margin-top: -4px;
+    }
+
+    .submit-btn {
+        border-radius: 10px !important;
+        height: 48px !important;
+        font-size: 14px !important;
+        letter-spacing: 0 !important;
+    }
+
+    .form-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 24px 0 16px;
+        color: var(--mud-palette-text-disabled);
+        font-size: 12px;
+    }
+
+    .form-divider::before,
+    .form-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--mud-palette-divider);
+    }
+
+    .oauth-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .oauth-btn {
+        border-radius: 10px !important;
+        border-color: var(--mud-palette-divider) !important;
+        font-size: 13px !important;
+    }
+
+    .form-legal {
+        color: var(--mud-palette-text-disabled) !important;
+        text-align: center;
+        max-width: 340px;
+    }
+
+    /* ── RESPONSIVE ────────────────────────────────────────────────────── */
+    @@media (max-width: 768px) {
+        .auth-shell { grid-template-columns: 1fr; }
+        .auth-panel { display: none; }
+        .auth-form-side { padding: 40px 24px; min-height: 100vh; }
+    }
+</style>
+
+@code {
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading;
+    private bool _showPassword;
+    private bool _showConfirm;
+    private bool _agreedToTerms;
+    private string _confirmPassword = string.Empty;
+
+    private int _passwordStrength;
+    private string _strengthLabel = string.Empty;
+    private string _strengthColor = string.Empty;
+
+    private readonly RegisterRequest _model = new();
+
+    private record Perk(string Title, string Desc);
+
+    private readonly List<Perk> _perks =
+    [
+        new("Real-time Kanban board", "Drag-and-drop issues with live updates for every teammate."),
+        new("Workspace & team roles", "Owner, Admin, and Member — permissions enforced server-side."),
+        new("Full activity audit trail", "Every change logged: who, what, and when. Forever.")
+    ];
+
+    private void OnPasswordChanged()
+    {
+        var pw = _model.Password;
+        if (string.IsNullOrEmpty(pw)) { _passwordStrength = 0; return; }
+
+        int score = 0;
+        if (pw.Length >= 8)  score++;
+        if (pw.Length >= 12) score++;
+        if (System.Text.RegularExpressions.Regex.IsMatch(pw, @"[^a-zA-Z0-9]")) score++;
+        if (System.Text.RegularExpressions.Regex.IsMatch(pw, @"\d") &&
+            System.Text.RegularExpressions.Regex.IsMatch(pw, @"[A-Z]")) score++;
+
+        _passwordStrength = Math.Max(1, score);
+
+        (_strengthLabel, _strengthColor) = _passwordStrength switch
+        {
+            1 => ("Weak",   "var(--mud-palette-error)"),
+            2 => ("Fair",   "var(--mud-palette-warning)"),
+            3 => ("Good",   "var(--mud-palette-info)"),
+            _ => ("Strong", "var(--mud-palette-success)")
+        };
+    }
+
+    private string? ValidatePassword(string pw)
+    {
+        if (string.IsNullOrWhiteSpace(pw)) return "Password is required";
+        if (pw.Length < 8) return "Password must be at least 8 characters";
+        return null;
+    }
+
+    private string? ValidateConfirm(string confirm)
+    {
+        if (confirm != _model.Password) return "Passwords do not match";
+        return null;
+    }
+
+    private async Task HandleRegister()
+    {
+        await _form.Validate();
+        if (!_isValid || !_agreedToTerms) return;
+
+        _loading = true;
+        StateHasChanged();
+
+        // TODO: call your registration service / API here
+        // e.g. await AuthService.RegisterAsync(_model);
+
+        await Task.Delay(1400); // remove — placeholder
+        _loading = false;
+        Snackbar.Add("Account created! Check your email to verify.", Severity.Success);
+        Nav.NavigateTo("/login");
+    }
+
+    public class RegisterRequest
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string DisplayName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MinLength(8)]
+        public string Password { get; set; } = string.Empty;
+    }
+}
