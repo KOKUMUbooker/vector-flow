@@ -1,0 +1,240 @@
+﻿@page "/login"
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@using System.ComponentModel.DataAnnotations
+@using VectorFlow.Client.Features.Auth.Login.Components
+@using VectorFlow.Client.Features.Auth.Common;
+
+<PageTitle>Sign in — VectorFlow</PageTitle>
+
+<div class="auth-shell">
+
+    <!-- LEFT PANEL — decorative -->
+    <LeftPanel/>
+
+    <!-- RIGHT PANEL — form -->
+    <div class="auth-form-side">
+        <div class="auth-form-card">
+
+            <div class="form-header">
+                <MudText Typo="Typo.h3" Class="form-title">Sign in</MudText>
+                <MudText Typo="Typo.body2" Class="form-subtitle">
+                    No account yet?
+                    <MudLink Href="/register" Color="Color.Primary" Underline="Underline.Always">Create one free</MudLink>
+                </MudText>
+            </div>
+
+            <MudForm @ref="_form" @bind-IsValid="_isValid" Class="auth-mud-form">
+                <div class="field-group">
+                    <label class="field-label">Email</label>
+                    <MudTextField @bind-Value="_model.Email"
+                        Placeholder="you@company.com"
+                        InputType="InputType.Email"
+                        Variant="Variant.Outlined"
+                        Margin="Margin.Dense"
+                        Required="true"
+                        RequiredError="Email is required"
+                        Validation="@(new EmailAddressAttribute() { ErrorMessage = "Enter a valid email" })"
+                        Class="auth-field"
+                        Adornment="Adornment.Start"
+                        AdornmentIcon="@Icons.Material.Outlined.AlternateEmail"
+                        AdornmentColor="Color.Default" />
+                </div>
+
+                <div class="field-group">
+                    <div class="field-label-row">
+                        <label class="field-label">Password</label>
+                        <MudLink Href="/forgot-password" Typo="Typo.caption" Color="Color.Primary">
+                            Forgot password?
+                        </MudLink>
+                    </div>
+                    <MudTextField @bind-Value="_model.Password"
+                        Placeholder="••••••••"
+                        InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                        Variant="Variant.Outlined"
+                        Margin="Margin.Dense"
+                        Required="true"
+                        RequiredError="Password is required"
+                        Class="auth-field"
+                        Adornment="Adornment.End"
+                        AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
+                        OnAdornmentClick="() => _showPassword = !_showPassword"
+                        AdornmentColor="Color.Default" />
+                </div>
+
+                <MudButton OnClick="HandleLogin"
+                    Variant="Variant.Filled"
+                    Color="Color.Primary"
+                    Size="Size.Large"
+                    FullWidth="true"
+                    Disabled="_loading"
+                    Class="submit-btn mt-2">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Signing in…</span>
+                    }
+                    else
+                    {
+                        <span>Sign in to VectorFlow</span>
+                    }
+                </MudButton>
+
+            </MudForm>
+
+             <SocialSignIns/>
+        </div>
+
+        <MudText Typo="Typo.caption" Class="form-legal">
+            By signing in you agree to our
+            <MudLink Href="/terms" Color="Color.Default" Underline="Underline.Always" Typo="Typo.caption">Terms</MudLink>
+            and
+            <MudLink Href="/privacy" Color="Color.Default" Underline="Underline.Always" Typo="Typo.caption">Privacy Policy</MudLink>.
+        </MudText>
+    </div>
+
+</div>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
+
+    /* ── SHELL ─────────────────────────────────────────────────────────── */
+    .auth-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    /* ── RIGHT / FORM SIDE ─────────────────────────────────────────────── */
+    .auth-form-side {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 48px;
+        background: var(--mud-palette-background);
+        gap: 20px;
+    }
+
+    .auth-form-card {
+        width: 100%;
+        max-width: 400px;
+        animation: card-rise 0.5s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    @@keyframes card-rise {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-header {
+        margin-bottom: 32px;
+    }
+
+    .form-title {
+        letter-spacing: -0.02em !important;
+        margin-bottom: 6px !important;
+        color: var(--mud-palette-text-primary) !important;
+    }
+
+    .form-subtitle {
+        color: var(--mud-palette-text-secondary) !important;
+    }
+
+    /* Field groups */
+    .auth-mud-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        font-family: 'DM Sans', system-ui, sans-serif;
+        letter-spacing: 0.01em;
+    }
+
+    .field-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    /* Override MudTextField border-radius to match brand */
+    .auth-field .mud-input-outlined .mud-notched-outline {
+        border-radius: 10px !important;
+    }
+
+    .submit-btn {
+        border-radius: 10px !important;
+        height: 48px !important;
+        font-size: 14px !important;
+        letter-spacing: 0 !important;
+    }
+
+    .form-legal {
+        color: var(--mud-palette-text-disabled) !important;
+        text-align: center;
+        max-width: 320px;
+    }
+
+    /* ── RESPONSIVE ────────────────────────────────────────────────────── */
+    @@media (max-width: 768px) {
+        .auth-shell { grid-template-columns: 1fr; }
+        .auth-panel { display: none; }
+        .auth-form-side { padding: 40px 24px; }
+    }
+</style>
+
+@code {
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading;
+    private bool _showPassword;
+
+    private readonly LoginRequest _model = new();
+
+    private record FeedItem(string Initials, string AvatarBg, string Name, string Action, string Target, string Time);
+
+    private readonly List<FeedItem> _feed =
+    [
+        new("BM", "#4339CA", "Ben M.", "moved", "VF-05 to Done", "2m ago"),
+        new("JS", "#1A7A52", "Jana S.", "commented on", "VF-08", "11m ago"),
+        new("AK", "#92560F", "Alex K.", "created", "VF-12", "34m ago"),
+    ];
+
+    private async Task HandleLogin()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _loading = true;
+        StateHasChanged();
+
+        // TODO: call your service / API here
+        // e.g. await AuthService.LoginAsync(_model);
+
+        await Task.Delay(1200); // remove — placeholder
+        _loading = false;
+        Snackbar.Add("Signed in successfully!", Severity.Success);
+        Nav.NavigateTo("/dashboard");
+    }
+
+    public class LoginRequest
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = string.Empty;
+    }
+}
