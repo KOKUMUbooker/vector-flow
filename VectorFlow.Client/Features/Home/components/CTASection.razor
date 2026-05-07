@@ -1,11 +1,32 @@
-<MudContainer MaxWidth="MaxWidth.Large" Class="cta-section text-center">
-    <MudText Typo="Typo.h3" Class="font-weight-bold">
-        Ready to simplify your workflow?
-    </MudText>
-    <MudText Typo="Typo.body1" Class="mt-4 mb-8 text-grey">
-        Join hundreds of small teams shipping faster with Vector Flow
-    </MudText>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">
-        Start Your Free Trial
-    </MudButton>
-</MudContainer>
+<div class="cta-section">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="text-center">
+        <MudText Typo="Typo.h2" Style="font-family: var(--vf-serif); margin-bottom: 0.75rem;">Ready to track what matters?</MudText>
+        <MudText Typo="Typo.body1" Style="margin-bottom: 2rem;">
+            VectorFlow is for small dev teams who want to stay focused, not buried in tooling.
+        </MudText>
+        <div class="cta-actions">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="/register">
+                Create your workspace <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Large" Href="/login">
+                Sign in
+            </MudButton>
+        </div>
+    </MudContainer>
+</div>
+
+<style>
+     /* CTA Section */
+    .cta-section {
+        padding: 80px 0;
+        border-top: 1px solid rgba(67,57,202,0.12);
+        border-bottom: 1px solid rgba(67,57,202,0.12);
+    }
+    
+    .cta-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+</style>

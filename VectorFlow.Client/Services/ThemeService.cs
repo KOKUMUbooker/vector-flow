@@ -1,121 +1,125 @@
-using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
 namespace VectorFlow.Client.Services;
 
-public class ThemeService
+/// <summary>
+/// Manages light/dark theme state for the app.
+///
+/// Priority order on startup:
+///   1. If user has previously chosen a theme manually → honour that choice.
+///   2. If user has never touched the toggle → read the OS preference.
+///   3. If everything fails → default to light mode.
+///
+/// Stored keys in localStorage:
+///   "vf:useSystemPreference"  bool  — whether to follow the OS
+///   "vf:isDarkMode"           bool  — the manually chosen value (only used when above is false)
+/// </summary>
+public class ThemeService(
+    ICustomLocalStorageService localStorage,
+    IJSRuntime jsRuntime)
 {
-    private readonly ICustomLocalStorageService _localStorage;
-    private readonly IJSRuntime _jsRuntime;
-    
+    // Prefix all keys to avoid collisions with other libs using localStorage
+    private const string KeyUseSystem = "vf:useSystemPreference";
+    private const string KeyIsDark = "vf:isDarkMode";
+
     public event Action? OnThemeChanged;
-    
+
     private bool _isDarkMode;
-    private bool _useSystemPreference = true;
-    
-    public ThemeService(ICustomLocalStorageService localStorage, IJSRuntime jsRuntime)
-    {
-        _localStorage = localStorage;
-        _jsRuntime = jsRuntime;
-    }
-    
+    private bool _useSystemPreference = true; // default before init
+
+    // ── Public state ──────────────────────────────────────────────────────────
+
     public bool IsDarkMode
     {
         get => _isDarkMode;
         set
         {
-            if (_isDarkMode != value)
-            {
-                _isDarkMode = value;
-                _useSystemPreference = false;
-                OnThemeChanged?.Invoke();
-                _ = SaveThemePreference();
-            }
+            if (_isDarkMode == value) return;
+            _isDarkMode = value;
+            _useSystemPreference = false; // user made a manual choice
+            OnThemeChanged?.Invoke();
+            _ = PersistAsync();
         }
     }
-    
+
     public bool UseSystemPreference
     {
         get => _useSystemPreference;
         set
         {
-            if (_useSystemPreference != value)
-            {
-                _useSystemPreference = value;
-                if (value)
-                {
-                    _ = DetectSystemTheme();
-                }
-                OnThemeChanged?.Invoke();
-                _ = SaveThemePreference();
-            }
+            if (_useSystemPreference == value) return;
+            _useSystemPreference = value;
+            if (value) _ = ApplySystemThemeAsync();
+            OnThemeChanged?.Invoke();
+            _ = PersistAsync();
         }
     }
-    
-    public async Task InitializeThemeAsync()
+
+    // ── Initialisation (called once from MainLayout.OnInitializedAsync) ───────
+
+    public async Task InitializeAsync()
     {
         try
         {
-            var savedUseSystem = await _localStorage.GetItemAsync<bool>("useSystemPreference");
-            _useSystemPreference = savedUseSystem;
-            
-            if (_useSystemPreference)
+            // Check if the user has previously saved a preference
+            var savedUseSystem = await localStorage.GetItemAsync<bool?>(KeyUseSystem);
+
+            if (savedUseSystem is null)
             {
-                await DetectSystemTheme();
+                // First visit — no saved preference at all, follow the OS
+                _useSystemPreference = true;
+                await ApplySystemThemeAsync();
+            }
+            else if (savedUseSystem == true)
+            {
+                _useSystemPreference = true;
+                await ApplySystemThemeAsync();
             }
             else
             {
-                var savedTheme = await _localStorage.GetItemAsync<bool>("themePreference");
-                _isDarkMode = savedTheme;
+                // User previously made a manual choice
+                _useSystemPreference = false;
+                _isDarkMode = await localStorage.GetItemAsync<bool>(KeyIsDark);
             }
-            
-            OnThemeChanged?.Invoke();
         }
         catch
         {
-            await DetectSystemTheme();
+            // Last resort fallback — light mode
+            _useSystemPreference = true;
+            _isDarkMode = false;
         }
+
+        OnThemeChanged?.Invoke();
     }
-    
-    private async Task DetectSystemTheme()
+
+    // ── Toggle helper (used by the navbar button) ─────────────────────────────
+
+    public void Toggle() => IsDarkMode = !IsDarkMode;
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Reads the OS colour scheme preference via the standard
+    /// CSS media query API — no custom JS function required.
+    /// </summary>
+    private async Task ApplySystemThemeAsync()
     {
         try
         {
-            // Use a more reliable approach
-            var systemDarkMode = await _jsRuntime.InvokeAsync<bool>("window.getSystemTheme");
-            _isDarkMode = systemDarkMode;
+            _isDarkMode = await jsRuntime.InvokeAsync<bool>(
+                "eval", "window.matchMedia('(prefers-color-scheme: dark)').matches");
         }
         catch
         {
-            // Fallback to checking via matchMedia
-            try
-            {
-                var result = await _jsRuntime.InvokeAsync<bool>("eval", "window.matchMedia('(prefers-color-scheme: dark)').matches");
-                _isDarkMode = result;
-            }
-            catch
-            {
-                _isDarkMode = false; // Default to light mode
-            }
+            _isDarkMode = false;
         }
     }
-    
-    private async Task SaveThemePreference()
+
+    private async Task PersistAsync()
     {
-        await _localStorage.SetItemAsync("useSystemPreference", _useSystemPreference);
-        if (!_useSystemPreference)
-        {
-            await _localStorage.SetItemAsync("themePreference", _isDarkMode);
-        }
-    }
-    
-    public async Task ToggleTheme()
-    {
-        IsDarkMode = !IsDarkMode;
-    }
-    
-    public async Task SetUseSystemPreference(bool useSystem)
-    {
-        UseSystemPreference = useSystem;
+        await localStorage.SetItemAsync(KeyUseSystem, _useSystemPreference);
+        // Always persist the current value so we can restore it
+        // if the user later switches back from system → manual
+        await localStorage.SetItemAsync(KeyIsDark, _isDarkMode);
     }
 }

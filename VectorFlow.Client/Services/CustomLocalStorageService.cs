@@ -11,44 +11,30 @@ public interface ICustomLocalStorageService
     Task ClearAsync();
 }
 
-public class CustomLocalStorageService : ICustomLocalStorageService
+public class CustomLocalStorageService(IJSRuntime jsRuntime) : ICustomLocalStorageService
 {
-    private readonly IJSRuntime _jsRuntime;
-    
-    public CustomLocalStorageService(IJSRuntime jsRuntime)
-    {
-        _jsRuntime = jsRuntime;
-    }
-    
     public async Task SetItemAsync<T>(string key, T value)
     {
-        var serializedValue = JsonSerializer.Serialize(value);
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", key, serializedValue);
+        var json = JsonSerializer.Serialize(value);
+        await jsRuntime.InvokeVoidAsync("localStorage.setItem", key, json);
     }
-    
+
     public async Task<T?> GetItemAsync<T>(string key)
     {
         try
         {
-            var serializedValue = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
-            if (string.IsNullOrEmpty(serializedValue))
-                return default;
-            
-            return JsonSerializer.Deserialize<T>(serializedValue);
+            var json = await jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
+            return string.IsNullOrEmpty(json) ? default : JsonSerializer.Deserialize<T>(json);
         }
         catch
         {
             return default;
         }
     }
-    
+
     public async Task RemoveItemAsync(string key)
-    {
-        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
-    }
-    
+        => await jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
+
     public async Task ClearAsync()
-    {
-        await _jsRuntime.InvokeVoidAsync("localStorage.clear");
-    }
+        => await jsRuntime.InvokeVoidAsync("localStorage.clear");
 }

@@ -1,59 +1,129 @@
 @using VectorFlow.Client.Services
+@using VectorFlow.Client.Theme
+@inject ThemeService ThemeService
+@inject NavigationManager Nav
+@implements IDisposable
 
-<MudAppBar Elevation="0" Class="landing-appbar">
-    <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center">
-            <MudIcon Icon="@Icons.Material.Filled.ShowChart" Size="Size.Large" Color="Color.Primary" />
-            <MudText Typo="Typo.h6" Class="ml-2"  Color="Color.Primary">
-                Vector Flow
-            </MudText>
+<MudAppBar Elevation="0" Class="vf-appbar">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-center justify-space-between px-0">
+
+        <!-- Brand -->
+        <MudLink Href="/" Class="vf-brand align-center">
+            <div class="vf-logo">VF</div>
+            <MudText Typo="Typo.h6" Class="vf-brand-name">VectorFlow</MudText>
+        </MudLink>
+
+        <!-- Centre nav links (hidden on mobile) -->
+        <div class="d-none d-md-flex align-center gap-6">
+            <MudLink Href="/#features" Underline="Underline.None" Class="vf-nav-link">Features</MudLink>
+            <MudLink Href="/#how" Underline="Underline.None" Class="vf-nav-link">How it works</MudLink>
+            <MudLink Href="/#roles" Underline="Underline.None" Class="vf-nav-link">Roles</MudLink>
         </div>
-        <div class="d-none d-md-flex gap-4">
-            <MudLink Href="#" Underline="Underline.None" Class="nav-link">Features</MudLink>
-            <MudLink Href="#" Underline="Underline.None" Class="nav-link">Pricing</MudLink>
-            <MudLink Href="#" Underline="Underline.None" Class="nav-link">About</MudLink>
-        </div>
-        <div class="d-flex gap-2 align-center">
-            <MudButton Variant="Variant.Text" Color="Color.Primary">Log In</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-2">Get Started</MudButton>
-            <!-- Dark Mode Toggle -->
-            <MudIconButton 
+
+        <!-- Right actions -->
+        <div class="d-flex align-center gap-2">
+            <!-- Light / dark toggle -->
+            <MudIconButton
                 Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                OnClick="@ToggleDarkMode"
-                Size="Size.Medium" />
+                OnClick="ToggleTheme"
+                Size="Size.Medium"
+                Color="Color.Default" />
+
+            <MudDivider Vertical="true" FlexItem="true" Class="mx-1" Style="height:24px; align-self:center;" />
+
+            <MudButton Href="/login" Variant="Variant.Text" Color="Color.Primary" Class="d-none d-sm-flex">
+                Sign in
+            </MudButton>
+            <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary" Class="vf-cta-btn">
+                Get started
+            </MudButton>
         </div>
     </MudContainer>
 </MudAppBar>
 
 <style>
-    .landing-appbar {
-        background-color: rgba(var(--mud-palette-background-rgb), 0.85) !important;
-        backdrop-filter: blur(10px);
-        transition: background-color 0.3s ease;
+    .vf-appbar {
+        background-color: rgba(var(--mud-palette-background-rgb), 0.88) !important;
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--mud-palette-divider) !important;
+        transition: background-color 0.2s ease;
     }
-    
-     .landing-appbar {
-        border-bottom: 1px solid rgba(var(--mud-palette-primary-rgb), 0.1);
+
+    .vf-brand {
+        text-decoration: none !important;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
-    
-     @@media (prefers-color-scheme: dark) {
-        .landing-appbar {
-            background-color: rgba(var(--mud-palette-background-rgb), 0.9) !important;
-        }
+
+    .vf-brand-name {
+        font-family: 'DM Serif Display', Georgia, serif !important;
+        font-size: 1.15rem !important;
+        color: var(--mud-palette-text-primary) !important;
+        font-weight: 400 !important;
     }
+
+    .vf-logo {
+        width: 32px;
+        height: 32px;
+        background: var(--mud-palette-primary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+
+    .vf-nav-link {
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        color: var(--mud-palette-text-secondary) !important;
+        transition: color 0.15s !important;
+    }
+
+    .vf-nav-link:hover {
+        color: var(--mud-palette-primary) !important;
+    }
+
+    .vf-cta-btn {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        border-radius: 8px !important;
+        padding: 6px 18px !important;
+    }
+
+    .gap-2 { gap: 8px; }
+    .gap-6 { gap: 24px; }
 </style>
 
 @code {
-    [Inject]
-    private ThemeService ThemeService { get; set; } = default!;
-    
-    private bool _isDarkMode => ThemeService?.IsDarkMode ?? false;
+    private bool _isDarkMode;
+    private bool _useSystemPreference;
 
-    private void ToggleDarkMode()
+    protected override void OnInitialized()
     {
-        if (ThemeService is not null)
-        {
-            ThemeService.IsDarkMode = !ThemeService.IsDarkMode;
-        }
+        _isDarkMode = ThemeService.IsDarkMode;
+        _useSystemPreference = ThemeService.UseSystemPreference;
+        ThemeService.OnThemeChanged += HandleThemeChanged;
     }
+
+    private void HandleThemeChanged()
+    {
+        _isDarkMode = ThemeService.IsDarkMode;
+        _useSystemPreference = ThemeService.UseSystemPreference;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleTheme() => ThemeService.Toggle();
+
+    private void OnSystemPreferenceToggled(bool useSystem)
+        => ThemeService.UseSystemPreference = useSystem;
+
+    public void Dispose()
+        => ThemeService.OnThemeChanged -= HandleThemeChanged;
 }

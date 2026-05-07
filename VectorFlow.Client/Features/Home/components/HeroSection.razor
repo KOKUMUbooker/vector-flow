@@ -1,21 +1,255 @@
-<MudContainer MaxWidth="MaxWidth.Large" Class="hero-section">
-        <MudGrid Justify="Justify.Center">
-            <MudItem xs="12" md="8" Class="text-center">
-                <MudText Typo="Typo.h2" Class="hero-title font-weight-black">
-                    Project Management <MudHighlighter Text="Simplified" HighlightedText="Simplified" Class="d-inline" />
-                </MudText>
-                <MudText Typo="Typo.h5" Class="hero-subtitle mt-4 text-grey">
-                    The lightweight project management tool built for small dev teams.
-                    Speed, simplicity, and zero overhead.
-                </MudText>
-                <div class="d-flex justify-center gap-3 mt-8">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">
-                        Start Free Trial
-                    </MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large">
-                        Watch Demo
-                    </MudButton>
+<MudContainer MaxWidth="MaxWidth.Large" Class="hero-container">
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="6">
+            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Class="hero-badge" Style="background: var(--mud-palette-primary);">
+                <span class="pulse-dot"></span>
+                Now in active development
+            </MudChip>
+            
+            <div style="font-family: var(--vf-serif); font-size: clamp(2rem, 4vw, 3rem); line-height: 1.2; margin-bottom: 1rem;">
+                Issue tracking for <em style="color: var(--mud-palette-primary); font-style: italic;">dev teams</em> that move fast
+            </div>
+            
+            <MudText Typo="Typo.body1" Class="hero-sub">
+                VectorFlow gives small dev teams a real-time Kanban board, a full issue lifecycle,
+                workspace collaboration, and a clean audit trail — with zero bloat.
+            </MudText>
+            
+            <div class="hero-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="/register">
+                    Get started <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small"/>
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Href="#features" Size="Size.Large">
+                    See features
+                </MudButton>
+            </div>
+        </MudItem>
+        
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Class="hero-visual" Style="border: 1px solid var(--mud-palette-lines-default);">
+                <div class="board-header">
+                    <span class="board-title">VF / Backend Refactor</span>
+                    <div class="live-indicator">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined" Class="live-chip">
+                            live
+                        </MudChip>
+                    </div>
                 </div>
-            </MudItem>
-        </MudGrid>
+                <div class="board-cols">
+                    <!-- Backlog -->
+                    <div>
+                        <div class="col-head">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-family: var(--vf-mono);">Backlog</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="col-count">2</MudChip>
+                        </div>
+                        <MudPaper Elevation="0" Class="issue-card">
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-family: var(--vf-mono);">VF-08</MudText>
+                            <MudText Typo="Typo.body2" Class="issue-title">Add label filtering to board view</MudText>
+                            <div class="issue-meta">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Class="priority-chip">Medium</MudChip>
+                                <MudAvatar Size="Size.Small" Class="avatar av-green">JS</MudAvatar>
+                            </div>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="issue-card">
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-family: var(--vf-mono);">VF-09</MudText>
+                            <MudText Typo="Typo.body2" Class="issue-title">Markdown preview in description</MudText>
+                            <div class="issue-meta">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" Class="priority-chip">Low</MudChip>
+                                <MudAvatar Size="Size.Small" Class="avatar av-purple">AK</MudAvatar>
+                            </div>
+                        </MudPaper>
+                    </div>
+                    
+                    <!-- In Progress -->
+                    <div>
+                        <div class="col-head">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-family: var(--vf-mono);">In Progress</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="col-count">2</MudChip>
+                        </div>
+                        <MudPaper Elevation="0" Class="issue-card card-active" Style="border-left-color: var(--mud-palette-primary);">
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-family: var(--vf-mono);">VF-05</MudText>
+                            <MudText Typo="Typo.body2" Class="issue-title">Wire up SignalR hub to issue service</MudText>
+                            <div class="issue-meta">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="priority-chip">High</MudChip>
+                                <MudAvatar Size="Size.Small" Class="avatar av-blue">BM</MudAvatar>
+                            </div>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="issue-card card-active" Style="border-left-color: var(--mud-palette-primary);">
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-family: var(--vf-mono);">VF-06</MudText>
+                            <MudText Typo="Typo.body2" Class="issue-title">Invitation email template</MudText>
+                            <div class="issue-meta">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Class="priority-chip">Medium</MudChip>
+                                <MudAvatar Size="Size.Small" Class="avatar av-green">JS</MudAvatar>
+                            </div>
+                        </MudPaper>
+                    </div>
+                    
+                    <!-- Done -->
+                    <div>
+                        <div class="col-head">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-family: var(--vf-mono);">Done</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="col-count">3</MudChip>
+                        </div>
+                        <MudPaper Elevation="0" Class="issue-card card-done" Style="opacity: 0.65;">
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-family: var(--vf-mono);">VF-01</MudText>
+                            <MudText Typo="Typo.body2" Class="issue-title">JWT auth with refresh tokens</MudText>
+                            <div class="issue-meta">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="priority-chip">Urgent</MudChip>
+                                <MudAvatar Size="Size.Small" Class="avatar av-blue">BM</MudAvatar>
+                            </div>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="issue-card card-done" Style="opacity: 0.65;">
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-family: var(--vf-mono);">VF-03</MudText>
+                            <MudText Typo="Typo.body2" Class="issue-title">Workspace member roles</MudText>
+                            <div class="issue-meta">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="priority-chip">High</MudChip>
+                                <MudAvatar Size="Size.Small" Class="avatar av-purple">AK</MudAvatar>
+                            </div>
+                        </MudPaper>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 </MudContainer>
+
+<style>
+     /* Hero */
+    .hero-container {
+        padding: 100px 16px 80px !important;
+    }
+    
+    .hero-badge {
+        margin-bottom: 24px;
+        display: inline-flex !important;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .pulse-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--mud-palette-primary);
+        border-radius: 50%;
+        animation: vf-pulse 2s infinite;
+    }
+    
+    @@keyframes vf-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    
+    .hero-sub {
+        margin-bottom: 32px;
+        max-width: 440px;
+    }
+    
+    .hero-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    
+    /* Hero Visual */
+    .hero-visual {
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    
+    .board-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--mud-palette-lines-default);
+    }
+    
+    .board-title {
+        font-family: var(--vf-mono);
+        font-size: 12px;
+        color: var(--mud-palette-text-secondary);
+        font-weight: 500;
+    }
+    
+    .live-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .live-chip {
+        border-color: var(--mud-palette-success) !important;
+        color: var(--mud-palette-success) !important;
+    }
+    
+    .board-cols {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    
+    .col-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+    
+    .col-count {
+        font-size: 9px;
+        padding: 1px 6px;
+    }
+    
+    .issue-card {
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 6px;
+        transition: all 0.15s;
+    }
+    
+    .card-active {
+        border-left-width: 2px;
+    }
+    
+    .issue-title {
+        font-weight: 500;
+        margin: 4px 0 6px 0;
+        line-height: 1.4;
+    }
+    
+    .issue-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .priority-chip {
+        font-size: 9px;
+        padding: 0 6px;
+        font-family: var(--vf-mono);
+    }
+    
+    .avatar {
+        width: 20px !important;
+        height: 20px !important;
+        font-size: 9px !important;
+        font-weight: 600;
+    }
+    
+    .av-green { background: #10B981 !important; }
+    .av-blue { background: #3B82F6 !important; }
+    .av-purple { background: #8B5CF6 !important; }
+
+    @@media (max-width: 600px) {
+        .hero-actions {
+            flex-direction: column;
+        }
+        
+        .hero-actions .mud-button {
+            width: 100%;
+        }
+    } 
+</style>

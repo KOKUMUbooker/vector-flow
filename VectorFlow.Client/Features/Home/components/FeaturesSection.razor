@@ -1,82 +1,96 @@
-<MudContainer MaxWidth="MaxWidth.Large" Class="features-section">
-        <MudText Typo="Typo.h3" Class="text-center font-weight-bold mb-4">
-            Everything you need, nothing you don't
-        </MudText>
-        <MudText Typo="Typo.body1" Class="text-center text-grey mb-12">
-            Built specifically for small dev teams who want to ship faster
-        </MudText>
-
-        <MudGrid>
-            <MudItem xs="12" md="4">
-                <MudCard Class="feature-card" Elevation="0">
-                    <MudCardContent>
-                        <MudIcon Icon="@Icons.Material.Filled.Workspaces" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Workspaces & Projects</MudText>
-                        <MudText Typo="Typo.body2" Class="mt-2 text-grey">
-                            Fully isolated workspaces with multiple projects. Perfect for managing multiple teams or clients.
-                        </MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="4">
-                <MudCard Class="feature-card" Elevation="0">
-                    <MudCardContent>
-                        <MudIcon Icon="@Icons.Material.Filled.TableBar" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Kanban Board</MudText>
-                        <MudText Typo="Typo.body2" Class="mt-2 text-grey">
-                            Drag-and-drop issues between columns. Real-time updates with SignalR for seamless team collaboration.
-                        </MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="4">
-                <MudCard Class="feature-card" Elevation="0">
-                    <MudCardContent>
-                        <MudIcon Icon="@Icons.Material.Filled.Label" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Smart Labels</MudText>
-                        <MudText Typo="Typo.body2" Class="mt-2 text-grey">
-                            Organize issues with custom labels and colors. Filter and search across your entire project.
-                        </MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="4">
-                <MudCard Class="feature-card" Elevation="0">
-                    <MudCardContent>
-                        <MudIcon Icon="@Icons.Material.Filled.Chat" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Activity Feed</MudText>
-                        <MudText Typo="Typo.body2" Class="mt-2 text-grey">
-                            Full audit log of every change. Comments with markdown support for rich discussions.
-                        </MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="4">
-                <MudCard Class="feature-card" Elevation="0">
-                    <MudCardContent>
-                        <MudIcon Icon="@Icons.Material.Filled.ShowChart" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Sprint Planning</MudText>
-                        <MudText Typo="Typo.body2" Class="mt-2 text-grey">
-                            Drag-and-drop issue assignment. Burndown charts and velocity tracking for data-driven decisions.
-                        </MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="4">
-                <MudCard Class="feature-card" Elevation="0">
-                    <MudCardContent>
-                        <MudIcon Icon="@Icons.Material.Filled.Code" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="font-weight-bold mt-3">Markdown Support</MudText>
-                        <MudText Typo="Typo.body2" Class="mt-2 text-grey">
-                            Write rich issue descriptions and comments with full markdown formatting.
-                        </MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-        </MudGrid>
+<MudContainer MaxWidth="MaxWidth.Large" Class="section" id="features" Style="overflow:hidden">
+    <MudText Typo="Typo.overline" Color="Color.Primary" Class="section-label">Features</MudText>
+    <MudText Typo="Typo.h2" Style="font-family: var(--vf-serif);">Built around how dev teams actually work</MudText>
+    <MudText Typo="Typo.body1" Class="section-sub">
+        No sprints, no burndown charts, no enterprise overhead. Just the core tools a small team needs to ship.
+    </MudText>
+    
+    <div class="features-grid">
+        @foreach (var feature in _features)
+        {
+            <MudPaper Elevation="0" Class="feature-cell" Style="border-radius:0 !important">
+                <div class="feature-icon" style="background: @feature.IconBg;">@feature.Emoji</div>
+                <MudText Typo="Typo.subtitle1" Class="feature-title">@feature.Title</MudText>
+                <MudText Typo="Typo.body2" Class="feature-description">@feature.Description</MudText>
+            </MudPaper>
+        }
+    </div>
 </MudContainer>
+
+<style>
+    /* Sections */
+    .section {
+        padding: 80px 16px;
+    }
+    
+    .section-label {
+        margin-bottom: 12px;
+    }
+    
+    .section-sub {
+        margin-top: 12px;
+        max-width: 520px;
+    }
+
+ /* Features Grid */
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--mud-palette-lines-default);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 16px;
+        overflow: hidden;
+        margin-top: 48px;
+    }
+    
+    .feature-cell {
+        padding: 32px 28px;
+        transition: background 0.15s;
+        cursor: pointer;
+    }
+    
+    .feature-cell:hover {
+        /* background: var(--mud-palette-primary-lighten); */
+    }
+    
+    .feature-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        margin-bottom: 16px;
+    }
+    
+    .feature-title {
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    
+    .feature-description {
+        line-height: 1.6;
+    }
+</style>
+
+@code {
+    private record Feature(string Emoji, string IconBg, string Title, string Description);
+
+    private readonly List<Feature> _features =
+    [
+        new("🏢", "var(--mud-palette-primary-lighten)", "Workspaces & Projects",
+            "Create an isolated workspace for your team. Invite members, set roles, and spin up multiple projects — each with its own issue board."),
+        new("📋", "var(--mud-palette-success-lighten)", "Real-time Kanban Board",
+            "Drag issues across Backlog, Todo, In Progress, In Review, and Done. Every move is broadcast instantly to all connected teammates via SignalR."),
+        new("🔖", "var(--mud-palette-warning-lighten)", "Issue Lifecycle",
+            "Auto-generated keys like VF-42. Title, description, priority, type, assignee, due date, and labels — everything you need, nothing you don't."),
+        new("🧾", "var(--mud-palette-error-lighten)", "Activity Log",
+            "Every field change is recorded: who changed what, from what value, to what value, and when. A full, immutable audit trail per issue."),
+        new("💬", "var(--mud-palette-primary-lighten)", "Comments",
+            "Markdown-powered comment threads per issue. Comments appear in real time for all team members currently viewing that issue."),
+        new("🏷️", "var(--mud-palette-success-lighten)", "Labels",
+            "Create custom labels with any hex color, scoped to each project. Assign multiple labels per issue and filter your board by them.")
+    ];
+}

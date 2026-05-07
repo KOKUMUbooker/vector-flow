@@ -1,16 +1,36 @@
- <MudContainer MaxWidth="MaxWidth.Large" Class="footer-section">
-        <MudDivider />
-        <MudGrid Class="mt-8" Justify="Justify.Center">
-            <MudItem xs="12" Class="text-center">
-                <MudText Typo="Typo.body2" Class="text-grey">
-                    © 2025 Vector Flow. Built for small dev teams who want to ship faster.
-                </MudText>
-                <div class="d-flex justify-center gap-4 mt-4">
-                    <MudLink Href="#" Typo="Typo.body2">Privacy</MudLink>
-                    <MudLink Href="#" Typo="Typo.body2">Terms</MudLink>
-                    <MudLink Href="#" Typo="Typo.body2">Contact</MudLink>
-                    <MudLink Href="#" Typo="Typo.body2">GitHub</MudLink>
-                </div>
-            </MudItem>
-        </MudGrid>
-    </MudContainer>
+<MudContainer MaxWidth="MaxWidth.Large" Class="vf-footer">
+    <MudText Typo="Typo.body1" Style="font-family: var(--vf-serif); color: var(--mud-palette-text-primary);">
+        VectorFlow
+    </MudText>
+    <div class="footer-links">
+        <MudLink Href="#"  Typo="Typo.body2">GitHub</MudLink>
+        <MudLink Href="#"  Typo="Typo.body2">Privacy</MudLink>
+        <MudLink Href="#"  Typo="Typo.body2">Terms</MudLink>
+        <MudLink Href="#"  Typo="Typo.body2">Contact</MudLink>
+    </div>
+    <MudText Typo="Typo.body2" Class="footer-copy">
+        © @DateTime.Now.Year VectorFlow. Built for small dev teams.
+    </MudText>
+</MudContainer>
+
+<style>
+    /* Footer */
+    .vf-footer {
+        padding: 40px 16px !important;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        border-top: 1px solid var(--mud-palette-lines-default);
+    }
+    
+    .footer-links {
+        display: flex;
+        gap: 24px;
+    }
+    
+    .footer-copy {
+        font-size: 12px;
+    }
+</style>
