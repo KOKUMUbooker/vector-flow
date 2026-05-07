@@ -1,129 +1,120 @@
 ﻿@page "/"
-
 @using VectorFlow.Client.Features.Home.components
 @using VectorFlow.Client.Features.Layout
+@inject NavigationManager Nav
 
-<PageTitle>Vector Flow - Lightweight Project Management for Small Teams</PageTitle>
+<PageTitle>VectorFlow — Issue Tracking for Dev Teams That Move Fast</PageTitle>
 
-<MudMainContent>
-    <!-- Hero Section -->
-   <HeroSection/>
+<!-- HERO SECTION -->
+<HeroSection/>
 
-    <!-- Stats Section -->
-   <StatsSection/>
+<!-- FEATURES SECTION -->
+<FeaturesSection/>
 
-    <!-- Features Grid -->
-   <FeaturesSection/>
+<!-- HOW IT WORKS SECTION -->
+<HowItWorks/>
 
-    <!-- Value Proposition Section -->
-    <ValuePropositionSetction/>
- 
-    <!-- CTA Section -->
-    <CTASection/>
+<!-- TECH STACK SECTION -->
+<TechStackSection/>
 
-    <!-- Footer -->
-    <Footer/>
-</MudMainContent>
+<!-- ROLES SECTION -->
+<RolesSection/>
+
+<!-- CTA SECTION -->
+<CTASection/>
+
+<!-- FOOTER -->
+<Footer/>
 
 <style>
-.landing-appbar {
-  background-color: transparent !important;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.hero-section {
-  padding: 120px 0 80px 0;
-}
-
-.hero-title {
-  font-size: 3.5rem;
-  line-height: 1.2;
-}
-
-.hero-subtitle {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.stats-section {
-  padding: 60px 0;
-}
-
-.features-section {
-  padding: 80px 0;
-}
-
-.feature-card {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-  height: 100%;
-  border-radius: 12px;
-}
-
-.feature-card:hover {
-  transform: translateY(-4px);
-}
-
-.value-paper {
-  border-radius: 16px;
-}
-
-.value-card {
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
-}
-
-.value-card:hover {
-  transform: translateY(-4px);
-}
-
-.cta-section {
-  padding: 100px 0 80px 0;
-}
-
-.footer-section {
-  padding: 40px 0 60px 0;
-}
-
-.gap-2 {
-  gap: 8px;
-}
-
-.gap-3 {
-  gap: 12px;
-}
-
-.gap-4 {
-  gap: 16px;
-}
-
-.gap-6 {
-  gap: 24px;
-}
-
-.mt-12 {
-  margin-top: 48px;
-}
-
-.mb-12 {
-  margin-bottom: 48px;
-}
-
-@@media (max-width: 960px) {
-  .hero-title {
-    font-size: 2rem;
-  }
-
-  .hero-section {
-    padding: 80px 0 40px 0;
-  }
-
-  .features-section {
-    padding: 40px 0;
-  }
-}
+    /* Base styles for typography */
+    :root {
+        --vf-serif: 'DM Serif Display', Georgia, serif;
+        --vf-mono: 'DM Mono', monospace;
+    }
+    
+    /* Navigation */
+    .vf-navbar {
+        backdrop-filter: blur(12px);
+        background: rgba(var(--mud-palette-background-rgb), 0.88) !important;
+        border-bottom: 1px solid var(--mud-palette-lines-default);
+    }
+    
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .nav-logo {
+        background: var(--mud-palette-primary) !important;
+        color: white !important;
+    }
+    
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+    }
+    
+    .nav-link {
+        font-weight: 500;
+        transition: color 0.15s;
+    }
+    
+    .nav-link:hover {
+        color: var(--mud-palette-primary);
+    }
+    
+    .nav-cta-btn {
+        margin-left: 8px;
+    }
+     
+    /* Sections */
+    .section {
+        padding: 80px 16px;
+    }
+    
+    .section-label {
+        margin-bottom: 12px;
+    }
+    
+    .section-sub {
+        margin-top: 12px;
+        max-width: 520px;
+    }
+    
+    
+    /* Responsive */
+    @@media (max-width: 960px) {
+        .hero-container {
+            padding: 60px 16px 40px !important;
+        }
+        
+        .section {
+            padding: 60px 16px;
+        }
+        
+        .how-section,
+        .roles-section,
+        .cta-section {
+            padding: 60px 0;
+        }
+        
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .steps {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .stack-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .roles-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>

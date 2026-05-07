@@ -1,0 +1,74 @@
+﻿<div class="how-section" id="how">
+    <MudContainer MaxWidth="MaxWidth.Large">
+        <MudText Typo="Typo.overline" Color="Color.Primary" Class="section-label">How it works</MudText>
+        <MudText Typo="Typo.h2" Style="font-family: var(--vf-serif);">From signup to shipping in four steps</MudText>
+        <MudText Typo="Typo.body1" Style="" Class="section-sub">
+            VectorFlow is designed to have you collaborating in minutes, not hours.
+        </MudText>
+        
+        <div class="steps">
+            @foreach (var step in _steps)
+            {
+                <div class="step">
+                    <MudText Typo="Typo.caption" Style="font-family: var(--vf-mono); margin-bottom: 0.75rem;">
+                        @step.Number —
+                    </MudText>
+                    <MudText Typo="Typo.subtitle1" Style=" font-weight: 600;">@step.Title</MudText>
+                    <MudText Typo="Typo.body2" Style="">@step.Description</MudText>
+                </div>
+            }
+        </div>
+    </MudContainer>
+</div>
+
+<style>
+    /* How Section */
+    .how-section {
+        padding: 80px 0;
+    }
+    
+    .steps {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        margin-top: 48px;
+    }
+    
+    .step {
+        position: relative;
+    }
+
+    /* Responsive */
+    @@media (max-width: 960px) {
+        .section {
+            padding: 60px 16px;
+        }
+        
+        .how-section {
+            padding: 60px 0;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .steps {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    private record Step(string Number, string Title, string Description);
+   
+    private readonly List<Step> _steps =
+    [
+        new("01", "Create your workspace",
+            "Sign up, verify your email, and create a workspace. You're automatically the Owner."),
+        new("02", "Invite your team",
+            "Owners and Admins send email invitations. Members accept and join instantly as contributors."),
+        new("03", "Create a project",
+            "Set a name and a key prefix. Issues are auto-keyed — VF-1, VF-2 — from the first one you create."),
+        new("04", "Track and ship",
+            "Create issues, assign them, move them across the board. Every change is live for your whole team.")
+    ];
+    
+}

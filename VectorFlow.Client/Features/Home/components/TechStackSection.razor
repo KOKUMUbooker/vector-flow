@@ -1,0 +1,77 @@
+﻿<MudContainer MaxWidth="MaxWidth.Large" Class="section">
+    <MudText Typo="Typo.overline" Color="Color.Primary" Class="section-label">Under the hood</MudText>
+    <MudText Typo="Typo.h2" Style="font-family: var(--vf-serif);">A modern, cohesive .NET stack</MudText>
+    <MudText Typo="Typo.body1" Class="section-sub">
+        VectorFlow is built end-to-end in C# — one language from database to browser.
+    </MudText>
+    
+    <div class="stack-grid">
+        @foreach (var tech in _techStack)
+        {
+            <MudPaper Elevation="0" Class="stack-card">
+                <div class="stack-icon" style="background: @tech.IconBg;">@tech.Emoji</div>
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="stack-title">@tech.Title</MudText>
+                    <MudText Typo="Typo.body2">@tech.Description</MudText>
+                </div>
+            </MudPaper>
+        }
+    </div>
+</MudContainer>
+
+<style>
+    /* Tech Stack */
+    .stack-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-top: 48px;
+    }
+    
+    .stack-card {
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        transition: all 0.15s;
+    }
+    
+        .stack-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--mud-elevation-2);
+        }
+    
+    .stack-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+    
+    .stack-title {
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+</style>
+
+@code {
+    private record TechItem(string Emoji, string IconBg, string Title, string Description);
+    
+    private readonly List<TechItem> _techStack =
+    [
+        new("⚡", "var(--mud-palette-primary-lighten)", "ASP.NET Core 8 + Minimal APIs",
+                "RESTful API layer with JWT authentication, HttpOnly cookie tokens, and clean layered architecture. Identity, EF Core, and SignalR all first-class."),
+            new("🌐", "var(--mud-palette-success-lighten)", "Blazor WebAssembly",
+                "C# in the browser. A standalone SPA that talks to the API over HTTP and WebSockets — no JavaScript framework required."),
+            new("📡", "var(--mud-palette-warning-lighten)", "SignalR — Project-scoped hubs",
+                "Each project has its own SignalR group. Issue changes, status updates, and comments are broadcast in real time to all connected clients."),
+            new("🗄️", "var(--mud-palette-error-lighten)", "PostgreSQL + EF Core",
+                "Code-first schema with migrations. Entity configurations isolated per class. Atomic issue counter increments prevent key collisions.")
+    ];
+}

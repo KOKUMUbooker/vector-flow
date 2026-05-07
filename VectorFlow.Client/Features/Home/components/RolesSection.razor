@@ -1,0 +1,105 @@
+﻿<div class="roles-section" id="roles">
+    <MudContainer MaxWidth="MaxWidth.Large">
+        <MudText Typo="Typo.overline" Class="section-label">Access control</MudText>
+        <MudText Typo="Typo.h2" Style="font-family: var(--vf-serif);">Three roles, clear boundaries</MudText>
+        <MudText Typo="Typo.body1" Class="section-sub">
+            Every workspace has an Owner, optional Admins, and Members. Permissions are enforced server-side on every request.
+        </MudText>
+        
+        <div class="roles-grid">
+            @foreach (var role in _roles)
+            {
+                <MudPaper Elevation="0" Class="role-card">
+                    <MudChip T="string" Size="Size.Small" Class="role-badge" Style="@($"background: {role.BadgeBg}; color: {role.BadgeColor};")">
+                        @role.Name
+                    </MudChip>
+                    <MudText Typo="Typo.subtitle1" Class="role-title">@role.Subtitle</MudText>
+                    <MudList T="string" Class="role-permissions">
+                        @foreach (var perm in role.Permissions)
+                        {
+                            <MudListItem>
+                                <MudText Typo="Typo.body2" >@perm</MudText>
+                            </MudListItem>
+                        }
+                    </MudList>
+                </MudPaper>
+            }
+        </div>
+    </MudContainer>
+</div>
+
+<style>
+    /* Roles Section */
+    .roles-section {
+        padding: 80px 0;
+        background: var(--mud-palette-background-gray);
+    }
+    
+    .roles-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 48px;
+    }
+    
+    .role-card {
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 12px;
+        padding: 24px;
+    }
+    
+    .role-badge {
+        margin-bottom: 12px;
+        font-weight: 500;
+    }
+    
+    .role-title {
+        margin-bottom: 12px;
+        font-weight: 600;
+    }
+    
+    .role-permissions {
+        padding: 0;
+    }
+    
+        .role-permissions .mud-list-item {
+            padding: 6px 0;
+            border-bottom: 1px solid var(--mud-palette-lines-default);
+        }
+    
+            .role-permissions .mud-list-item:last-child {
+                border-bottom: none;
+            }
+</style>
+
+@code {
+    private record Role(string Name, string BadgeBg, string BadgeColor, string Subtitle, List<string> Permissions);
+    
+    private readonly List<Role> _roles =
+    [
+        new("Owner", "#FEF3C7", "#92400E", "Full control",
+        [
+            "Create and delete the workspace",
+            "Promote members to Admin",
+            "Send and cancel invitations",
+            "Create, edit, delete any project",
+            "Delete any issue or comment"
+        ]),
+        new("Admin", "var(--mud-palette-primary-lighten)", "var(--mud-palette-primary)", "Team management",
+        [
+            "Send and cancel invitations",
+            "Remove regular members",
+            "Create and manage projects",
+            "Create and manage labels",
+            "Delete any issue or comment"
+        ]),
+        new("Member", "var(--mud-palette-success-lighten)", "var(--mud-palette-success)", "Core contributor",
+        [
+            "Create and edit their own issues",
+            "Update issue status on the board",
+            "Comment on any issue",
+            "View all workspace projects",
+            "Leave the workspace at any time"
+        ])
+    ];
+}
