@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using VectorFlow.Api.Data;
 using VectorFlow.Api.DTOs;
 using VectorFlow.Api.Enums;
@@ -7,7 +8,10 @@ using VectorFlow.Api.Services.Interfaces;
 
 namespace VectorFlow.Api.Services;
 
-public class IssueService(AppDbContext db) : IIssueService
+public class IssueService(
+    AppDbContext db,
+    UserManager<AppUser> userManager,
+    IProjectHubBroadcaster broadcaster) : IIssueService
 {
     // ── Get issues ────────────────────────────────────────────────────────────
 
@@ -26,8 +30,7 @@ public class IssueService(AppDbContext db) : IIssueService
             .Where(i => i.ProjectId == projectId)
             .Include(i => i.Assignee)
             .Include(i => i.Reporter)
-            .Include(i => i.IssueLabels)
-                .ThenInclude(il => il.Label)
+            .Include(i => i.IssueLabels).ThenInclude(il => il.Label)
             .Include(i => i.Comments)
             .AsQueryable();
 
@@ -50,8 +53,7 @@ public class IssueService(AppDbContext db) : IIssueService
         var issue = await db.Issues
             .Include(i => i.Assignee)
             .Include(i => i.Reporter)
-            .Include(i => i.IssueLabels)
-                .ThenInclude(il => il.Label)
+            .Include(i => i.IssueLabels).ThenInclude(il => il.Label)
             .Include(i => i.Comments)
             .FirstOrDefaultAsync(i => i.Id == issueId);
 
@@ -115,9 +117,7 @@ public class IssueService(AppDbContext db) : IIssueService
         // avoiding race conditions from two users creating issues simultaneously.
         var updatedCount = await db.Projects
             .Where(p => p.Id == projectId)
-            .ExecuteUpdateAsync(s => s.SetProperty(
-                p => p.IssueCounter,
-                p => p.IssueCounter + 1));
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.IssueCounter, p => p.IssueCounter + 1));
 
         if (updatedCount == 0)
             return IssueResult.Failure("Project not found.");
@@ -164,8 +164,11 @@ public class IssueService(AppDbContext db) : IIssueService
 
         await db.SaveChangesAsync();
 
-        // Reload with navigation properties for the response
-        return IssueResult.Success(await LoadIssueDtoAsync(issue.Id));
+        var dto = await LoadIssueDtoAsync(issue.Id);
+        var actor = await userManager.FindByIdAsync(reporterId);
+        await broadcaster.BroadcastIssueCreatedAsync(projectId, dto, reporterId, actor?.DisplayName ?? string.Empty);
+
+        return IssueResult.Success(dto);
     }
 
     // ── Update issue ──────────────────────────────────────────────────────────
@@ -174,14 +177,12 @@ public class IssueService(AppDbContext db) : IIssueService
         Guid issueId, UpdateIssueRequest request, string requestingUserId)
     {
         var issue = await db.Issues
-            .Include(i => i.IssueLabels)
-                .ThenInclude(il => il.Label)
+            .Include(i => i.IssueLabels).ThenInclude(il => il.Label)
             .Include(i => i.Assignee)
             .Include(i => i.Reporter)
             .FirstOrDefaultAsync(i => i.Id == issueId);
 
-        if (issue is null)
-            return IssueResult.Failure("Issue not found.");
+        if (issue is null) return IssueResult.Failure("Issue not found.");
 
         var (canEdit, errorMsg) = await CanEditIssueAsync(issue, requestingUserId);
         if (!canEdit) return IssueResult.Failure(errorMsg!);
@@ -204,7 +205,7 @@ public class IssueService(AppDbContext db) : IIssueService
         }
 
         if (issue.Type != request.Type)
-        {
+        { 
             issue.Type = request.Type;
             // Type changes are functional but not surfaced in the activity log
         }
@@ -215,18 +216,15 @@ public class IssueService(AppDbContext db) : IIssueService
                 ? "Unassigned"
                 : (await db.Users.FindAsync(request.AssigneeId))?.DisplayName ?? request.AssigneeId;
 
-            var oldAssigneeName = issue.Assignee?.DisplayName ?? "Unassigned";
-
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.AssigneeChanged,
-                oldAssigneeName, newAssigneeName));
+                issue.Assignee?.DisplayName ?? "Unassigned", newAssigneeName));
             issue.AssigneeId = request.AssigneeId;
         }
 
         if (issue.DueDate != request.DueDate)
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
-                issue.DueDate?.ToString("yyyy-MM-dd"),
-                request.DueDate?.ToString("yyyy-MM-dd")));
+                issue.DueDate?.ToString("yyyy-MM-dd"), request.DueDate?.ToString("yyyy-MM-dd")));
             issue.DueDate = request.DueDate;
         }
 
@@ -243,17 +241,15 @@ public class IssueService(AppDbContext db) : IIssueService
             if (label is null || label.ProjectId != issue.ProjectId) continue;
 
             await db.IssueLabels.AddAsync(new IssueLabel { IssueId = issueId, LabelId = labelId });
-            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.LabelAdded,
-                null, label.Name));
+            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.LabelAdded, null, label.Name));
         }
 
         foreach (var labelId in toRemove)
         {
             var issueLabel = issue.IssueLabels.First(il => il.LabelId == labelId);
-            var labelName = issueLabel.Label?.Name ?? labelId.ToString();
             db.IssueLabels.Remove(issueLabel);
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.LabelRemoved,
-                labelName, null));
+                issueLabel.Label?.Name ?? labelId.ToString(), null));
         }
 
         issue.UpdatedAt = DateTime.UtcNow;
@@ -263,7 +259,11 @@ public class IssueService(AppDbContext db) : IIssueService
 
         await db.SaveChangesAsync();
 
-        return IssueResult.Success(await LoadIssueDtoAsync(issueId));
+        var dto = await LoadIssueDtoAsync(issueId);
+        var actor = await userManager.FindByIdAsync(requestingUserId);
+        await broadcaster.BroadcastIssueUpdatedAsync(issue.ProjectId, dto, requestingUserId, actor?.DisplayName ?? string.Empty);
+
+        return IssueResult.Success(dto);
     }
 
     // ── Update status ─────────────────────────────────────────────────────────
@@ -278,8 +278,7 @@ public class IssueService(AppDbContext db) : IIssueService
             .Include(i => i.Comments)
             .FirstOrDefaultAsync(i => i.Id == issueId);
 
-        if (issue is null)
-            return IssueResult.Failure("Issue not found.");
+        if (issue is null) return IssueResult.Failure("Issue not found.");
 
         if (!await IsMemberOfProjectWorkspaceAsync(issue.ProjectId, requestingUserId))
             return IssueResult.Failure("You are not a member of this workspace.");
@@ -287,13 +286,14 @@ public class IssueService(AppDbContext db) : IIssueService
         if (issue.Status == request.Status)
             return IssueResult.Success(MapToDto(issue));
 
-        // Place at bottom of the target column
+        var oldStatus = issue.Status.ToString();
+
         var maxPosition = await db.Issues
             .Where(i => i.ProjectId == issue.ProjectId && i.Status == request.Status)
             .MaxAsync(i => (double?)i.Position) ?? 0;
 
         var log = BuildLog(issueId, requestingUserId, ActivityAction.StatusChanged,
-            issue.Status.ToString(), request.Status.ToString());
+            oldStatus, request.Status.ToString());
 
         issue.Status = request.Status;
         issue.Position = maxPosition + 1000;
@@ -301,6 +301,11 @@ public class IssueService(AppDbContext db) : IIssueService
 
         await db.ActivityLogs.AddAsync(log);
         await db.SaveChangesAsync();
+
+        var actor = await userManager.FindByIdAsync(requestingUserId);
+        await broadcaster.BroadcastIssueStatusChangedAsync(
+            issue.ProjectId, issueId, oldStatus, request.Status.ToString(),
+            issue.Position, requestingUserId, actor?.DisplayName ?? string.Empty);
 
         return IssueResult.Success(MapToDto(issue));
     }
@@ -317,8 +322,7 @@ public class IssueService(AppDbContext db) : IIssueService
             .Include(i => i.Comments)
             .FirstOrDefaultAsync(i => i.Id == issueId);
 
-        if (issue is null)
-            return IssueResult.Failure("Issue not found.");
+        if (issue is null) return IssueResult.Failure("Issue not found.");
 
         if (!await IsMemberOfProjectWorkspaceAsync(issue.ProjectId, requestingUserId))
             return IssueResult.Failure("You are not a member of this workspace.");
@@ -327,6 +331,9 @@ public class IssueService(AppDbContext db) : IIssueService
         issue.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
+
+        await broadcaster.BroadcastIssuePositionChangedAsync(
+            issue.ProjectId, issueId, request.Position, requestingUserId);
 
         return IssueResult.Success(MapToDto(issue));
     }
@@ -342,15 +349,18 @@ public class IssueService(AppDbContext db) : IIssueService
             .Include(i => i.Comments)
             .FirstOrDefaultAsync(i => i.Id == issueId);
 
-        if (issue is null)
-            return IssueResult.Failure("Issue not found.");
+        if (issue is null) return IssueResult.Failure("Issue not found.");
 
         var (canEdit, errorMsg) = await CanEditIssueAsync(issue, requestingUserId);
         if (!canEdit) return IssueResult.Failure(errorMsg!);
 
-        var dto = MapToDto(issue); // capture before deletion for the response
+        var dto = MapToDto(issue);
+        var projectId = issue.ProjectId;
+
         db.Issues.Remove(issue);
         await db.SaveChangesAsync();
+
+        await broadcaster.BroadcastIssueDeletedAsync(projectId, issueId, dto.Key, requestingUserId);
 
         return IssueResult.Success(dto);
     }

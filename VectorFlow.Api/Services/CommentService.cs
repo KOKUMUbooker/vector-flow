@@ -7,7 +7,9 @@ using VectorFlow.Api.Services.Interfaces;
 
 namespace VectorFlow.Api.Services;
 
-public class CommentService(AppDbContext db) : ICommentService
+public class CommentService(
+    AppDbContext db,
+    IProjectHubBroadcaster broadcaster) : ICommentService
 {
     // ── Get comments ──────────────────────────────────────────────────────────
 
@@ -49,7 +51,11 @@ public class CommentService(AppDbContext db) : ICommentService
         // Reload to populate Author navigation property for the response
         await db.Entry(comment).Reference(c => c.Author).LoadAsync();
 
-        return CommentResult.Success(MapToDto(comment));
+        var dto = MapToDto(comment);
+        var projectId = await GetProjectIdForIssueAsync(issueId);
+        await broadcaster.BroadcastCommentCreatedAsync(projectId, dto);
+
+        return CommentResult.Success(dto);
     }
 
     // ── Update comment ────────────────────────────────────────────────────────
@@ -77,7 +83,11 @@ public class CommentService(AppDbContext db) : ICommentService
 
         await db.SaveChangesAsync();
 
-        return CommentResult.Success(MapToDto(comment));
+        var dto = MapToDto(comment);
+        var projectId = await GetProjectIdForIssueAsync(comment.IssueId);
+        await broadcaster.BroadcastCommentUpdatedAsync(projectId, dto);
+
+        return CommentResult.Success(dto);
     }
 
     // ── Delete comment ────────────────────────────────────────────────────────
@@ -104,9 +114,14 @@ public class CommentService(AppDbContext db) : ICommentService
                 return CommentResult.Failure("You can only delete your own comments.");
         }
 
-        var dto = MapToDto(comment); // capture before deletion for the response
+        var dto = MapToDto(comment);
+        var issueId = comment.IssueId;
+        var projectId = await GetProjectIdForIssueAsync(issueId);
+
         db.Comments.Remove(comment);
         await db.SaveChangesAsync();
+
+        await broadcaster.BroadcastCommentDeletedAsync(projectId, issueId, commentId, requestingUserId);
 
         return CommentResult.Success(dto);
     }
@@ -128,10 +143,12 @@ public class CommentService(AppDbContext db) : ICommentService
             .AnyAsync(m => m.WorkspaceId == issue.Project.WorkspaceId && m.UserId == userId);
     }
 
-    /// <summary>
-    /// Returns the workspace role of the user for the workspace that owns the issue.
-    /// Used to check moderation rights on comment deletion.
-    /// </summary>
+    private async Task<Guid> GetProjectIdForIssueAsync(Guid issueId)
+    {
+        var issue = await db.Issues.FindAsync(issueId);
+        return issue?.ProjectId ?? Guid.Empty;
+    }
+
     private async Task<WorkspaceRole?> GetWorkspaceRoleForIssueAsync(Guid issueId, string userId)
     {
         var issue = await db.Issues
