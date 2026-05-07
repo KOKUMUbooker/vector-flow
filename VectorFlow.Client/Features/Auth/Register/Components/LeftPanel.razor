@@ -1,0 +1,227 @@
+ <div class="auth-panel">
+        <a href="/" class="panel-brand">VectorFlow</a>
+
+        <div class="panel-body">
+            <div class="panel-kicker">Get started free</div>
+            <p class="panel-headline">Ship faster.<br /><em>Together.</em></p>
+
+            <!-- Feature checklist -->
+            <div class="feature-list">
+                @foreach (var item in _perks)
+                {
+                    <div class="perk-row">
+                        <div class="perk-check">✓</div>
+                        <div class="perk-content">
+                            <span class="perk-title">@item.Title</span>
+                            <span class="perk-desc">@item.Desc</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Kanban mini-badge strip -->
+        <div class="panel-footer">
+            <div class="badge-strip">
+                <span class="board-badge">Backlog</span>
+                <span class="badge-arrow">→</span>
+                <span class="board-badge badge-active">In Progress</span>
+                <span class="badge-arrow">→</span>
+                <span class="board-badge badge-done">Done</span>
+            </div>
+            <p class="panel-tagline">Real-time Kanban for the whole team.</p>
+        </div>
+</div>
+
+
+<style>
+    /* ── LEFT PANEL ────────────────────────────────────────────────────── */
+    .auth-panel {
+        background: var(--mud-palette-dark, #0D0D0F);
+        color: var(--mud-palette-white);
+        display: flex;
+        flex-direction: column;
+        padding: 40px 48px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .auth-panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(var(--mud-palette-primary) 1px, transparent 1px),
+            linear-gradient(90deg, var(--mud-palette-primary) 1px, transparent 1px);
+        background-size: 48px 48px;
+        opacity: 0.04;
+        pointer-events: none;
+    }
+
+    .auth-panel::after {
+        content: '';
+        position: absolute;
+        bottom: -100px;
+        right: -100px;
+        width: 480px;
+        height: 480px;
+        background: radial-gradient(circle, var(--mud-palette-primary) 0%, transparent 65%);
+        opacity: 0.07;
+        pointer-events: none;
+    }
+
+    .panel-brand {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: 1.25rem;
+        color: var(--mud-palette-white);
+        text-decoration: none;
+        position: relative;
+        z-index: 1;
+    }
+
+    .panel-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .panel-kicker {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--mud-palette-primary);
+        margin-bottom: 16px;
+    }
+
+    .panel-headline {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: clamp(2rem, 3vw, 3rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        color: var(--mud-palette-white);
+        margin: 0 0 40px;
+    }
+
+    .panel-headline em {
+        font-style: italic;
+        color: var(--mud-palette-primary);
+    }
+
+    /* Perk checklist */
+    .feature-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .perk-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        animation: feed-in 0.4s ease both;
+    }
+
+    .perk-row:nth-child(1) { animation-delay: 0.1s; }
+    .perk-row:nth-child(2) { animation-delay: 0.2s; }
+    .perk-row:nth-child(3) { animation-delay: 0.3s; }
+
+    @@keyframes feed-in {
+        from { opacity: 0; transform: translateX(-10px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .perk-check {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: var(--mud-palette-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .perk-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .perk-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255,255,255,0.9);
+    }
+
+    .perk-desc {
+        font-size: 12px;
+        color: rgba(255,255,255,0.45);
+        line-height: 1.4;
+    }
+
+    /* Footer badge strip */
+    .panel-footer {
+        position: relative;
+        z-index: 1;
+    }
+
+    .badge-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .board-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        padding: 3px 9px;
+        border-radius: 99px;
+        border: 1px solid rgba(255,255,255,0.12);
+        color: rgba(255,255,255,0.4);
+    }
+
+    .badge-active {
+        border-color: var(--mud-palette-primary);
+        color: var(--mud-palette-primary);
+        background: rgba(67,57,202,0.12);
+    }
+
+    .badge-done {
+        border-color: var(--mud-palette-success);
+        color: var(--mud-palette-success);
+        background: rgba(26,122,82,0.1);
+    }
+
+    .badge-arrow {
+        font-size: 11px;
+        color: rgba(255,255,255,0.2);
+    }
+
+    .panel-tagline {
+        font-size: 12px;
+        color: rgba(255,255,255,0.3);
+        font-family: 'DM Mono', monospace;
+        margin: 0;
+    }
+</style>
+
+@code {
+    private record Perk(string Title, string Desc);
+
+    private readonly List<Perk> _perks =
+    [
+        new("Real-time Kanban board", "Drag-and-drop issues with live updates for every teammate."),
+        new("Workspace & team roles", "Owner, Admin, and Member — permissions enforced server-side."),
+        new("Full activity audit trail", "Every change logged: who, what, and when. Forever.")
+    ];
+}
