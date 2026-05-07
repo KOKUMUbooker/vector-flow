@@ -50,6 +50,10 @@ public class Program
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IEmailService, EmailService>();
         builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+        builder.Services.AddScoped<IInvitationService, InvitationService>();
+        builder.Services.AddScoped<IIssueService, IssueService>();
+        builder.Services.AddScoped<IProjectService, ProjectService>();
+        builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
         builder.Services.AddControllers();
         builder.Services.AddAuthorization();
         builder.Services.AddOpenApi();
