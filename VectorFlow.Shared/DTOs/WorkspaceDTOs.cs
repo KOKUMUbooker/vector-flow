@@ -1,4 +1,4 @@
-﻿namespace VectorFlow.Api.DTOs;
+﻿namespace VectorFlow.Shared.DTOs;
 
 using VectorFlow.Api.Enums;
 using System.ComponentModel.DataAnnotations;
