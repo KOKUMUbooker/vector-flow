@@ -1,7 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using VectorFlow.Api.DTOs;
+using VectorFlow.Shared.DTOs;
 using VectorFlow.Api.Enums;
 using VectorFlow.Api.Services.Interfaces;
 

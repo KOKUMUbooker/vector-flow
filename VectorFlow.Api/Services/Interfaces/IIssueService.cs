@@ -1,4 +1,4 @@
-﻿using VectorFlow.Api.DTOs;
+﻿using VectorFlow.Shared.DTOs;
 using VectorFlow.Api.Enums;
 
 namespace VectorFlow.Api.Services.Interfaces;

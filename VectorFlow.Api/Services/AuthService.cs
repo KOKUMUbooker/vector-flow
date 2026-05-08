@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using VectorFlow.Api.Data;
-using VectorFlow.Api.DTOs;
+using VectorFlow.Shared.DTOs;
 using VectorFlow.Api.Models;
 using VectorFlow.Api.Services.Interfaces;
 

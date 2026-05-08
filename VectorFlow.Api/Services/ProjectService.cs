@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VectorFlow.Api.Data;
-using VectorFlow.Api.DTOs;
+using VectorFlow.Shared.DTOs;
 using VectorFlow.Api.Enums;
 using VectorFlow.Api.Models;
 using VectorFlow.Api.Services.Interfaces;

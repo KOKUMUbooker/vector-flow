@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using VectorFlow.Api.Services.Interfaces;
-using VectorFlow.Api.DTOs;
+using VectorFlow.Shared.DTOs;
 
 namespace VectorFlow.Api.Controllers;
 
