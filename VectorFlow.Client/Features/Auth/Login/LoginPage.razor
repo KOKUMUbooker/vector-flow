@@ -3,7 +3,8 @@
 @inject ISnackbar Snackbar
 @using System.ComponentModel.DataAnnotations
 @using VectorFlow.Client.Features.Auth.Login.Components
-@using VectorFlow.Client.Features.Auth.Common;
+@using VectorFlow.Client.Features.Auth.Common
+@using VectorFlow.Shared.DTOs
 
 <PageTitle>Sign in — VectorFlow</PageTitle>
 
@@ -219,8 +220,13 @@
         _loading = true;
         StateHasChanged();
 
+        var data = new LoginRequest{
+            Email = _model.Email,
+            Password = _model.Password
+        };
+
         // TODO: call your service / API here
-        // e.g. await AuthService.LoginAsync(_model);
+        // e.g. await AuthService.LoginAsync(data);
 
         await Task.Delay(1200); // remove — placeholder
         _loading = false;
