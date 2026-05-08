@@ -1,86 +1,13 @@
 @page "/email-verified"
 @inject NavigationManager Nav
+@using VectorFlow.Client.Features.Auth.EmailVerified.Components
 
 <PageTitle>Email verified — VectorFlow</PageTitle>
 
 <div class="auth-shell">
 
     <!-- LEFT PANEL -->
-    <div class="auth-panel">
-        <a href="/" class="panel-brand">VectorFlow</a>
-
-        <div class="panel-body">
-            <div class="panel-kicker @(_alreadyVerified ? "kicker-muted" : "")">
-                @(_alreadyVerified ? "Already active" : "You're in")
-            </div>
-            <p class="panel-headline">
-                @(_alreadyVerified ? "Your account\nis active." : "Ready to\nship.")
-            </p>
-
-            <!-- Celebration / status strip -->
-            @if (!_alreadyVerified)
-            {
-                <div class="confetti-strip">
-                    @foreach (var dot in _dots)
-                    {
-                        <div class="conf-dot" style="background:@dot.Color; animation-delay:@(dot.Delay)s; left:@(dot.X)%"></div>
-                    }
-                </div>
-
-                <div class="unlocked-list">
-                    <div class="unlock-row">
-                        <div class="unlock-check">✓</div>
-                        <div class="unlock-text">
-                            <span class="unlock-title">Workspace access</span>
-                            <span class="unlock-desc">Create or join a workspace immediately</span>
-                        </div>
-                    </div>
-                    <div class="unlock-row">
-                        <div class="unlock-check">✓</div>
-                        <div class="unlock-text">
-                            <span class="unlock-title">Real-time Kanban</span>
-                            <span class="unlock-desc">Start tracking issues with your team</span>
-                        </div>
-                    </div>
-                    <div class="unlock-row">
-                        <div class="unlock-check">✓</div>
-                        <div class="unlock-text">
-                            <span class="unlock-title">Invitation emails</span>
-                            <span class="unlock-desc">Invite teammates to collaborate</span>
-                        </div>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="already-box">
-                    <div class="already-icon">✓</div>
-                    <div class="already-content">
-                        <div class="already-title">Verification already complete</div>
-                        <div class="already-desc">
-                            Your email was verified previously. Sign in to continue.
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-
-        <div class="panel-footer">
-            <div class="footer-mono">
-                <span class="mono-label">status</span>
-                <span class="mono-value @(_alreadyVerified ? "" : "mono-success")">
-                    @(_alreadyVerified ? "already_verified" : "email_verified ✓")
-                </span>
-            </div>
-            @if (!string.IsNullOrEmpty(_email))
-            {
-                <div class="footer-mono">
-                    <span class="mono-label">account</span>
-                    <span class="mono-value">@_email</span>
-                </div>
-            }
-        </div>
-    </div>
+    <LeftePanel _alreadyVerified="@_alreadyVerified" _email="@_email"/>
 
     <!-- RIGHT PANEL -->
     <div class="auth-form-side">
@@ -112,20 +39,20 @@
 
                 <div class="action-stack mt-8">
                     <MudButton Href="/login"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Size="Size.Large"
-                               FullWidth="true"
-                               Class="submit-btn"
-                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        Variant="Variant.Filled"
+                        Color="Color.Primary"
+                        Size="Size.Large"
+                        FullWidth="true"
+                        Class="submit-btn"
+                        EndIcon="@Icons.Material.Filled.ArrowForward">
                         Sign in to your account
                     </MudButton>
 
                     <MudButton Href="/"
-                               Variant="Variant.Text"
-                               Color="Color.Default"
-                               FullWidth="true"
-                               Class="ghost-btn">
+                        Variant="Variant.Text"
+                        Color="Color.Default"
+                        FullWidth="true"
+                        Class="ghost-btn">
                         Back to homepage
                     </MudButton>
                 </div>
@@ -151,20 +78,20 @@
 
                 <div class="action-stack">
                     <MudButton Href="/login"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Size="Size.Large"
-                               FullWidth="true"
-                               Class="submit-btn"
-                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        Variant="Variant.Filled"
+                        Color="Color.Primary"
+                        Size="Size.Large"
+                        FullWidth="true"
+                        Class="submit-btn"
+                        EndIcon="@Icons.Material.Filled.ArrowForward">
                         Sign in
                     </MudButton>
 
                     <MudButton Href="/"
-                               Variant="Variant.Text"
-                               Color="Color.Default"
-                               FullWidth="true"
-                               Class="ghost-btn">
+                        Variant="Variant.Text"
+                        Color="Color.Default"
+                        FullWidth="true"
+                        Class="ghost-btn">
                         Back to homepage
                     </MudButton>
                 </div>
@@ -184,190 +111,7 @@
         grid-template-columns: 1fr 1fr;
     }
 
-    /* LEFT */
-    .auth-panel {
-        background: var(--mud-palette-dark, #0D0D0F);
-        color: var(--mud-palette-white);
-        display: flex;
-        flex-direction: column;
-        padding: 40px 48px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .auth-panel::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background-image:
-            linear-gradient(var(--mud-palette-primary) 1px, transparent 1px),
-            linear-gradient(90deg, var(--mud-palette-primary) 1px, transparent 1px);
-        background-size: 48px 48px;
-        opacity: 0.04;
-        pointer-events: none;
-    }
-
-    /* Animated success glow */
-    .auth-panel::after {
-        content: '';
-        position: absolute;
-        top: 20%;
-        right: -80px;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, var(--mud-palette-success) 0%, transparent 65%);
-        opacity: 0.07;
-        pointer-events: none;
-        animation: glow-pulse 3s ease-in-out infinite;
-    }
-
-    @@keyframes glow-pulse {
-        0%, 100% { opacity: 0.07; transform: scale(1); }
-        50%       { opacity: 0.12; transform: scale(1.1); }
-    }
-
-    .panel-brand {
-        font-family: 'DM Serif Display', Georgia, serif;
-        font-size: 1.25rem;
-        color: var(--mud-palette-white);
-        text-decoration: none;
-        position: relative;
-        z-index: 1;
-    }
-
-    .panel-body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        position: relative;
-        z-index: 1;
-    }
-
-    .panel-kicker {
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--mud-palette-success);
-        margin-bottom: 16px;
-    }
-
-    .kicker-muted { color: var(--mud-palette-primary) !important; }
-
-    .panel-headline {
-        font-family: 'DM Serif Display', Georgia, serif;
-        font-size: clamp(2rem, 3vw, 3rem);
-        line-height: 1.1;
-        letter-spacing: -0.02em;
-        color: var(--mud-palette-white);
-        margin: 0 0 36px;
-        white-space: pre-line;
-    }
-
-    /* Confetti dots */
-    .confetti-strip {
-        position: relative;
-        height: 32px;
-        margin-bottom: 28px;
-    }
-
-    .conf-dot {
-        position: absolute;
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        top: 0;
-        animation: conf-fall 1.8s ease both infinite;
-    }
-
-    @@keyframes conf-fall {
-        0%   { transform: translateY(-8px) scale(0); opacity: 0; }
-        20%  { opacity: 1; transform: translateY(0) scale(1); }
-        80%  { opacity: 1; }
-        100% { transform: translateY(28px) scale(0.5); opacity: 0; }
-    }
-
-    /* Unlocked features */
-    .unlocked-list { display: flex; flex-direction: column; gap: 14px; }
-
-    .unlock-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        animation: feed-in 0.4s ease both;
-    }
-
-    .unlock-row:nth-child(1) { animation-delay: 0.2s; }
-    .unlock-row:nth-child(2) { animation-delay: 0.35s; }
-    .unlock-row:nth-child(3) { animation-delay: 0.5s; }
-
-    @@keyframes feed-in {
-        from { opacity: 0; transform: translateX(-8px); }
-        to   { opacity: 1; transform: translateX(0); }
-    }
-
-    .unlock-check {
-        width: 22px;
-        height: 22px;
-        border-radius: 6px;
-        background: var(--mud-palette-success);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 700;
-        color: white;
-        flex-shrink: 0;
-    }
-
-    .unlock-text  { display: flex; flex-direction: column; gap: 2px; }
-    .unlock-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
-    .unlock-desc  { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.4; }
-
-    /* Already-verified card */
-    .already-box {
-        display: flex;
-        align-items: flex-start;
-        gap: 14px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 12px;
-        padding: 18px;
-    }
-
-    .already-icon {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: var(--mud-palette-primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        color: white;
-        flex-shrink: 0;
-    }
-
-    .already-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px; }
-    .already-desc  { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.5; }
-
-    /* Footer mono */
-    .panel-footer { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
-
-    .footer-mono {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-    }
-
-    .mono-label  { color: rgba(255,255,255,0.25); }
-    .mono-value  { color: rgba(255,255,255,0.5); }
-    .mono-success { color: var(--mud-palette-success); }
-
+   
     /* RIGHT */
     .auth-form-side {
         display: flex;
@@ -495,21 +239,8 @@
 </style>
 
 @code {
-    private bool _alreadyVerified;
-    private string _email = string.Empty;
-
-    private record ConfDot(string Color, double Delay, int X);
-
-    private readonly List<ConfDot> _dots =
-    [
-        new("var(--mud-palette-primary)", 0.0,  8),
-        new("var(--mud-palette-success)", 0.3, 22),
-        new("var(--mud-palette-warning)", 0.1, 38),
-        new("var(--mud-palette-error)",   0.5, 52),
-        new("var(--mud-palette-info)",    0.2, 67),
-        new("var(--mud-palette-primary)", 0.4, 80),
-        new("var(--mud-palette-success)", 0.15,92),
-    ];
+    protected bool _alreadyVerified;
+    protected string _email = string.Empty;
 
     protected override void OnInitialized()
     {
