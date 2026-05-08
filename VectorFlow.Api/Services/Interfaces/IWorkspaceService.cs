@@ -1,5 +1,5 @@
 ﻿using VectorFlow.Shared.DTOs;
-using VectorFlow.Api.Enums;
+using VectorFlow.Shared.Enums;
 
 namespace VectorFlow.Api.Services.Interfaces;
 

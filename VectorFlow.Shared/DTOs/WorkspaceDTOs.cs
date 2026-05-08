@@ -1,6 +1,6 @@
 ﻿namespace VectorFlow.Shared.DTOs;
 
-using VectorFlow.Api.Enums;
+using VectorFlow.Shared.Enums;
 using System.ComponentModel.DataAnnotations;
 
 // ── Requests ─────────────────────────────────────────────────────────────────

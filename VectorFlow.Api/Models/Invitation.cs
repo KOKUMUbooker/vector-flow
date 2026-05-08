@@ -1,4 +1,4 @@
-using VectorFlow.Api.Enums;
+using VectorFlow.Shared.Enums;
 
 namespace VectorFlow.Api.Models;
 

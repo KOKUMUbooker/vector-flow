@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VectorFlow.Shared.DTOs;
-using VectorFlow.Api.Enums;
+using VectorFlow.Shared.Enums;
 using VectorFlow.Api.Services.Interfaces;
 
 namespace VectorFlow.Api.Controllers;
