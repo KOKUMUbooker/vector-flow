@@ -1,0 +1,1463 @@
+@page "/w/{Slug}/projects/{ProjectId:guid}/issues/{IssueId:guid}"
+@layout Features.Layout.MainLayout
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@* @inject IIssueService IssueService *@
+@* @inject ICommentService CommentService *@
+@* @inject IWorkspaceService WorkspaceService *@
+@* @inject IAuthService AuthService *@
+
+<PageTitle>@(_issue?.Key ?? "Issue") — VectorFlow</PageTitle>
+
+@if (_loading)
+{
+    <div class="issue-loading">
+        <div class="skel skel-title"></div>
+        <div class="issue-layout">
+            <div class="skel skel-main"></div>
+            <div class="skel skel-sidebar"></div>
+        </div>
+    </div>
+}
+else if (_issue is null)
+{
+    <div class="issue-not-found">
+        <MudText Typo="Typo.h4" Class="mud-text-secondary">Issue not found</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-disabled mt-2 mb-6">
+            This issue may have been deleted or you don't have access.
+        </MudText>
+        <MudButton Href="@($"/w/{Slug}")" Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Outlined.ArrowBack">
+            Back to workspace
+        </MudButton>
+    </div>
+}
+else
+{
+    <div class="issue-shell" @key="_issue.Id">
+
+        <!-- ── BREADCRUMB ─────────────────────────────────────────────── -->
+        <div class="issue-breadcrumb">
+            <MudLink Href="@($"/w/{Slug}")" Class="bc-link">@_workspaceName</MudLink>
+            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Class="bc-sep" />
+            <MudLink Href="@($"/w/{Slug}/projects/{ProjectId}")" Class="bc-link">@_projectName</MudLink>
+            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Class="bc-sep" />
+            <span class="bc-current">@_issue.Key</span>
+        </div>
+
+        <!-- ── TWO-COLUMN LAYOUT ──────────────────────────────────────── -->
+        <div class="issue-layout">
+
+            <!-- ── LEFT: Main content ─────────────────────────────────── -->
+            <div class="issue-main">
+
+                <!-- Title -->
+                @if (_editingTitle)
+                {
+                    <div class="title-edit-wrap">
+                        <MudTextField @bind-Value="_titleDraft"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Class="title-field"
+                                      Immediate="true" />
+                        <div class="title-edit-actions">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       OnClick="SaveTitle" Disabled="_savingTitle">
+                                @(_savingTitle ? "Saving…" : "Save")
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
+                                       OnClick="() => _editingTitle = false">
+                                Cancel
+                            </MudButton>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="issue-title-wrap" @onclick="StartEditTitle">
+                        <h1 class="issue-title">@_issue.Title</h1>
+                        <MudIcon Icon="@Icons.Material.Outlined.Edit" Class="title-edit-icon" />
+                    </div>
+                }
+
+                <!-- Type + status row -->
+                <div class="issue-tags-row">
+                    <div class="issue-type-badge type-@_issue.Type.ToString().ToLower()">
+                        <MudIcon Icon="@TypeIcon(_issue.Type)" Style="font-size:12px" />
+                        @_issue.Type
+                    </div>
+                    <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                        <ActivatorContent>
+                            <div class="status-chip status-@StatusCss(_issue.Status)" style="cursor:pointer">
+                                <div class="status-dot"></div>
+                                @StatusLabel(_issue.Status)
+                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:12px; margin-left:2px" />
+                            </div>
+                        </ActivatorContent>
+                        <ChildContent>
+                            @foreach (IssueStatus s in Enum.GetValues<IssueStatus>())
+                            {
+                                <MudMenuItem OnClick="() => ChangeStatus(s)"
+                                             Class="@(s == _issue.Status ? "menu-item-active" : "")">
+                                    <div class="status-menu-item">
+                                        <div class="status-dot-sm status-@StatusCss(s)"></div>
+                                        @StatusLabel(s)
+                                    </div>
+                                </MudMenuItem>
+                            }
+                        </ChildContent>
+                    </MudMenu>
+                </div>
+
+                <!-- Description -->
+                <div class="section-block">
+                    <div class="section-label">Description</div>
+                    @if (_editingDescription)
+                    {
+                        <MudTextField @bind-Value="_descriptionDraft"
+                                      Variant="Variant.Outlined"
+                                      Lines="6"
+                                      Placeholder="Describe the issue…"
+                                      Class="description-field"
+                                      Margin="Margin.Dense" />
+                        <div class="desc-edit-actions">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       OnClick="SaveDescription" Disabled="_savingDescription">
+                                @(_savingDescription ? "Saving…" : "Save")
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
+                                       OnClick="() => _editingDescription = false">
+                                Cancel
+                            </MudButton>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="description-display @(string.IsNullOrWhiteSpace(_issue.Description) ? "desc-empty" : "")"
+                             @onclick="StartEditDescription">
+                            @if (string.IsNullOrWhiteSpace(_issue.Description))
+                            {
+                                <span>Add a description…</span>
+                            }
+                            else
+                            {
+                                @* In production, render Markdown here via a Markdown renderer *@
+                                <p>@_issue.Description</p>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- ── ACTIVITY LOG ─────────────────────────────────── -->
+                <div class="section-block">
+                    <div class="section-label">Activity</div>
+                    <div class="activity-feed">
+                        @if (!_activity.Any())
+                        {
+                            <div class="activity-empty">No activity recorded yet.</div>
+                        }
+                        else
+                        {
+                            @foreach (var entry in _activity)
+                            {
+                                <div class="activity-row">
+                                    <div class="activity-avatar">
+                                        @GetInitials(entry.ActorName)
+                                    </div>
+                                    <div class="activity-body">
+                                        <div class="activity-line">
+                                            <span class="activity-actor">@entry.ActorName</span>
+                                            <span class="activity-verb">@entry.Verb</span>
+                                            @if (!string.IsNullOrEmpty(entry.From))
+                                            {
+                                                <span class="activity-from">@entry.From</span>
+                                                <span class="activity-arrow">→</span>
+                                            }
+                                            <span class="activity-to">@entry.To</span>
+                                        </div>
+                                        <div class="activity-time">@FormatRelative(entry.OccurredAt)</div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- ── COMMENTS ─────────────────────────────────────── -->
+                <div class="section-block">
+                    <div class="section-label">
+                        Comments
+                        @if (_comments.Any())
+                        {
+                            <span class="comment-count">@_comments.Count</span>
+                        }
+                    </div>
+
+                    <!-- Existing comments -->
+                    @if (_comments.Any())
+                    {
+                        <div class="comments-list">
+                            @foreach (var comment in _comments)
+                            {
+                                <div class="comment-row" @key="comment.Id">
+                                    <div class="comment-avatar">
+                                        @if (!string.IsNullOrEmpty(comment.AuthorAvatarUrl))
+                                        {
+                                            <img src="@comment.AuthorAvatarUrl" alt="@comment.AuthorDisplayName" class="avatar-img" />
+                                        }
+                                        else
+                                        {
+                                            <span>@GetInitials(comment.AuthorDisplayName)</span>
+                                        }
+                                    </div>
+                                    <div class="comment-body">
+                                        <div class="comment-header">
+                                            <span class="comment-author">@comment.AuthorDisplayName</span>
+                                            <span class="comment-time">@FormatRelative(comment.CreatedAt)</span>
+                                            @if (comment.IsEdited)
+                                            {
+                                                <span class="comment-edited">(edited)</span>
+                                            }
+                                            @if (comment.AuthorId == _currentUserId)
+                                            {
+                                                <div class="comment-actions">
+                                                    <MudIconButton Icon="@Icons.Material.Outlined.Edit"
+                                                                   Size="Size.Small"
+                                                                   OnClick="() => StartEditComment(comment)"
+                                                                   Class="comment-action-btn" />
+                                                    <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="() => ConfirmDeleteComment(comment)"
+                                                                   Class="comment-action-btn" />
+                                                </div>
+                                            }
+                                        </div>
+
+                                        @if (_editingCommentId == comment.Id)
+                                        {
+                                            <MudTextField @bind-Value="_commentEditDraft"
+                                                          Variant="Variant.Outlined"
+                                                          Lines="3"
+                                                          Margin="Margin.Dense"
+                                                          Class="comment-edit-field" />
+                                            <div class="comment-edit-actions">
+                                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                                           Size="Size.Small"
+                                                           OnClick="() => SaveEditComment(comment)"
+                                                           Disabled="_savingComment">
+                                                    @(_savingComment ? "Saving…" : "Save")
+                                                </MudButton>
+                                                <MudButton Variant="Variant.Text" Color="Color.Default"
+                                                           Size="Size.Small"
+                                                           OnClick="CancelEditComment">
+                                                    Cancel
+                                                </MudButton>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="comment-text">@comment.Body</div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- New comment composer -->
+                    <div class="comment-composer">
+                        <div class="composer-avatar">
+                            @GetInitials(_currentUserName)
+                        </div>
+                        <div class="composer-input-wrap">
+                            <MudTextField @bind-Value="_newCommentBody"
+                                          Placeholder="Leave a comment…"
+                                          Variant="Variant.Outlined"
+                                          Lines="3"
+                                          Margin="Margin.Dense"
+                                          Class="composer-field" />
+                            <div class="composer-footer">
+                                <MudText Typo="Typo.caption" Class="mud-text-disabled">
+                                    Markdown supported
+                                </MudText>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="SubmitComment"
+                                           Disabled="@(string.IsNullOrWhiteSpace(_newCommentBody) || _savingComment)"
+                                           Class="submit-comment-btn">
+                                    @(_savingComment ? "Posting…" : "Comment")
+                                </MudButton>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ── RIGHT: Metadata sidebar ────────────────────────────── -->
+            <aside class="issue-sidebar">
+
+                <!-- Priority -->
+                <div class="sidebar-field">
+                    <div class="sidebar-label">Priority</div>
+                    <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                        <ActivatorContent>
+                            <div class="sidebar-value sidebar-clickable">
+                                <div class="pri-dot pri-@PriorityCss(_issue.Priority)"></div>
+                                @_issue.Priority.ToString()
+                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:13px; margin-left:auto" />
+                            </div>
+                        </ActivatorContent>
+                        <ChildContent>
+                            @foreach (IssuePriority p in Enum.GetValues<IssuePriority>())
+                            {
+                                <MudMenuItem OnClick="() => ChangePriority(p)">
+                                    <div class="pri-menu-item">
+                                        <div class="pri-dot pri-@PriorityCss(p)"></div>
+                                        @p.ToString()
+                                    </div>
+                                </MudMenuItem>
+                            }
+                        </ChildContent>
+                    </MudMenu>
+                </div>
+
+                <!-- Assignee -->
+                <div class="sidebar-field">
+                    <div class="sidebar-label">Assignee</div>
+                    <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                        <ActivatorContent>
+                            <div class="sidebar-value sidebar-clickable">
+                                @if (!string.IsNullOrEmpty(_issue.AssigneeDisplayName))
+                                {
+                                    <div class="assignee-avatar-sm">@GetInitials(_issue.AssigneeDisplayName)</div>
+                                    <span>@_issue.AssigneeDisplayName</span>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Outlined.PersonAdd" Style="font-size:15px; color:var(--mud-palette-text-disabled)" />
+                                    <span class="sidebar-unset">Unassigned</span>
+                                }
+                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:13px; margin-left:auto" />
+                            </div>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <MudMenuItem OnClick="() => ChangeAssignee(null, null)">
+                                <div class="assignee-menu-item">
+                                    <MudIcon Icon="@Icons.Material.Outlined.PersonOff" Style="font-size:15px" />
+                                    Unassigned
+                                </div>
+                            </MudMenuItem>
+                            <MudDivider />
+                            @foreach (var m in _members)
+                            {
+                                <MudMenuItem OnClick="() => ChangeAssignee(m.UserId, m.DisplayName)">
+                                    <div class="assignee-menu-item">
+                                        <div class="assignee-avatar-sm">@GetInitials(m.DisplayName)</div>
+                                        @m.DisplayName
+                                    </div>
+                                </MudMenuItem>
+                            }
+                        </ChildContent>
+                    </MudMenu>
+                </div>
+
+                <!-- Due date -->
+                <div class="sidebar-field">
+                    <div class="sidebar-label">Due date</div>
+                    <MudDatePicker Date="_issue.DueDate"
+                                   DateChanged="ChangeDueDate"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Clearable="true"
+                                   Placeholder="No due date"
+                                   Class="sidebar-datepicker" />
+                </div>
+
+                <!-- Labels -->
+                <div class="sidebar-field">
+                    <div class="sidebar-label">Labels</div>
+                    <div class="labels-wrap">
+                        @if (_issue.Labels.Any())
+                        {
+                            @foreach (var label in _issue.Labels)
+                            {
+                                <div class="label-chip" style="background:@label.Color+'22'; border-color:@label.Color+'44'; color:@label.Color">
+                                    @label.Name
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <span class="sidebar-unset">None</span>
+                        }
+                        <MudIconButton Icon="@Icons.Material.Outlined.Add"
+                                       Size="Size.Small"
+                                       Title="Add label"
+                                       Class="label-add-btn" />
+                    </div>
+                </div>
+
+                <MudDivider Class="sidebar-divider" />
+
+                <!-- Reporter -->
+                <div class="sidebar-field">
+                    <div class="sidebar-label">Reporter</div>
+                    <div class="sidebar-value">
+                        <div class="assignee-avatar-sm reporter-av">@GetInitials(_issue.ReporterDisplayName)</div>
+                        <span>@_issue.ReporterDisplayName</span>
+                    </div>
+                </div>
+
+                <!-- Created / Updated -->
+                <div class="sidebar-field">
+                    <div class="sidebar-label">Created</div>
+                    <div class="sidebar-value sidebar-mono">@_issue.CreatedAt.ToString("MMM d, yyyy")</div>
+                </div>
+                <div class="sidebar-field">
+                    <div class="sidebar-label">Updated</div>
+                    <div class="sidebar-value sidebar-mono">@FormatRelative(_issue.UpdatedAt)</div>
+                </div>
+
+                <MudDivider Class="sidebar-divider" />
+
+                <!-- Danger zone (Owners/Admins only) -->
+                @if (_canManage)
+                {
+                    <div class="sidebar-field">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Outlined.DeleteOutline"
+                                   FullWidth="true"
+                                   OnClick="ConfirmDeleteIssue"
+                                   Class="delete-issue-btn">
+                            Delete issue
+                        </MudButton>
+                    </div>
+                }
+
+            </aside>
+        </div>
+    </div>
+}
+
+<!-- ── CONFIRM DIALOG ──────────────────────────────────────────────── -->
+<MudDialog @bind-Visible="_confirmOpen" Options="_dialogSm">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@_confirmTitle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2">@_confirmBody</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _confirmOpen = false" Variant="Variant.Text" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="ExecuteConfirm" Variant="Variant.Filled" Color="Color.Error"
+                   Disabled="_confirmLoading">
+            @if (_confirmLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>@_confirmActionLabel…</span>
+            }
+            else { <span>@_confirmActionLabel</span> }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
+
+    /* ── LOADING ───────────────────────────────────────────────────────── */
+    .issue-loading {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .skel {
+        border-radius: 10px;
+        background: var(--mud-palette-lines-default);
+        animation: skel-pulse 1.6s ease-in-out infinite;
+    }
+
+    @@keyframes skel-pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+
+    .issue-layout  { display: grid; grid-template-columns: 1fr 280px; gap: 24px; }
+    .skel-title    { height: 48px; width: 60%; }
+    .skel-main     { height: 500px; }
+    .skel-sidebar  { height: 500px; }
+
+    /* ── NOT FOUND ─────────────────────────────────────────────────────── */
+    .issue-not-found {
+        max-width: 480px;
+        margin: 80px auto;
+        padding: 40px;
+        text-align: center;
+    }
+
+    /* ── SHELL ─────────────────────────────────────────────────────────── */
+    .issue-shell {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px 40px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        animation: page-in 0.35s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    @@keyframes page-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── BREADCRUMB ────────────────────────────────────────────────────── */
+    .issue-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .bc-link {
+        font-family: 'DM Mono', monospace;
+        font-size: 12px !important;
+        color: var(--mud-palette-text-disabled) !important;
+        text-decoration: none !important;
+        transition: color 0.15s;
+    }
+
+    .bc-link:hover { color: var(--mud-palette-primary) !important; }
+
+    .bc-sep {
+        font-size: 14px !important;
+        color: var(--mud-palette-divider) !important;
+    }
+
+    .bc-current {
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        color: var(--mud-palette-primary);
+        font-weight: 600;
+    }
+
+    /* ── LAYOUT ────────────────────────────────────────────────────────── */
+    .issue-layout {
+        display: grid;
+        grid-template-columns: 1fr 280px;
+        gap: 32px;
+        align-items: flex-start;
+    }
+
+    /* ── MAIN PANEL ────────────────────────────────────────────────────── */
+    .issue-main {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        min-width: 0;
+    }
+
+    /* Title */
+    .issue-title-wrap {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        cursor: text;
+        group: title;
+    }
+
+    .issue-title-wrap:hover .title-edit-icon { opacity: 1; }
+
+    .issue-title {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        color: var(--mud-palette-text-primary);
+        margin: 0;
+        flex: 1;
+    }
+
+    .title-edit-icon {
+        color: var(--mud-palette-text-disabled) !important;
+        font-size: 16px !important;
+        flex-shrink: 0;
+        margin-top: 4px;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    .title-edit-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .title-field .mud-input-outlined .mud-notched-outline { border-radius: 10px !important; }
+    .title-edit-actions { display: flex; gap: 8px; }
+
+    /* Tags row */
+    .issue-tags-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: -12px;
+    }
+
+    .issue-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        padding: 3px 8px;
+        border-radius: 99px;
+    }
+
+    .type-task    { background: rgba(37,99,235,0.1);  color: var(--mud-palette-info);    border: 1px solid rgba(37,99,235,0.2); }
+    .type-bug     { background: rgba(220,38,38,0.1);  color: var(--mud-palette-error);   border: 1px solid rgba(220,38,38,0.2); }
+    .type-feature { background: rgba(26,122,82,0.1);  color: var(--mud-palette-success); border: 1px solid rgba(26,122,82,0.2); }
+
+    /* Status chip */
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 99px;
+        border: 1px solid transparent;
+        user-select: none;
+    }
+
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+    }
+
+    .status-backlog    { background: var(--mud-palette-background-grey); color: var(--mud-palette-text-disabled); border-color: var(--mud-palette-divider); }
+    .status-todo       { background: rgba(37,99,235,0.08);  color: var(--mud-palette-info);    border-color: rgba(37,99,235,0.2); }
+    .status-inprogress { background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary); border-color: rgba(67,57,202,0.25); }
+    .status-inreview   { background: rgba(217,119,6,0.1);   color: var(--mud-palette-warning); border-color: rgba(217,119,6,0.25); }
+    .status-done       { background: rgba(26,122,82,0.1);   color: var(--mud-palette-success); border-color: rgba(26,122,82,0.2); }
+
+    .status-dot-sm {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-menu-item, .pri-menu-item, .assignee-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .menu-item-active { background: var(--mud-palette-primary-lighten) !important; }
+
+    /* ── SECTION BLOCKS ────────────────────────────────────────────────── */
+    .section-block {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .section-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--mud-palette-text-disabled);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .comment-count {
+        background: var(--mud-palette-lines-default);
+        padding: 1px 6px;
+        border-radius: 99px;
+        font-size: 10px;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    /* Description */
+    .description-display {
+        font-size: 14px;
+        color: var(--mud-palette-text-primary);
+        line-height: 1.7;
+        cursor: text;
+        padding: 12px 14px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        transition: border-color 0.15s, background 0.15s;
+        min-height: 80px;
+    }
+
+    .description-display:hover {
+        border-color: var(--mud-palette-divider);
+        background: var(--mud-palette-background-grey);
+    }
+
+    .desc-empty { color: var(--mud-palette-text-disabled); font-style: italic; }
+
+    .description-field .mud-input-outlined .mud-notched-outline { border-radius: 10px !important; }
+    .desc-edit-actions { display: flex; gap: 8px; }
+
+    /* ── ACTIVITY FEED ─────────────────────────────────────────────────── */
+    .activity-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--mud-palette-surface);
+    }
+
+    .activity-empty {
+        padding: 24px;
+        text-align: center;
+        font-size: 13px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .activity-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+
+    .activity-row:last-child { border-bottom: none; }
+
+    .activity-avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .activity-body { flex: 1; min-width: 0; }
+
+    .activity-line {
+        font-size: 13px;
+        color: var(--mud-palette-text-secondary);
+        line-height: 1.4;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .activity-actor { font-weight: 600; color: var(--mud-palette-text-primary); }
+    .activity-verb  { color: var(--mud-palette-text-secondary); }
+    .activity-from  { font-family: 'DM Mono', monospace; font-size: 11px; background: var(--mud-palette-background-grey); padding: 1px 5px; border-radius: 4px; text-decoration: line-through; color: var(--mud-palette-text-disabled); }
+    .activity-arrow { color: var(--mud-palette-text-disabled); }
+    .activity-to    { font-family: 'DM Mono', monospace; font-size: 11px; background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary); padding: 1px 5px; border-radius: 4px; }
+    .activity-time  { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mud-palette-text-disabled); margin-top: 3px; }
+
+    /* ── COMMENTS ──────────────────────────────────────────────────────── */
+    .comments-list {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .comment-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        animation: comment-in 0.25s ease both;
+    }
+
+    @@keyframes comment-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .comment-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+
+    .comment-body {
+        flex: 1;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 10px;
+        padding: 12px 14px;
+        min-width: 0;
+    }
+
+    .comment-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+    }
+
+    .comment-author { font-size: 13px; font-weight: 600; color: var(--mud-palette-text-primary); }
+    .comment-time   { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mud-palette-text-disabled); }
+    .comment-edited { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mud-palette-text-disabled); }
+    .comment-text   { font-size: 14px; color: var(--mud-palette-text-primary); line-height: 1.6; white-space: pre-wrap; }
+
+    .comment-actions {
+        display: flex;
+        gap: 0;
+        margin-left: auto;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    .comment-body:hover .comment-actions { opacity: 1; }
+
+    .comment-action-btn { width: 24px !important; height: 24px !important; }
+    .comment-edit-field .mud-input-outlined .mud-notched-outline { border-radius: 8px !important; }
+    .comment-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+    /* Composer */
+    .comment-composer {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding-top: 8px;
+    }
+
+    .composer-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .composer-input-wrap { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .composer-field .mud-input-outlined .mud-notched-outline { border-radius: 10px !important; }
+
+    .composer-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .submit-comment-btn { border-radius: 8px !important; }
+
+    /* ── SIDEBAR ───────────────────────────────────────────────────────── */
+    .issue-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        padding: 16px;
+        position: sticky;
+        top: 80px;
+    }
+
+    .sidebar-field {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+
+    .sidebar-field:last-child { border-bottom: none; padding-bottom: 0; }
+    .sidebar-field:first-child { padding-top: 0; }
+
+    .sidebar-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--mud-palette-text-disabled);
+        margin-bottom: 8px;
+    }
+
+    .sidebar-value {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--mud-palette-text-primary);
+        font-weight: 500;
+    }
+
+    .sidebar-clickable {
+        cursor: pointer;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        transition: border-color 0.15s, background 0.12s;
+        margin: -6px -8px;
+    }
+
+    .sidebar-clickable:hover {
+        border-color: var(--mud-palette-divider);
+        background: var(--mud-palette-background-grey);
+    }
+
+    .sidebar-unset {
+        color: var(--mud-palette-text-disabled);
+        font-weight: 400;
+        font-style: italic;
+    }
+
+    .sidebar-mono {
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .sidebar-divider { margin: 4px 0 !important; }
+
+    /* Priority dot */
+    .pri-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .pri-none   { background: var(--mud-palette-text-disabled); }
+    .pri-low    { background: var(--mud-palette-success); }
+    .pri-medium { background: var(--mud-palette-info); }
+    .pri-high   { background: var(--mud-palette-warning); }
+    .pri-urgent { background: var(--mud-palette-error); }
+
+    /* Assignee avatar */
+    .assignee-avatar-sm {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .reporter-av { background: var(--mud-palette-success); }
+
+    /* Date picker */
+    .sidebar-datepicker .mud-input-outlined .mud-notched-outline { border-radius: 8px !important; }
+
+    /* Labels */
+    .labels-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .label-chip {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 99px;
+        border: 1px solid;
+    }
+
+    .label-add-btn { width: 22px !important; height: 22px !important; }
+
+    /* Delete */
+    .delete-issue-btn { border-radius: 8px !important; }
+
+    /* ── RESPONSIVE ────────────────────────────────────────────────────── */
+    @@media (max-width: 860px) {
+        .issue-shell  { padding: 16px 16px 60px; }
+        .issue-layout { grid-template-columns: 1fr; }
+        .issue-sidebar { position: static; order: -1; }
+        .skel-main, .skel-sidebar { height: 200px; }
+    }
+</style>
+
+@code {
+    [Parameter] public string Slug       { get; set; } = string.Empty;
+    [Parameter] public Guid   ProjectId  { get; set; }
+    [Parameter] public Guid   IssueId    { get; set; }
+
+    // ── Page state ─────────────────────────────────────────────────────
+    private bool     _loading = true;
+    private IssueDto? _issue;
+    private string   _workspaceName  = string.Empty;
+    private string   _projectName    = string.Empty;
+    private string   _currentUserId  = string.Empty;
+    private string   _currentUserName = string.Empty;
+    private bool     _canManage; // Owner or Admin
+
+    private List<CommentDto>  _comments = [];
+    private List<ActivityRow> _activity = [];
+    private List<MemberDto>   _members  = [];
+
+    // Editing flags
+    private bool   _editingTitle;
+    private bool   _savingTitle;
+    private string _titleDraft = string.Empty;
+
+    private bool   _editingDescription;
+    private bool   _savingDescription;
+    private string _descriptionDraft = string.Empty;
+
+    private Guid?  _editingCommentId;
+    private bool   _savingComment;
+    private string _commentEditDraft = string.Empty;
+    private string _newCommentBody   = string.Empty;
+
+    // Confirm dialog
+    private bool   _confirmOpen;
+    private bool   _confirmLoading;
+    private string _confirmTitle       = string.Empty;
+    private string _confirmBody        = string.Empty;
+    private string _confirmActionLabel = string.Empty;
+    private Func<Task>? _confirmAction;
+
+    private readonly DialogOptions _dialogSm = new()
+    {
+        MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true
+    };
+
+    // ── Lifecycle ──────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync() => await Load();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_issue is not null && _issue.Id != IssueId) await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            // ── TODO: real calls ────────────────────────────────────────
+            // var me           = await AuthService.GetCurrentUserAsync();
+            // _currentUserId   = me.Id;
+            // _currentUserName = me.DisplayName;
+            //
+            // var workspace    = await WorkspaceService.GetBySlugAsync(Slug);
+            // _workspaceName   = workspace.Name;
+            // _canManage       = workspace.CurrentUserRole is WorkspaceRole.Owner or WorkspaceRole.Admin;
+            //
+            // var project      = await ProjectService.GetAsync(workspace.Id, ProjectId);
+            // _projectName     = project.Name;
+            //
+            // _issue           = await IssueService.GetAsync(ProjectId, IssueId);
+            // _comments        = await CommentService.GetByIssueAsync(IssueId);
+            // _activity        = (await IssueService.GetActivityAsync(ProjectId, IssueId))
+            //                        .Select(MapActivity).ToList();
+            // _members         = await WorkspaceService.GetMembersAsync(workspace.Id);
+            // ────────────────────────────────────────────────────────────
+
+            await Task.Delay(500);
+
+            _currentUserId   = "user-booker";
+            _currentUserName = "Booker K.";
+            _workspaceName   = "VectorFlow";
+            _projectName     = "VectorFlow Backend";
+            _canManage       = true;
+
+            _members =
+            [
+                new MemberDto { UserId = "user-booker", DisplayName = "Booker K.",  Email = "booker@vectorflow.dev", Role = WorkspaceRole.Owner,  IsOwner = true  },
+                new MemberDto { UserId = "user-jana",   DisplayName = "Jana S.",    Email = "jana@vectorflow.dev",   Role = WorkspaceRole.Admin,  IsOwner = false },
+                new MemberDto { UserId = "user-alex",   DisplayName = "Alex K.",    Email = "alex@vectorflow.dev",   Role = WorkspaceRole.Member, IsOwner = false },
+            ];
+
+            _issue = new IssueDto
+            {
+                Id                  = IssueId,
+                ProjectId           = ProjectId,
+                Key                 = "VF-05",
+                Title               = "Wire SignalR hub to issue service",
+                Description         = "The SignalR hub needs to be connected to the issue domain service so that all CRUD operations broadcast real-time events to connected clients.\n\nAcceptance criteria:\n- IssueCreated, IssueUpdated, IssueDeleted events fire correctly\n- Only members of the project receive events\n- Existing unit tests remain green",
+                Status              = IssueStatus.InProgress,
+                Priority            = IssuePriority.High,
+                Type                = IssueType.Feature,
+                AssigneeId          = "user-booker",
+                AssigneeDisplayName = "Booker K.",
+                ReporterId          = "user-jana",
+                ReporterDisplayName = "Jana S.",
+                DueDate             = DateTime.Today.AddDays(4),
+                Position            = 1024,
+                CreatedAt           = DateTime.UtcNow.AddDays(-5),
+                UpdatedAt           = DateTime.UtcNow.AddHours(-2),
+                CommentCount        = 2,
+                Labels              =
+                [
+                    new LabelDto { Id = Guid.NewGuid(), Name = "backend",  Color = "#4339CA" },
+                    new LabelDto { Id = Guid.NewGuid(), Name = "realtime", Color = "#1A7A52" }
+                ]
+            };
+
+            _activity =
+            [
+                new ActivityRow("Jana S.",   "created this issue",           "",         "",          DateTime.UtcNow.AddDays(-5)),
+                new ActivityRow("Booker K.", "changed status",               "Backlog",  "In Progress", DateTime.UtcNow.AddDays(-3)),
+                new ActivityRow("Booker K.", "changed priority",             "Medium",   "High",      DateTime.UtcNow.AddDays(-2)),
+                new ActivityRow("Jana S.",   "assigned this issue to",       "",         "Booker K.", DateTime.UtcNow.AddDays(-1)),
+                new ActivityRow("Booker K.", "set due date to",              "",         "May 12, 2025", DateTime.UtcNow.AddHours(-6)),
+            ];
+
+            _comments =
+            [
+                new CommentDto
+                {
+                    Id = Guid.NewGuid(), IssueId = IssueId,
+                    AuthorId = "user-jana", AuthorDisplayName = "Jana S.",
+                    Body = "Can we also make sure the hub group name is deterministic from the project ID? Something like `project-{projectId}` so it's easy to join from the client.",
+                    IsEdited = false, CreatedAt = DateTime.UtcNow.AddDays(-3), UpdatedAt = DateTime.UtcNow.AddDays(-3)
+                },
+                new CommentDto
+                {
+                    Id = Guid.NewGuid(), IssueId = IssueId,
+                    AuthorId = "user-booker", AuthorDisplayName = "Booker K.",
+                    Body = "Good call — I'll use `project-{projectId}`. Also planning to inject `IProjectHubBroadcaster` into the service layer so it stays testable.",
+                    IsEdited = true, CreatedAt = DateTime.UtcNow.AddDays(-2), UpdatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+            ];
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load issue: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // ── Title editing ──────────────────────────────────────────────────
+    private void StartEditTitle()
+    {
+        _titleDraft   = _issue?.Title ?? string.Empty;
+        _editingTitle = true;
+    }
+
+    private async Task SaveTitle()
+    {
+        if (_issue is null || string.IsNullOrWhiteSpace(_titleDraft)) return;
+        _savingTitle = true;
+        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Title = _titleDraft });
+        await Task.Delay(400);
+        @* _issue       = _issue with { Title = _titleDraft, UpdatedAt = DateTime.UtcNow }; *@
+        _savingTitle  = false;
+        _editingTitle = false;
+        AddOptimisticActivity("changed title", _issue.Title, _titleDraft);
+    }
+
+    // ── Description editing ────────────────────────────────────────────
+    private void StartEditDescription()
+    {
+        _descriptionDraft   = _issue?.Description ?? string.Empty;
+        _editingDescription = true;
+    }
+
+    private async Task SaveDescription()
+    {
+        if (_issue is null) return;
+        _savingDescription = true;
+        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Description = _descriptionDraft });
+        await Task.Delay(400);
+        @* _issue              = _issue with { Description = _descriptionDraft, UpdatedAt = DateTime.UtcNow }; *@
+        _savingDescription  = false;
+        _editingDescription = false;
+    }
+
+    // ── Status change ──────────────────────────────────────────────────
+    private async Task ChangeStatus(IssueStatus newStatus)
+    {
+        if (_issue is null || newStatus == _issue.Status) return;
+        var old = _issue.Status;
+        @* _issue = _issue with { Status = newStatus, UpdatedAt = DateTime.UtcNow }; *@
+        // TODO: await IssueService.ChangeStatusAsync(ProjectId, IssueId, new IssueStatusRequest { Status = newStatus });
+        await Task.Delay(300);
+        AddOptimisticActivity("changed status", StatusLabel(old), StatusLabel(newStatus));
+    }
+
+    // ── Priority change ────────────────────────────────────────────────
+    private async Task ChangePriority(IssuePriority newPriority)
+    {
+        if (_issue is null || newPriority == _issue.Priority) return;
+        var old = _issue.Priority;
+        @* _issue = _issue with { Priority = newPriority, UpdatedAt = DateTime.UtcNow }; *@
+        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Priority = newPriority });
+        await Task.Delay(300);
+        AddOptimisticActivity("changed priority", old.ToString(), newPriority.ToString());
+    }
+
+    // ── Assignee change ────────────────────────────────────────────────
+    private async Task ChangeAssignee(string? userId, string? displayName)
+    {
+        if (_issue is null) return;
+        @* _issue = _issue with { AssigneeId = userId, AssigneeDisplayName = displayName, UpdatedAt = DateTime.UtcNow }; *@
+        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { AssigneeId = userId });
+        await Task.Delay(300);
+        AddOptimisticActivity("changed assignee", "", displayName ?? "Unassigned");
+    }
+
+    // ── Due date change ────────────────────────────────────────────────
+    private async Task ChangeDueDate(DateTime? newDate)
+    {
+        if (_issue is null) return;
+        @* _issue = _issue with { DueDate = newDate, UpdatedAt = DateTime.UtcNow }; *@
+        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { DueDate = newDate });
+        await Task.Delay(300);
+    }
+
+    // ── Comments ───────────────────────────────────────────────────────
+    private async Task SubmitComment()
+    {
+        if (string.IsNullOrWhiteSpace(_newCommentBody)) return;
+        _savingComment = true;
+
+        // TODO: var created = await CommentService.AddAsync(IssueId, new AddCommentRequest { Body = _newCommentBody });
+        await Task.Delay(500);
+
+        _comments.Add(new CommentDto
+        {
+            Id = Guid.NewGuid(), IssueId = IssueId,
+            AuthorId = _currentUserId, AuthorDisplayName = _currentUserName,
+            Body = _newCommentBody, IsEdited = false,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        });
+
+        _newCommentBody = string.Empty;
+        _savingComment  = false;
+    }
+
+    private void StartEditComment(CommentDto comment)
+    {
+        _editingCommentId = comment.Id;
+        _commentEditDraft = comment.Body;
+    }
+
+    private void CancelEditComment()
+    {
+        _editingCommentId = null;
+        _commentEditDraft = string.Empty;
+    }
+
+    private async Task SaveEditComment(CommentDto comment)
+    {
+        if (string.IsNullOrWhiteSpace(_commentEditDraft)) return;
+        _savingComment = true;
+        // TODO: await CommentService.UpdateAsync(comment.Id, new UpdateCommentRequest { Body = _commentEditDraft });
+        await Task.Delay(400);
+        var idx = _comments.IndexOf(comment);
+        @* if (idx >= 0)
+            _comments[idx] = comment with
+            {
+                Body = _commentEditDraft, IsEdited = true, UpdatedAt = DateTime.UtcNow
+            }; *@
+        _savingComment    = false;
+        _editingCommentId = null;
+    }
+
+    private void ConfirmDeleteComment(CommentDto comment) =>
+        ShowConfirm("Delete comment?", "This comment will be permanently removed.",
+            "Delete",
+            async () =>
+            {
+                // TODO: await CommentService.DeleteAsync(comment.Id);
+                await Task.Delay(400);
+                _comments.Remove(comment);
+            });
+
+    // ── Delete issue ───────────────────────────────────────────────────
+    private void ConfirmDeleteIssue() =>
+        ShowConfirm($"Delete {_issue?.Key}?",
+            "This permanently deletes the issue, all its comments, and its activity log.",
+            "Delete issue",
+            async () =>
+            {
+                // TODO: await IssueService.DeleteAsync(ProjectId, IssueId);
+                await Task.Delay(600);
+                Nav.NavigateTo($"/w/{Slug}/projects/{ProjectId}");
+            });
+
+    // ── Confirm helper ─────────────────────────────────────────────────
+    private void ShowConfirm(string title, string body, string action, Func<Task> onConfirm)
+    {
+        _confirmTitle       = title;
+        _confirmBody        = body;
+        _confirmActionLabel = action;
+        _confirmAction      = onConfirm;
+        _confirmOpen        = true;
+    }
+
+    private async Task ExecuteConfirm()
+    {
+        if (_confirmAction is null) return;
+        _confirmLoading = true;
+        try   { await _confirmAction(); }
+        finally { _confirmLoading = false; _confirmOpen = false; _confirmAction = null; }
+    }
+
+    // ── Optimistic activity push ───────────────────────────────────────
+    private void AddOptimisticActivity(string verb, string from, string to) =>
+        _activity.Insert(0, new ActivityRow(_currentUserName, verb, from, to, DateTime.UtcNow));
+
+    // ── Display helpers ────────────────────────────────────────────────
+    private static string StatusCss(IssueStatus s) => s switch
+    {
+        IssueStatus.InProgress => "inprogress",
+        IssueStatus.InReview   => "inreview",
+        _                      => s.ToString().ToLower()
+    };
+
+    private static string StatusLabel(IssueStatus s) => s switch
+    {
+        IssueStatus.InProgress => "In Progress",
+        IssueStatus.InReview   => "In Review",
+        _                      => s.ToString()
+    };
+
+    private static string PriorityCss(IssuePriority p) => p.ToString().ToLower();
+
+    private static string TypeIcon(IssueType t) => t switch
+    {
+        IssueType.Bug     => Icons.Material.Outlined.BugReport,
+        IssueType.Feature => Icons.Material.Outlined.Stars,
+        _                 => Icons.Material.Outlined.CheckBox
+    };
+
+    private static string FormatRelative(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt.ToUniversalTime();
+        if (diff.TotalMinutes < 1)  return "just now";
+        if (diff.TotalHours < 1)    return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalDays < 1)     return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7)     return $"{(int)diff.TotalDays}d ago";
+        return dt.ToString("MMM d, yyyy");
+    }
+
+    private static string GetInitials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    // ── Activity row model ─────────────────────────────────────────────
+    private sealed record ActivityRow(
+        string   ActorName,
+        string   Verb,
+        string   From,
+        string   To,
+        DateTime OccurredAt
+    );
+
+    // ── Inline stubs — delete once VectorFlow.Shared is referenced ─────
+    #region Shared stubs
+
+    private enum WorkspaceRole { Owner, Admin, Member }
+    private enum IssueStatus   { Backlog, Todo, InProgress, InReview, Done }
+    private enum IssuePriority { None, Low, Medium, High, Urgent }
+    private enum IssueType     { Task, Bug, Feature }
+
+    private sealed class IssueDto
+    {
+        public Guid          Id                  { get; set; }
+        public Guid          ProjectId           { get; set; }
+        public string        Key                 { get; set; } = string.Empty;
+        public string        Title               { get; set; } = string.Empty;
+        public string?       Description         { get; set; }
+        public IssueStatus   Status              { get; set; }
+        public IssuePriority Priority            { get; set; }
+        public IssueType     Type                { get; set; }
+        public string?       AssigneeId          { get; set; }
+        public string?       AssigneeDisplayName { get; set; }
+        public string?       AssigneeAvatarUrl   { get; set; }
+        public string        ReporterId          { get; set; } = string.Empty;
+        public string        ReporterDisplayName { get; set; } = string.Empty;
+        public DateTime?     DueDate             { get; set; }
+        public double        Position            { get; set; }
+        public DateTime      CreatedAt           { get; set; }
+        public DateTime      UpdatedAt           { get; set; }
+        public int           CommentCount        { get; set; }
+        public List<LabelDto> Labels             { get; set; } = [];
+    }
+
+    private sealed class LabelDto
+    {
+        public Guid   Id    { get; set; }
+        public string Name  { get; set; } = string.Empty;
+        public string Color { get; set; } = "#4339CA";
+    }
+
+    private sealed class CommentDto
+    {
+        public Guid     Id                 { get; set; }
+        public Guid     IssueId            { get; set; }
+        public string   AuthorId           { get; set; } = string.Empty;
+        public string   AuthorDisplayName  { get; set; } = string.Empty;
+        public string?  AuthorAvatarUrl    { get; set; }
+        public string   Body               { get; set; } = string.Empty;
+        public bool     IsEdited           { get; set; }
+        public DateTime CreatedAt          { get; set; }
+        public DateTime UpdatedAt          { get; set; }
+    }
+
+    private sealed class MemberDto
+    {
+        public string        UserId      { get; set; } = string.Empty;
+        public string        DisplayName { get; set; } = string.Empty;
+        public string        Email       { get; set; } = string.Empty;
+        public string?       AvatarUrl   { get; set; }
+        public WorkspaceRole Role        { get; set; }
+        public bool          IsOwner     { get; set; }
+        public DateTime      JoinedAt    { get; set; }
+    }
+
+    #endregion
+}
