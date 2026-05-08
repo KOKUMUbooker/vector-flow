@@ -1,0 +1,1247 @@
+@page "/w/{WorkspaceSlug}/projects/{ProjectId:guid}"
+@layout Features.Layout.MainLayout
+@using Microsoft.AspNetCore.SignalR.Client
+@using VectorFlow.Shared.SignalR
+@using VectorFlow.Shared.DTOs
+@using VectorFlow.Shared.Enums
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject HttpClient Http
+@implements IAsyncDisposable
+
+<PageTitle>@(_project?.Name ?? "Board") — VectorFlow</PageTitle>
+
+@if (_loading)
+{
+    <div class="board-loading">
+        <div class="board-loading-header">
+            <div class="skel skel-title"></div>
+            <div class="skel skel-btn"></div>
+        </div>
+        <div class="board-loading-filters">
+            <div class="skel skel-filter"></div>
+            <div class="skel skel-filter"></div>
+            <div class="skel skel-filter"></div>
+        </div>
+        <div class="board-loading-cols">
+            @for (int i = 0; i < 5; i++)
+            {
+                <div class="board-loading-col">
+                    <div class="skel skel-col-head"></div>
+                    <div class="skel skel-card"></div>
+                    <div class="skel skel-card skel-card-short"></div>
+                    <div class="skel skel-card"></div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else if (_project is null)
+{
+    <div class="board-empty-state">
+        <MudIcon Icon="@Icons.Material.Outlined.SearchOff" Style="font-size:48px; opacity:0.3;" />
+        <MudText Typo="Typo.h6" Class="mt-3">Project not found</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-disabled mt-1">
+            This project may have been deleted or you don't have access.
+        </MudText>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Class="mt-4"
+                   OnClick="@(() => Nav.NavigateTo($"/w/{WorkspaceSlug}"))">
+            Back to workspace
+        </MudButton>
+    </div>
+}
+else
+{
+    <!-- ── BOARD HEADER ───────────────────────────────────────────── -->
+    <div class="board-header">
+        <div class="board-header-left">
+            <!-- Breadcrumb -->
+            <div class="board-breadcrumb">
+                <span class="crumb crumb-link"
+                      @onclick="@(() => Nav.NavigateTo($"/w/{WorkspaceSlug}"))">
+                    @WorkspaceSlug
+                </span>
+                <MudIcon Icon="@Icons.Material.Outlined.ChevronRight"
+                         Style="font-size:14px; opacity:0.4;" />
+                <span class="crumb">@_project.Name</span>
+            </div>
+
+            <div class="board-title-row">
+                <div class="project-key-chip">@_project.KeyPrefix</div>
+                <h1 class="board-title">@_project.Name</h1>
+                <div class="live-badge @(_hubConnected ? "live-on" : "live-off")">
+                    <div class="live-dot"></div>
+                    <span>@(_hubConnected ? "live" : "offline")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="board-header-right">
+            <MudTooltip Text="Refresh board">
+                <MudIconButton Icon="@Icons.Material.Outlined.Refresh"
+                               Size="Size.Small"
+                               OnClick="RefreshBoard"
+                               Color="Color.Default" />
+            </MudTooltip>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Outlined.Add"
+                       OnClick="OpenCreateIssue"
+                       Class="create-issue-btn">
+                New issue
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- ── FILTER BAR ─────────────────────────────────────────────── -->
+    <div class="filter-bar">
+        <!-- Assignee filter -->
+        <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
+                 Class="filter-menu">
+            <ActivatorContent>
+                <button class="filter-btn @(_filterAssigneeId != null ? "filter-btn-active" : "")">
+                    <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:14px;" />
+                    <span>@(_filterAssigneeId != null ? (_members.FirstOrDefault(m => m.UserId == _filterAssigneeId)?.DisplayName ?? "Assignee") : "Assignee")</span>
+                    @if (_filterAssigneeId != null)
+                    {
+                        <span class="filter-clear" @onclick:stopPropagation="true"
+                              @onclick="() => { _filterAssigneeId = null; ApplyFilters(); }">×</span>
+                    }
+                </button>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem OnClick="() => { _filterAssigneeId = null; ApplyFilters(); }">
+                    <div class="menu-item-row">
+                        <MudIcon Icon="@Icons.Material.Outlined.People" Style="font-size:14px;" />
+                        <span>Anyone</span>
+                    </div>
+                </MudMenuItem>
+                <MudDivider />
+                @foreach (var member in _members)
+                {
+                    <MudMenuItem OnClick="() => { _filterAssigneeId = member.UserId; ApplyFilters(); }">
+                        <div class="menu-item-row">
+                            <div class="member-av" style="background:@PickColor(member.UserId)">
+                                @GetInitials(member.DisplayName)
+                            </div>
+                            <span>@member.DisplayName</span>
+                        </div>
+                    </MudMenuItem>
+                }
+            </ChildContent>
+        </MudMenu>
+
+        <!-- Priority filter -->
+        <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
+                 Class="filter-menu">
+            <ActivatorContent>
+                <button class="filter-btn @(_filterPriority != null ? "filter-btn-active" : "")">
+                    <MudIcon Icon="@Icons.Material.Outlined.Flag" Style="font-size:14px;" />
+                    <span>@(_filterPriority?.ToString() ?? "Priority")</span>
+                    @if (_filterPriority != null)
+                    {
+                        <span class="filter-clear" @onclick:stopPropagation="true"
+                              @onclick="() => { _filterPriority = null; ApplyFilters(); }">×</span>
+                    }
+                </button>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem OnClick="() => { _filterPriority = null; ApplyFilters(); }">All priorities</MudMenuItem>
+                <MudDivider />
+                @foreach (var p in Enum.GetValues<IssuePriority>().Where(p => p != IssuePriority.None))
+                {
+                    <MudMenuItem OnClick="() => { _filterPriority = p; ApplyFilters(); }">
+                        <div class="menu-item-row">
+                            <span class="@($"pri-dot pri-{p.ToString().ToLower()}")"></span>
+                            <span>@p</span>
+                        </div>
+                    </MudMenuItem>
+                }
+            </ChildContent>
+        </MudMenu>
+
+        <!-- Type filter -->
+        <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
+                 Class="filter-menu">
+            <ActivatorContent>
+                <button class="filter-btn @(_filterType != null ? "filter-btn-active" : "")">
+                    <MudIcon Icon="@Icons.Material.Outlined.Category" Style="font-size:14px;" />
+                    <span>@(_filterType?.ToString() ?? "Type")</span>
+                    @if (_filterType != null)
+                    {
+                        <span class="filter-clear" @onclick:stopPropagation="true"
+                              @onclick="() => { _filterType = null; ApplyFilters(); }">×</span>
+                    }
+                </button>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem OnClick="() => { _filterType = null; ApplyFilters(); }">All types</MudMenuItem>
+                <MudDivider />
+                @foreach (var t in Enum.GetValues<IssueType>())
+                {
+                    <MudMenuItem OnClick="() => { _filterType = t; ApplyFilters(); }">
+                        <div class="menu-item-row">
+                            <MudIcon Icon="@TypeIcon(t)" Style="font-size:13px;" />
+                            <span>@t</span>
+                        </div>
+                    </MudMenuItem>
+                }
+            </ChildContent>
+        </MudMenu>
+
+        <!-- Label filter -->
+        <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
+                 Class="filter-menu">
+            <ActivatorContent>
+                <button class="filter-btn @(_filterLabelId != null ? "filter-btn-active" : "")">
+                    <MudIcon Icon="@Icons.Material.Outlined.Label" Style="font-size:14px;" />
+                    <span>@(_filterLabelId != null ? (_labels.FirstOrDefault(l => l.Id == _filterLabelId)?.Name ?? "Label") : "Label")</span>
+                    @if (_filterLabelId != null)
+                    {
+                        <span class="filter-clear" @onclick:stopPropagation="true"
+                              @onclick="() => { _filterLabelId = null; ApplyFilters(); }">×</span>
+                    }
+                </button>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem OnClick="() => { _filterLabelId = null; ApplyFilters(); }">All labels</MudMenuItem>
+                <MudDivider />
+                @foreach (var label in _labels)
+                {
+                    <MudMenuItem OnClick="() => { _filterLabelId = label.Id; ApplyFilters(); }">
+                        <div class="menu-item-row">
+                            <div class="label-color-dot" style="background:@label.Color"></div>
+                            <span>@label.Name</span>
+                        </div>
+                    </MudMenuItem>
+                }
+            </ChildContent>
+        </MudMenu>
+
+        @if (HasActiveFilters)
+        {
+            <button class="filter-clear-all" @onclick="ClearAllFilters">
+                Clear filters
+            </button>
+        }
+
+        <!-- Issue count summary -->
+        <div class="board-issue-count">
+            @_filteredIssues.Count issue@(_filteredIssues.Count != 1 ? "s" : "")
+            @if (HasActiveFilters) { <span> (filtered)</span> }
+        </div>
+    </div>
+
+    <!-- ── KANBAN BOARD ───────────────────────────────────────────── -->
+    <div class="kanban-board">
+        <MudDropContainer T="BoardIssue"
+            Items="_filteredIssues"
+            ItemsSelector="@((item, col) => item.Status.ToString() == col)"
+            ItemDropped="OnIssueDragged"
+            Class="kanban-drop-container">
+            <ChildContent>
+                @foreach (var col in _columns)
+                {
+                    <MudDropZone T="BoardIssue"
+                            Identifier="@col.Status.ToString()"
+                            Class="kanban-column"
+                            AllowReorder="true">
+                        <MudPaper Elevation="0" Class="kanban-col-inner">
+                            <!-- Column header -->
+                            <div class="col-header">
+                                <div class="col-header-left">
+                                    <div class="col-status-dot @col.DotClass"></div>
+                                    <span class="col-title">@col.Label</span>
+                                    <span class="col-count">
+                                        @_filteredIssues.Count(i => i.Status == col.Status)
+                                    </span>
+                                </div>
+                                <MudTooltip Text="@($"Add issue to {col.Label}")">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Add"
+                                                   Size="Size.Small"
+                                                   Color="Color.Default"
+                                                   OnClick="() => OpenCreateIssueInColumn(col.Status)"
+                                                   Class="col-add-btn" />
+                                </MudTooltip>
+                            </div>
+
+                            <!-- Issue cards rendered by MudBlazor drop zone -->
+                        </MudPaper>
+                    </MudDropZone>
+                }
+            </ChildContent>
+
+            <ItemRenderer>
+                <div class="issue-card @(context.IsOverdue ? "card-overdue" : "")"
+                     @onclick="() => NavigateToIssue(context)"
+                     @onclick:stopPropagation="true">
+
+                    <!-- Card top: key + type icon -->
+                    <div class="card-top">
+                        <span class="card-key">@context.Key</span>
+                        <MudIcon Icon="@TypeIcon(context.Type)"
+                                 Style="font-size:13px; opacity:0.5;" />
+                    </div>
+
+                    <!-- Title -->
+                    <div class="card-title">@context.Title</div>
+
+                    <!-- Labels -->
+                    @if (context.Labels.Any())
+                    {
+                        <div class="card-labels">
+                            @foreach (var label in context.Labels.Take(3))
+                            {
+                                <span class="card-label" style="background:@label.Color20; color:@label.Color">
+                                    @label.Name
+                                </span>
+                            }
+                            @if (context.Labels.Count > 3)
+                            {
+                                <span class="card-label-more">+@(context.Labels.Count - 3)</span>
+                            }
+                        </div>
+                    }
+
+                    <!-- Card footer: priority + due date + assignee -->
+                    <div class="card-footer">
+                        <span class="card-pri @($"pri-{context.Priority.ToString().ToLower()}")">
+                            @context.Priority
+                        </span>
+
+                        @if (context.DueDate.HasValue)
+                        {
+                            <span class="card-due @(context.IsOverdue ? "due-overdue" : "")">
+                                <MudIcon Icon="@Icons.Material.Outlined.Schedule"
+                                         Style="font-size:10px;" />
+                                @context.DueDate.Value.ToString("MMM d")
+                            </span>
+                        }
+
+                        @if (context.CommentCount > 0)
+                        {
+                            <span class="card-comments">
+                                <MudIcon Icon="@Icons.Material.Outlined.ChatBubbleOutline"
+                                         Style="font-size:10px;" />
+                                @context.CommentCount
+                            </span>
+                        }
+
+                        @if (!string.IsNullOrEmpty(context.AssigneeDisplayName))
+                        {
+                            <div class="card-assignee"
+                                 style="background:@PickColor(context.AssigneeId ?? "")"
+                                 title="@context.AssigneeDisplayName">
+                                @GetInitials(context.AssigneeDisplayName)
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card-assignee card-unassigned" title="Unassigned">
+                                <MudIcon Icon="@Icons.Material.Outlined.PersonOutline"
+                                         Style="font-size:10px;" />
+                            </div>
+                        }
+                    </div>
+                </div>
+            </ItemRenderer>
+        </MudDropContainer>
+    </div>
+}
+
+<!-- ── CREATE ISSUE DIALOG ────────────────────────────────────────── -->
+<MudDialog @bind-Visible="_createIssueOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">New issue</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_issueForm" @bind-IsValid="_issueFormValid" Class="create-issue-form">
+
+            <MudTextField @bind-Value="_newIssue.Title"
+                          Label="Title"
+                          Placeholder="What needs to be done?"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Required="true"
+                          RequiredError="Title is required"
+                          MaxLength="500"
+                          Class="mb-3" />
+
+            <div class="create-issue-row">
+                <MudSelect @bind-Value="_newIssue.Status"
+                           Label="Status"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Class="create-issue-select">
+                    @foreach (var s in Enum.GetValues<IssueStatus>())
+                    {
+                        <MudSelectItem Value="@s">@StatusLabel(s)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect @bind-Value="_newIssue.Priority"
+                           Label="Priority"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Class="create-issue-select">
+                    @foreach (var p in Enum.GetValues<IssuePriority>())
+                    {
+                        <MudSelectItem Value="@p">@p</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect @bind-Value="_newIssue.Type"
+                           Label="Type"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Class="create-issue-select">
+                    @foreach (var t in Enum.GetValues<IssueType>())
+                    {
+                        <MudSelectItem Value="@t">@t</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+
+            <MudSelect @bind-Value="_newIssue.AssigneeId"
+                       Label="Assignee"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true"
+                       Class="mb-3">
+                @foreach (var m in _members)
+                {
+                    <MudSelectItem Value="@m.UserId">@m.DisplayName</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudDatePicker @bind-Date="@_newIssueDueDate"
+                Label="Due date (optional)"
+                Variant="Variant.Outlined"
+                Margin="Margin.Dense"
+                DateFormat="yyyy-MM-dd"
+                Class="mb-3" />
+
+            
+            <MudSelect T="Guid"
+                @bind-SelectedValues="@_newIssue.LabelIds"
+                Label="Labels"
+                Variant="Variant.Outlined"
+                Margin="Margin.Dense"
+                MultiSelection="true"
+                Clearable="true">
+
+                @foreach (var label in _labels)
+                {
+                    <MudSelectItem T="Guid" Value="@label.Id">
+                        <div class="menu-item-row">
+                            <div class="label-color-dot" style="background:@label.Color"></div>
+                            @label.Name
+                        </div>
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _createIssueOpen = false"
+                   Variant="Variant.Text" Color="Color.Default">
+            Cancel
+        </MudButton>
+        <MudButton OnClick="HandleCreateIssue"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(_issueLoading || !_issueFormValid)">
+            @if (_issueLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Creating…</span>
+            }
+            else
+            {
+                <span>Create issue</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
+
+    /* ── LOADING ─────────────────────────────────────────────────────── */
+    .board-loading { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+    .board-loading-header { display: flex; gap: 12px; align-items: center; }
+    .board-loading-filters { display: flex; gap: 8px; }
+    .board-loading-cols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+    .board-loading-col { display: flex; flex-direction: column; gap: 8px; }
+    .skel { border-radius: 8px; background: var(--mud-palette-lines-default); animation: skel-pulse 1.6s ease-in-out infinite; }
+    @@keyframes skel-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+    .skel-title  { height: 32px; width: 240px; }
+    .skel-btn    { height: 32px; width: 100px; }
+    .skel-filter { height: 32px; width: 90px; }
+    .skel-col-head { height: 24px; }
+    .skel-card  { height: 88px; }
+    .skel-card-short { height: 70px; }
+
+    /* ── EMPTY / NOT FOUND ───────────────────────────────────────────── */
+    .board-empty-state {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: calc(100vh - 64px);
+        text-align: center; gap: 4px; color: var(--mud-palette-text-secondary);
+    }
+
+    /* ── BOARD HEADER ────────────────────────────────────────────────── */
+    .board-header {
+        display: flex; align-items: flex-end; justify-content: space-between;
+        padding: 24px 32px 0; gap: 16px; flex-wrap: wrap;
+    }
+    .board-header-left { display: flex; flex-direction: column; gap: 6px; }
+    .board-breadcrumb {
+        display: flex; align-items: center; gap: 4px;
+        font-family: 'DM Mono', monospace; font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+    }
+    .crumb-link { cursor: pointer; transition: color 0.15s; }
+    .crumb-link:hover { color: var(--mud-palette-primary); }
+    .board-title-row { display: flex; align-items: center; gap: 10px; }
+    .project-key-chip {
+        font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 600;
+        background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary);
+        padding: 3px 8px; border-radius: 5px; flex-shrink: 0;
+    }
+    .board-title {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: 1.6rem; line-height: 1.2; letter-spacing: -0.02em;
+        color: var(--mud-palette-text-primary); margin: 0;
+    }
+    .live-badge {
+        display: flex; align-items: center; gap: 5px;
+        font-family: 'DM Mono', monospace; font-size: 10px;
+        padding: 3px 8px; border-radius: 99px;
+    }
+    .live-on  { background: rgba(26,122,82,0.1); color: var(--mud-palette-success); }
+    .live-off { background: var(--mud-palette-lines-default); color: var(--mud-palette-text-disabled); }
+    .live-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .live-on .live-dot { animation: vf-pulse 2s infinite; }
+    @@keyframes vf-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .board-header-right { display: flex; align-items: center; gap: 8px; }
+    .create-issue-btn { border-radius: 8px !important; white-space: nowrap; }
+
+    /* ── FILTER BAR ──────────────────────────────────────────────────── */
+    .filter-bar {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        padding: 16px 32px 0;
+    }
+    .filter-btn {
+        display: flex; align-items: center; gap: 6px;
+        font-family: 'DM Sans', system-ui, sans-serif;
+        font-size: 12px; font-weight: 500;
+        padding: 6px 12px; border-radius: 8px;
+        border: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-surface);
+        color: var(--mud-palette-text-secondary);
+        cursor: pointer; transition: all 0.15s;
+        white-space: nowrap;
+    }
+    .filter-btn:hover { border-color: var(--mud-palette-primary); color: var(--mud-palette-primary); }
+    .filter-btn-active { border-color: var(--mud-palette-primary); color: var(--mud-palette-primary); background: var(--mud-palette-primary-lighten); }
+    .filter-clear {
+        font-size: 14px; line-height: 1; margin-left: 2px;
+        opacity: 0.6; transition: opacity 0.15s; cursor: pointer;
+    }
+    .filter-clear:hover { opacity: 1; }
+    .filter-clear-all {
+        font-family: 'DM Mono', monospace; font-size: 11px;
+        color: var(--mud-palette-error); background: none; border: none;
+        cursor: pointer; padding: 4px 8px; border-radius: 4px;
+        transition: background 0.15s;
+    }
+    .filter-clear-all:hover { background: rgba(220,38,38,0.08); }
+    .board-issue-count {
+        font-family: 'DM Mono', monospace; font-size: 11px;
+        color: var(--mud-palette-text-disabled); margin-left: auto;
+    }
+    .menu-item-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .member-av {
+        width: 20px; height: 20px; border-radius: 50%; color: white;
+        font-family: 'DM Mono', monospace; font-size: 8px; font-weight: 600;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .label-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Priority dots in filter menu */
+    .pri-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .pri-urgent { background: var(--mud-palette-error); }
+    .pri-high   { background: var(--mud-palette-warning); }
+    .pri-medium { background: var(--mud-palette-info); }
+    .pri-low    { background: var(--mud-palette-text-disabled); }
+    .pri-none   { background: var(--mud-palette-lines-default); }
+
+    /* ── KANBAN BOARD ────────────────────────────────────────────────── */
+    .kanban-board {
+        padding: 20px 32px 40px;
+        overflow-x: auto;
+        flex: 1;
+    }
+
+    .kanban-drop-container {
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(240px, 1fr));
+        gap: 12px;
+        align-items: flex-start;
+        min-width: fit-content;
+    }
+
+    .kanban-column {
+        min-height: 120px;
+        border-radius: 12px;
+    }
+
+    .kanban-col-inner {
+        background: var(--mud-palette-background-gray) !important;
+        border: 1px solid var(--mud-palette-divider) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        min-height: 120px;
+    }
+
+    /* Column header */
+    .col-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 12px; padding-bottom: 10px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+    .col-header-left { display: flex; align-items: center; gap: 7px; }
+    .col-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-backlog    { background: var(--mud-palette-text-disabled); }
+    .dot-todo       { background: var(--mud-palette-info); }
+    .dot-inprogress { background: var(--mud-palette-primary); box-shadow: 0 0 0 2px var(--mud-palette-primary-lighten); }
+    .dot-inreview   { background: var(--mud-palette-warning); }
+    .dot-done       { background: var(--mud-palette-success); }
+    .col-title { font-size: 12px; font-weight: 600; color: var(--mud-palette-text-primary); font-family: 'DM Sans', system-ui, sans-serif; }
+    .col-count {
+        font-family: 'DM Mono', monospace; font-size: 10px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        padding: 1px 6px; border-radius: 99px;
+        color: var(--mud-palette-text-secondary);
+    }
+    .col-add-btn { opacity: 0; transition: opacity 0.15s; }
+    .kanban-col-inner:hover .col-add-btn { opacity: 1; }
+
+    /* ── ISSUE CARDS ─────────────────────────────────────────────────── */
+    .issue-card {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 8px; padding: 10px 12px; margin-bottom: 6px;
+        cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+        user-select: none;
+    }
+    .issue-card:hover {
+        border-color: var(--mud-palette-primary);
+        box-shadow: 0 2px 8px rgba(67,57,202,0.12);
+        transform: translateY(-1px);
+    }
+    .issue-card:last-child { margin-bottom: 0; }
+    .card-overdue { border-left: 2px solid var(--mud-palette-error) !important; }
+
+    .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+    .card-key { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mud-palette-primary); font-weight: 500; }
+    .card-title { font-size: 12px; font-weight: 500; color: var(--mud-palette-text-primary); line-height: 1.45; margin-bottom: 7px; }
+
+    .card-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .card-label {
+        font-size: 9px; font-weight: 500; padding: 2px 6px; border-radius: 3px;
+        font-family: 'DM Mono', monospace; white-space: nowrap;
+    }
+    .card-label-more { font-size: 9px; color: var(--mud-palette-text-disabled); font-family: 'DM Mono', monospace; padding: 2px 4px; }
+
+    .card-footer { display: flex; align-items: center; gap: 6px; }
+    .card-pri { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; padding: 2px 5px; border-radius: 3px; }
+    .pri-urgent { background: rgba(220,38,38,0.12); color: var(--mud-palette-error); }
+    .pri-high   { background: rgba(217,119,6,0.12); color: var(--mud-palette-warning); }
+    .pri-medium { background: rgba(37,99,235,0.1);  color: var(--mud-palette-info); }
+    .pri-low    { background: var(--mud-palette-lines-default); color: var(--mud-palette-text-disabled); }
+    .pri-none   { display: none; }
+
+    .card-due {
+        display: flex; align-items: center; gap: 3px;
+        font-family: 'DM Mono', monospace; font-size: 9px;
+        color: var(--mud-palette-text-disabled);
+    }
+    .due-overdue { color: var(--mud-palette-error) !important; }
+
+    .card-comments {
+        display: flex; align-items: center; gap: 3px;
+        font-family: 'DM Mono', monospace; font-size: 9px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .card-assignee {
+        width: 18px; height: 18px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'DM Mono', monospace; font-size: 7px; font-weight: 600;
+        color: white; margin-left: auto; flex-shrink: 0;
+    }
+    .card-unassigned {
+        background: var(--mud-palette-lines-default) !important;
+        color: var(--mud-palette-text-disabled) !important;
+    }
+
+    /* Create issue form */
+    .create-issue-form { display: flex; flex-direction: column; gap: 0; }
+    .create-issue-row  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .create-issue-select { min-width: 0; }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────────────── */
+    @@media (max-width: 960px) {
+        .board-header  { padding: 20px 20px 0; }
+        .filter-bar    { padding: 12px 20px 0; }
+        .kanban-board  { padding: 16px 20px 32px; }
+        .kanban-drop-container { grid-template-columns: repeat(5, minmax(200px, 1fr)); }
+        .create-issue-row { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+
+@code {
+    [Parameter] public string WorkspaceSlug { get; set; } = string.Empty;
+    [Parameter] public Guid   ProjectId     { get; set; }
+
+    // ── State ─────────────────────────────────────────────────────────────
+    private bool        _loading        = true;
+    private bool        _hubConnected;
+    private ProjectDto? _project;
+
+    // All issues loaded from the API
+    private List<BoardIssue> _allIssues      = [];
+    // Issues after filters applied — what the board renders
+    private List<BoardIssue> _filteredIssues = [];
+
+    // Supporting data
+    private List<WorkspaceMemberDto> _members = [];
+    private List<LabelDto>  _labels  = [];
+
+    // Active filters
+    private string?       _filterAssigneeId;
+    private IssuePriority? _filterPriority;
+    private IssueType?    _filterType;
+    private Guid?         _filterLabelId;
+
+    private bool HasActiveFilters =>
+        _filterAssigneeId != null || _filterPriority != null ||
+        _filterType != null || _filterLabelId != null;
+
+    // Create issue dialog
+    private bool             _createIssueOpen;
+    private bool             _issueLoading;
+    private bool             _issueFormValid;
+    private MudForm          _issueForm        = null!;
+    private NewIssueModel    _newIssue         = new();
+    private DateTime?        _newIssueDueDate;
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true
+    };
+
+    // SignalR
+    private HubConnection? _hub;
+
+    // ── Column definitions ─────────────────────────────────────────────────
+    private readonly List<ColumnDef> _columns =
+    [
+        new(IssueStatus.Backlog,    "Backlog",     "dot-backlog"),
+        new(IssueStatus.Todo,       "Todo",        "dot-todo"),
+        new(IssueStatus.InProgress, "In Progress", "dot-inprogress"),
+        new(IssueStatus.InReview,   "In Review",   "dot-inreview"),
+        new(IssueStatus.Done,       "Done",        "dot-done"),
+    ];
+
+    private record ColumnDef(IssueStatus Status, string Label, string DotClass);
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBoardAsync();
+        await ConnectHubAsync();
+    }
+
+    private async Task LoadBoardAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            // ── Real API calls ────────────────────────────────────────────
+            //
+            // 1. Project details
+            //    _project = await Http.GetFromJsonAsync<ProjectDto>(
+            //        $"api/workspaces/.../projects/{ProjectId}");
+            //    if (_project is null) return;
+            //
+            // 2. Workspace members (for assignee filter + card avatars)
+            //    _members = await Http.GetFromJsonAsync<List<WorkspaceMemberDto>>(
+            //        $"api/workspaces/{_project.WorkspaceId}/members") ?? [];
+            //
+            // 3. Labels
+            //    _labels = await Http.GetFromJsonAsync<List<LabelDto>>(
+            //        $"api/projects/{ProjectId}/labels") ?? [];
+            //
+            // 4. Issues
+            //    var issueDtos = await Http.GetFromJsonAsync<List<IssueDto>>(
+            //        $"api/projects/{ProjectId}/issues") ?? [];
+            //    _allIssues = issueDtos.Select(MapToBoardIssue).ToList();
+            //
+            // ApplyFilters();
+            // ─────────────────────────────────────────────────────────────
+
+            // ── MOCK — delete once wired ──────────────────────────────────
+            await Task.Delay(600);
+
+            _project = new ProjectDto
+            {
+                Id        = ProjectId,
+                Name      = "VectorFlow Backend",
+                KeyPrefix = "VF",
+                IssueCounter = 14
+            };
+
+            _members =
+            [
+                new WorkspaceMemberDto { UserId = "u1", DisplayName = "Booker M." },
+                new WorkspaceMemberDto { UserId = "u2", DisplayName = "Jana S." },
+                new WorkspaceMemberDto { UserId = "u3", DisplayName = "Alex K." },
+            ];
+
+            _labels =
+            [
+                new LabelDto { Id = Guid.NewGuid(), Name = "bug",      Color = "#DC2626" },
+                new LabelDto { Id = Guid.NewGuid(), Name = "backend",  Color = "#2563EB" },
+                new LabelDto { Id = Guid.NewGuid(), Name = "auth",     Color = "#7C3AED" },
+            ];
+
+            _allIssues =
+            [
+                MakeMock("VF-01", "JWT auth with HttpOnly cookies",       IssueStatus.Done,       IssuePriority.Urgent, IssueType.Feature, "u1", null,                    3),
+                MakeMock("VF-02", "Workspace member role enforcement",     IssueStatus.Done,       IssuePriority.High,   IssueType.Task,    "u3", null,                    1),
+                MakeMock("VF-03", "EF Core entity configurations",         IssueStatus.Done,       IssuePriority.Medium, IssueType.Task,    "u1", null,                    0),
+                MakeMock("VF-04", "Invitation email template",             IssueStatus.InReview,   IssuePriority.Medium, IssueType.Feature, "u2", DateTime.Today.AddDays(1), 2),
+                MakeMock("VF-05", "Wire SignalR hub to issue service",     IssueStatus.InProgress, IssuePriority.High,   IssueType.Feature, "u1", DateTime.Today.AddDays(-1), 4),
+                MakeMock("VF-06", "ProjectHub broadcaster abstraction",    IssueStatus.InProgress, IssuePriority.Medium, IssueType.Task,    "u1", DateTime.Today.AddDays(2), 1),
+                MakeMock("VF-07", "Refresh token rotation on login",       IssueStatus.Todo,       IssuePriority.High,   IssueType.Bug,     "u2", DateTime.Today.AddDays(3), 0),
+                MakeMock("VF-08", "Add label filtering to board",          IssueStatus.Todo,       IssuePriority.Medium, IssueType.Feature, "u3", DateTime.Today.AddDays(5), 1),
+                MakeMock("VF-09", "xUnit tests for WorkspaceService",      IssueStatus.Backlog,    IssuePriority.High,   IssueType.Task,    "u1", DateTime.Today.AddDays(7), 0),
+                MakeMock("VF-10", "Markdown preview in descriptions",      IssueStatus.Backlog,    IssuePriority.Low,    IssueType.Feature, null, null,                    0),
+                MakeMock("VF-11", "Docker Compose setup",                  IssueStatus.Backlog,    IssuePriority.Medium, IssueType.Task,    "u2", null,                    0),
+            ];
+
+            ApplyFilters();
+            // ── END MOCK ──────────────────────────────────────────────────
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load board: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // ── SignalR ────────────────────────────────────────────────────────────
+
+    private async Task ConnectHubAsync()
+    {
+        try
+        {
+            // TODO: replace with your actual API base URL from config
+            // var baseUrl = Configuration["ApiBaseUrl"] ?? Nav.BaseUri;
+
+            _hub = new HubConnectionBuilder()
+                .WithUrl($"{Nav.BaseUri.TrimEnd('/')}hubs/project",
+                    opts => opts.Cookies = /* pass cookies */ default!)
+                .WithAutomaticReconnect()
+                .Build();
+
+            // ── Hub event handlers ─────────────────────────────────────
+            _hub.On<IssueCreatedEvent>(HubEvents.IssueCreated, evt =>
+            {
+                if (evt.ProjectId != ProjectId) return;
+                var newIssue = new BoardIssue
+                {
+                    Id                  = evt.IssueId,
+                    ProjectId           = evt.ProjectId,
+                    Key                 = evt.Key,
+                    Title               = evt.Title,
+                    Status              = Enum.Parse<IssueStatus>(evt.Status),
+                    Priority            = Enum.Parse<IssuePriority>(evt.Priority),
+                    Type                = Enum.Parse<IssueType>(evt.Type),
+                    AssigneeId          = evt.AssigneeId,
+                    AssigneeDisplayName = evt.AssigneeDisplayName,
+                    Position            = evt.Position,
+                    Labels              = [],
+                    CommentCount        = 0
+                };
+                _allIssues.Add(newIssue);
+                ApplyFilters();
+                InvokeAsync(StateHasChanged);
+            });
+
+            _hub.On<IssueStatusChangedEvent>(HubEvents.IssueStatusChanged, evt =>
+            {
+                if (evt.ProjectId != ProjectId) return;
+                var issue = _allIssues.FirstOrDefault(i => i.Id == evt.IssueId);
+                if (issue is null) return;
+                issue.Status   = Enum.Parse<IssueStatus>(evt.NewStatus);
+                issue.Position = evt.NewPosition;
+                ApplyFilters();
+                InvokeAsync(StateHasChanged);
+            });
+
+            _hub.On<IssueUpdatedEvent>(HubEvents.IssueUpdated, evt =>
+            {
+                if (evt.ProjectId != ProjectId) return;
+                var issue = _allIssues.FirstOrDefault(i => i.Id == evt.IssueId);
+                if (issue is null) return;
+                issue.Title               = evt.Title;
+                issue.Priority            = Enum.Parse<IssuePriority>(evt.Priority);
+                issue.AssigneeId          = evt.AssigneeId;
+                issue.AssigneeDisplayName = evt.AssigneeDisplayName;
+                issue.DueDate             = evt.DueDate;
+                ApplyFilters();
+                InvokeAsync(StateHasChanged);
+            });
+
+            _hub.On<IssueDeletedEvent>(HubEvents.IssueDeleted, evt =>
+            {
+                if (evt.ProjectId != ProjectId) return;
+                _allIssues.RemoveAll(i => i.Id == evt.IssueId);
+                ApplyFilters();
+                InvokeAsync(StateHasChanged);
+            });
+
+            _hub.On<IssuePositionChangedEvent>(HubEvents.IssuePositionChanged, evt =>
+            {
+                if (evt.ProjectId != ProjectId) return;
+                var issue = _allIssues.FirstOrDefault(i => i.Id == evt.IssueId);
+                if (issue is not null) issue.Position = evt.NewPosition;
+                InvokeAsync(StateHasChanged);
+            });
+
+            _hub.Reconnecting += _ =>
+            {
+                _hubConnected = false;
+                return InvokeAsync(StateHasChanged);
+            };
+
+            _hub.Reconnected += _ =>
+            {
+                _hubConnected = true;
+                return InvokeAsync(StateHasChanged);
+            };
+
+            await _hub.StartAsync();
+            await _hub.InvokeAsync(HubEvents.JoinProject, ProjectId.ToString());
+            _hubConnected = true;
+            StateHasChanged();
+        }
+        catch
+        {
+            // Hub connection failure is non-fatal — board works via REST, just not live
+            _hubConnected = false;
+        }
+    }
+
+    // ── Drag and drop ──────────────────────────────────────────────────────
+
+    private async Task OnIssueDragged(MudItemDropInfo<BoardIssue> drop)
+    {
+        if (drop.Item is null) return;
+
+        var newStatus = Enum.Parse<IssueStatus>(drop.DropzoneIdentifier);
+        var oldStatus = drop.Item.Status;
+
+        if (newStatus == oldStatus && drop.IndexInZone == _allIssues
+            .Where(i => i.Status == oldStatus)
+            .OrderBy(i => i.Position)
+            .ToList()
+            .IndexOf(drop.Item))
+            return; // no-op — dropped back in same position
+
+        // Optimistically update UI
+        drop.Item.Status = newStatus;
+
+        // Compute new position using the neighbour-average approach
+        var columnIssues = _allIssues
+            .Where(i => i.Status == newStatus && i.Id != drop.Item.Id)
+            .OrderBy(i => i.Position)
+            .ToList();
+
+        var newPosition = ComputePosition(columnIssues, drop.IndexInZone);
+        drop.Item.Position = newPosition;
+
+        ApplyFilters();
+        StateHasChanged();
+
+        try
+        {
+            if (newStatus != oldStatus)
+            {
+                // Status changed — use the status endpoint (triggers activity log)
+                await Http.PatchAsJsonAsync(
+                    $"api/projects/{ProjectId}/issues/{drop.Item.Id}/status",
+                    new { Status = newStatus.ToString() });
+            }
+            else
+            {
+                // Same column reorder — use the position endpoint (no activity log)
+                await Http.PatchAsJsonAsync(
+                    $"api/projects/{ProjectId}/issues/{drop.Item.Id}/position",
+                    new { Position = newPosition });
+            }
+        }
+        catch
+        {
+            // Roll back the optimistic update on failure
+            drop.Item.Status   = oldStatus;
+            ApplyFilters();
+            Snackbar.Add("Failed to update issue. Please try again.", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Computes a float position for an issue inserted at <paramref name="index"/>
+    /// among <paramref name="siblings"/> by averaging the neighbours.
+    /// New head: half of first. New tail: last + 1000. Middle: average of neighbours.
+    /// </summary>
+    private static double ComputePosition(List<BoardIssue> siblings, int index)
+    {
+        if (!siblings.Any()) return 1000;
+
+        if (index <= 0)
+            return siblings[0].Position / 2.0;
+
+        if (index >= siblings.Count)
+            return siblings[^1].Position + 1000;
+
+        return (siblings[index - 1].Position + siblings[index].Position) / 2.0;
+    }
+
+    // ── Filtering ──────────────────────────────────────────────────────────
+
+    private void ApplyFilters()
+    {
+        _filteredIssues = _allIssues
+            .Where(i =>
+                (_filterAssigneeId == null || i.AssigneeId == _filterAssigneeId) &&
+                (_filterPriority   == null || i.Priority   == _filterPriority)   &&
+                (_filterType       == null || i.Type       == _filterType)       &&
+                (_filterLabelId    == null || i.Labels.Any(l => l.Id == _filterLabelId)))
+            .OrderBy(i => i.Position)
+            .ToList();
+    }
+
+    private void ClearAllFilters()
+    {
+        _filterAssigneeId = null;
+        _filterPriority   = null;
+        _filterType       = null;
+        _filterLabelId    = null;
+        ApplyFilters();
+    }
+
+    // ── Create issue ───────────────────────────────────────────────────────
+
+    private void OpenCreateIssue()
+    {
+        _newIssue        = new NewIssueModel();
+        _newIssueDueDate = null;
+        _createIssueOpen = true;
+    }
+
+    private void OpenCreateIssueInColumn(IssueStatus status)
+    {
+        _newIssue        = new NewIssueModel { Status = status };
+        _newIssueDueDate = null;
+        _createIssueOpen = true;
+    }
+
+    private async Task HandleCreateIssue()
+    {
+        await _issueForm.ValidateAsync();
+        if (!_issueFormValid) return;
+
+        _issueLoading = true;
+
+        try
+        {
+            _newIssue.DueDate = _newIssueDueDate;
+
+            // TODO: replace with real API call
+            // var response = await Http.PostAsJsonAsync(
+            //     $"api/projects/{ProjectId}/issues", _newIssue);
+            // if (response.IsSuccessStatusCode)
+            // {
+            //     var created = await response.Content.ReadFromJsonAsync<IssueDto>();
+            //     _allIssues.Add(MapToBoardIssue(created!));
+            //     ApplyFilters();
+            //     _createIssueOpen = false;
+            //     Snackbar.Add($"Issue {created!.Key} created.", Severity.Success);
+            // }
+
+            await Task.Delay(600);
+            _createIssueOpen = false;
+            Snackbar.Add("Issue created.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create issue: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _issueLoading = false;
+        }
+    }
+
+    // ── Navigation ─────────────────────────────────────────────────────────
+
+    private void NavigateToIssue(BoardIssue issue) =>
+        Nav.NavigateTo($"/w/{WorkspaceSlug}/projects/{ProjectId}/issues/{issue.Id}");
+
+    private async Task RefreshBoard()
+    {
+        _allIssues.Clear();
+        await LoadBoardAsync();
+        Snackbar.Add("Board refreshed.", Severity.Info, cfg => cfg.VisibleStateDuration = 1500);
+    }
+
+    // ── Display helpers ────────────────────────────────────────────────────
+
+    private static string StatusLabel(IssueStatus s) => s switch
+    {
+        IssueStatus.InProgress => "In Progress",
+        IssueStatus.InReview   => "In Review",
+        _                      => s.ToString()
+    };
+
+    private static string TypeIcon(IssueType t) => t switch
+    {
+        IssueType.Bug     => Icons.Material.Outlined.BugReport,
+        IssueType.Feature => Icons.Material.Outlined.Stars,
+        _                 => Icons.Material.Outlined.TaskAlt
+    };
+
+    private static string GetInitials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    private static readonly string[] Palette =
+        ["#4339CA", "#1A7A52", "#92560F", "#2563EB", "#7C3AED", "#0E7490", "#B45309", "#DC2626"];
+
+    private static string PickColor(string id) =>
+        Palette[Math.Abs(id.GetHashCode()) % Palette.Length];
+
+    // ── Dispose ────────────────────────────────────────────────────────────
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+        {
+            try
+            {
+                await _hub.InvokeAsync(HubEvents.LeaveProject, ProjectId.ToString());
+                await _hub.DisposeAsync();
+            }
+            catch { /* ignore — page is being torn down */ }
+        }
+    }
+
+    // ── Mock helper ────────────────────────────────────────────────────────
+
+    private BoardIssue MakeMock(
+        string key, string title, IssueStatus status,
+        IssuePriority priority, IssueType type,
+        string? assigneeId, DateTime? due, int comments)
+    {
+        var assigneeName = assigneeId is null
+            ? null
+            : _members.FirstOrDefault(m => m.UserId == assigneeId)?.DisplayName;
+
+        return new BoardIssue
+        {
+            Id                  = Guid.NewGuid(),
+            ProjectId           = ProjectId,
+            Key                 = key,
+            Title               = title,
+            Status              = status,
+            Priority            = priority,
+            Type                = type,
+            AssigneeId          = assigneeId,
+            AssigneeDisplayName = assigneeName,
+            DueDate             = due,
+            IsOverdue           = due.HasValue && due.Value.Date < DateTime.Today && status != IssueStatus.Done,
+            Position            = _allIssues.Count(i => i.Status == status) * 1000.0 + 1000,
+          Labels                = type == IssueType.Bug
+                                    ? [
+                                        new BoardLabel(
+                                            _labels[0].Id,
+                                            _labels[0].Name,
+                                            _labels[0].Color,
+                                            _labels[0].Color + "20"
+                                        )
+                                    ]
+                                    : [],
+            CommentCount        = comments
+        };
+    }
+
+    // ── View models ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Mutable issue representation used by the Kanban board.
+    /// MudBlazor's MudDropContainer requires a class (not record) so it
+    /// can mutate Status and Position on drag-and-drop.
+    /// </summary>
+    public class BoardIssue
+    {
+        public Guid          Id                  { get; set; }
+        public Guid          ProjectId           { get; set; }
+        public string        Key                 { get; set; } = string.Empty;
+        public string        Title               { get; set; } = string.Empty;
+        public IssueStatus   Status              { get; set; }
+        public IssuePriority Priority            { get; set; }
+        public IssueType     Type                { get; set; }
+        public string?       AssigneeId          { get; set; }
+        public string?       AssigneeDisplayName { get; set; }
+        public DateTime?     DueDate             { get; set; }
+        public bool          IsOverdue           { get; set; }
+        public double        Position            { get; set; }
+        public List<BoardLabel> Labels           { get; set; } = [];
+        public int           CommentCount        { get; set; }
+    }
+
+    public record BoardLabel(Guid Id, string Name, string Color, string Color20);
+
+    private sealed class NewIssueModel
+    {
+        public string        Title      { get; set; } = string.Empty;
+        public IssueStatus   Status     { get; set; } = IssueStatus.Backlog;
+        public IssuePriority Priority   { get; set; } = IssuePriority.None;
+        public IssueType     Type       { get; set; } = IssueType.Task;
+        public string?       AssigneeId { get; set; }
+        public DateTime?     DueDate    { get; set; }
+        public IReadOnlyCollection<Guid> LabelIds { get; set; } = [];
+    }
+
+    private record IssueCreatedEvent(Guid ProjectId, Guid IssueId, string Key, string Title, string Status, string Priority, string Type, string? AssigneeId, string? AssigneeDisplayName, double Position);
+    private record IssueUpdatedEvent(Guid ProjectId, Guid IssueId, string Key, string Title, string Priority, string? AssigneeId, string? AssigneeDisplayName, DateTime? DueDate, DateTime UpdatedAt);
+    private record IssueDeletedEvent(Guid ProjectId, Guid IssueId, string Key);
+    private record IssueStatusChangedEvent(Guid ProjectId, Guid IssueId, string OldStatus, string NewStatus, double NewPosition, string ActorId, string ActorDisplayName);
+    private record IssuePositionChangedEvent(Guid ProjectId, Guid IssueId, double NewPosition, string ActorId);
+}
