@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace VectorFlow.Api.DTOs;
+namespace VectorFlow.Shared.DTOs;
 
 // ── Requests ────────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using VectorFlow.Api.Enums;
 
-namespace VectorFlow.Api.DTOs;
+namespace VectorFlow.Shared.DTOs;
 
 // ── Requests ──────────────────────────────────────────────────────────────────
 

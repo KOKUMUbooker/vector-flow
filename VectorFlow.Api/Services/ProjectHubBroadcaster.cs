@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using VectorFlow.Api.DTOs;
+using VectorFlow.Shared.DTOs;
 using VectorFlow.Api.Hubs;
 using VectorFlow.Shared.SignalR;
 using VectorFlow.Api.Services.Interfaces;
