@@ -1,0 +1,306 @@
+﻿<!-- ══════════════════════════════════════════════
+         EMPTY STATE — first-time user, no workspace
+    ══════════════════════════════════════════════ -->
+<div class="empty-shell">
+    <div class="empty-inner">
+
+        <!-- Top breadcrumb-style context -->
+        <div class="empty-eyebrow">
+            <span class="user-dot">@_userInitials</span>
+            <span class="eyebrow-text">@_userName · No workspace yet</span>
+        </div>
+
+        <!-- Main empty state -->
+        <div class="empty-headline-wrap">
+            <h1 class="empty-headline">
+                Where does your<br />team track work?
+            </h1>
+            <p class="empty-sub">
+                A workspace is your team's home in VectorFlow. It holds your
+                projects, issues, members, and audit history — all in one place.
+                Create yours and invite your team in under a minute.
+            </p>
+        </div>
+
+        <!-- CTA -->
+        <div class="empty-cta-wrap">
+            <MudButton Variant="Variant.Filled"
+                Color="Color.Primary"
+                Size="Size.Large"
+                OnClick="@OpenCreateWorkspace"
+                EndIcon="@Icons.Material.Filled.ArrowForward"
+                Class="cta-btn">
+                Create your workspace
+            </MudButton>
+            <MudText Typo="Typo.caption" Class="mud-text-disabled mt-2">
+                Free · No credit card · Takes 60 seconds
+            </MudText>
+        </div>
+
+        <!-- Concept explainer — what a workspace unlocks -->
+        <div class="concept-grid">
+            @foreach (var c in _concepts)
+            {
+                <div class="concept-card">
+                    <div class="concept-icon">@c.Emoji</div>
+                    <div>
+                        <div class="concept-title">@c.Title</div>
+                        <div class="concept-desc">@c.Desc</div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Ghost preview — gives a mental model of what they'll get -->
+        <div class="ghost-preview">
+            <div class="ghost-preview-label">
+                <div class="ghost-dot"></div>
+                <span>Preview — your board will look something like this</span>
+            </div>
+            <div class="ghost-kanban">
+                @foreach (var col in _ghostColumns)
+                {
+                    <div class="ghost-col">
+                        <div class="ghost-col-head">
+                            @col.Name
+                            <span class="ghost-col-count">@col.Count</span>
+                        </div>
+                        @foreach (var card in col.Cards)
+                        {
+                            <div class="ghost-issue @(card.Active ? "ghost-active" : "") @(card.Done ? "ghost-done" : "")">
+                                <div class="ghost-key">@card.Key</div>
+                                <div class="ghost-title">@card.Title</div>
+                                <div class="ghost-footer">
+                                    <span class="ghost-pri @card.PriClass">@card.Priority</span>
+                                    <div class="ghost-av @card.AvColor">@card.Av</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    /* Concept grid */
+    .concept-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .concept-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        background: var(--mud-palette-surface);
+        transition: border-color 0.15s;
+        animation: card-rise 0.5s ease both;
+    }
+
+    .concept-card:nth-child(1) { animation-delay: 0.1s; }
+    .concept-card:nth-child(2) { animation-delay: 0.2s; }
+    .concept-card:nth-child(3) { animation-delay: 0.3s; }
+    .concept-card:nth-child(4) { animation-delay: 0.4s; }
+    .concept-card:nth-child(5) { animation-delay: 0.5s; }
+    .concept-card:nth-child(6) { animation-delay: 0.6s; }
+
+    .concept-card:hover { border-color: var(--mud-palette-primary); }
+
+    .concept-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .concept-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 3px;
+    }
+
+    .concept-desc {
+        font-size: 12px;
+        color: var(--mud-palette-text-secondary);
+        line-height: 1.5;
+    }
+
+    /* Ghost board preview */
+    .ghost-preview {
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 16px;
+        padding: 20px;
+        background: var(--mud-palette-surface);
+        overflow: hidden;
+    }
+
+    .ghost-preview-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--mud-palette-text-disabled);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 16px;
+    }
+
+    .ghost-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        animation: vf-pulse 2s infinite;
+    }
+
+    @@keyframes vf-pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.3; }
+    }
+
+    .ghost-kanban {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        opacity: 0.55;
+    }
+
+    .ghost-col-head {
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--mud-palette-text-disabled);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .ghost-col-count {
+        background: var(--mud-palette-lines-default);
+        padding: 1px 5px;
+        border-radius: 99px;
+    }
+
+    .ghost-issue {
+        background: var(--mud-palette-background);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 7px;
+        padding: 9px 10px;
+        margin-bottom: 5px;
+    }
+
+    .ghost-active { border-left: 2px solid var(--mud-palette-primary); }
+    .ghost-done   { opacity: 0.5; }
+
+    .ghost-key {
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        color: var(--mud-palette-primary);
+        font-weight: 500;
+        margin-bottom: 3px;
+    }
+
+    .ghost-title {
+        font-size: 10px;
+        color: var(--mud-palette-text-primary);
+        font-weight: 500;
+        line-height: 1.4;
+        margin-bottom: 6px;
+    }
+
+    .ghost-footer {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .ghost-pri {
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-weight: 500;
+    }
+
+    .ghost-pri.pri-urgent  { background: rgba(220,38,38,0.12);  color: var(--mud-palette-error); }
+    .ghost-pri.pri-high    { background: rgba(217,119,6,0.12);  color: var(--mud-palette-warning); }
+    .ghost-pri.pri-medium  { background: rgba(37,99,235,0.1);   color: var(--mud-palette-info); }
+    .ghost-pri.pri-low     { background: var(--mud-palette-lines-default); color: var(--mud-palette-text-disabled); }
+
+    .ghost-av {
+        width: 15px; height: 15px;
+        border-radius: 50%;
+        font-size: 7px;
+        font-weight: 600;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+    }
+
+    .ghost-av.av-blue   { background: var(--mud-palette-info); }
+    .ghost-av.av-green  { background: var(--mud-palette-success); }
+    .ghost-av.av-purple { background: var(--mud-palette-primary); }
+
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public string _userInitials { get; set; }
+
+    [Parameter, EditorRequired]
+    public string _userName { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OpenCreateWorkspace { get; set; }
+
+    // ── Static / constant data ───────────────────────────────────────────
+
+    private record Concept(string Emoji, string Title, string Desc);
+    private readonly List<Concept> _concepts =
+    [
+        new("🏢", "One workspace per team",      "Isolates your team's projects, members, and settings from others."),
+        new("📋", "Projects inside workspaces",  "Each project gets its own Kanban board and auto-keyed issues (e.g. VF-42)."),
+        new("👥", "Invite your teammates",       "Owners and Admins send email invites. Members join instantly."),
+        new("🔖", "Issues with full lifecycle",  "Title, priority, type, assignee, due date, labels — everything tracked."),
+        new("📡", "Real-time updates",           "Every move and comment broadcasts live to the whole team via SignalR."),
+        new("🧾", "Immutable audit trail",       "Every change is logged — who, what, and when. Forever.")
+    ];
+
+    private record GhostCard(
+        string Key, string Title, string Priority, string PriClass,
+        string Av,  string AvColor, bool Active = false, bool Done = false);
+
+    private record GhostColumn(string Name, int Count, List<GhostCard> Cards);
+
+    private readonly List<GhostColumn> _ghostColumns =
+    [
+        new("Backlog", 2,
+        [
+        new("MY-01", "Set up CI pipeline",   "Medium", "pri-medium", "JS", "av-green"),
+            new("MY-02", "Write API docs",        "Low",    "pri-low",    "AK", "av-purple")
+    ]),
+        new("In Progress", 2,
+        [
+            new("MY-03", "Auth middleware",       "High",   "pri-high",   "BM", "av-blue",   Active: true),
+            new("MY-04", "Dashboard layout",      "Medium", "pri-medium", "JS", "av-green",  Active: true)
+        ]),
+        new("Done", 2,
+        [
+            new("MY-05", "DB schema design",      "Urgent", "pri-urgent", "BM", "av-blue",   Done: true),
+            new("MY-06", "Docker Compose setup",  "High",   "pri-high",   "AK", "av-purple", Done: true)
+        ])
+    ];
+}

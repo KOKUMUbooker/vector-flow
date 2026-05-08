@@ -1,0 +1,118 @@
+﻿@inject ISnackbar Snackbar
+
+<MudDialog @bind-Visible="_createWorkspaceOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Create a workspace</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+            Give your workspace a name. You can change this later.
+        </MudText>
+        <MudForm @ref="_wsForm" @bind-IsValid="_wsFormValid">
+            <div class="field-group">
+                <label class="field-label">Workspace name</label>
+                <MudTextField @bind-Value="_newWorkspaceName"
+                    Placeholder="e.g. Acme Corp"
+                    Variant="Variant.Outlined"
+                    Margin="Margin.Dense"
+                    Required="true"
+                    RequiredError="Name is required"
+                    MaxLength="80"
+                    Class="auth-field"
+                    Adornment="Adornment.Start"
+                    AdornmentIcon="@Icons.Material.Outlined.Business"
+                    AdornmentColor="Color.Default"
+                    @bind-Value:after="OnWorkspaceNameChanged" />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Workspace description</label>
+                <MudTextField @bind-Value="_WorkspaceDescription"
+                    Placeholder="e.g. Acme Corp"
+                    Variant="Variant.Outlined"
+                    Margin="Margin.Dense"
+                    Required="false"
+                    MaxLength="500"
+                    Lines="2"
+                    MaxLines="6"
+                    Class="auth-field"
+                    Adornment="Adornment.Start"
+                    AdornmentIcon="@Icons.Material.Outlined.Info"
+                    AdornmentColor="Color.Default"
+                    @bind-Value:after="OnWorkspaceNameChanged" />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_newWorkspaceName))
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-disabled mt-1">
+                    Slug: <strong>@_workspaceSlugPreview</strong>
+                </MudText>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _createWorkspaceOpen = false"
+                   Variant="Variant.Text" Color="Color.Default">
+            Cancel
+        </MudButton>
+        <MudButton OnClick="HandleCreateWorkspace"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(_wsLoading || !_wsFormValid)">
+            @if (_wsLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Creating…</span>
+            }
+            else
+            {
+                <span>Create workspace</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public bool _createWorkspaceOpen { get; set; }
+
+    [Parameter]
+    public Action<string>? OnCompleteAction { get; set; }
+
+    private bool _wsLoading;
+    private bool _wsFormValid;
+    private string _newWorkspaceName = string.Empty;
+    private string _WorkspaceDescription = string.Empty;
+    private string _workspaceSlugPreview = string.Empty;
+    private MudForm _wsForm = null!;
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true
+    };
+
+    private void OnWorkspaceNameChanged()
+    {
+        _workspaceSlugPreview = _newWorkspaceName
+            .ToLowerInvariant()
+            .Trim()
+            .Replace(" ", "-");
+    }
+
+    private async Task HandleCreateWorkspace()
+    {
+        await _wsForm.ValidateAsync();
+        if (!_wsFormValid) return;
+
+        _wsLoading = true;
+
+        // TODO: WorkspaceDto created = await WorkspaceService.CreateAsync(
+        //           new CreateWorkspaceRequest { Name = _newWorkspaceName });
+        // Nav.NavigateTo($"/w/{created.Slug}");
+        await Task.Delay(1000);
+
+        _wsLoading = false;
+        Snackbar.Add($"Workspace \"{_newWorkspaceName}\" created!", Severity.Success);
+        if (OnCompleteAction is not null) OnCompleteAction(_workspaceSlugPreview);
+    }
+}
