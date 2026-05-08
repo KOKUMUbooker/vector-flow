@@ -1,0 +1,41 @@
+﻿<div class="dash-loading">
+    <div class="loading-grid">
+        <div class="skel skel-greeting"></div>
+        <div class="skel skel-stat"></div>
+        <div class="skel skel-stat"></div>
+        <div class="skel skel-stat"></div>
+        <div class="skel skel-card"></div>
+        <div class="skel skel-card"></div>
+    </div>
+</div>
+
+<style>
+    /* ── LOADING SKELETONS ─────────────────────────────────────────────── */
+    .dash-loading {
+        padding: 40px;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .loading-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .skel {
+        border-radius: 10px;
+        background: var(--mud-palette-lines-default);
+        animation: skel-pulse 1.6s ease-in-out infinite;
+    }
+
+    @@keyframes skel-pulse {
+        0%, 100% { opacity: 0.4; }
+        50%       { opacity: 0.8; }
+    }
+
+    .skel-greeting { height: 64px; width: 340px; }
+    .skel-stat     { height: 80px; }
+    .skel-card     { height: 200px; }
+</style>
+
