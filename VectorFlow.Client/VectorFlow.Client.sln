@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VectorFlow.Client", "VectorFlow.Client.csproj", "{473DD2CD-1C7C-729A-9A81-DAEB54AEEEE5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{473DD2CD-1C7C-729A-9A81-DAEB54AEEEE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{473DD2CD-1C7C-729A-9A81-DAEB54AEEEE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{473DD2CD-1C7C-729A-9A81-DAEB54AEEEE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{473DD2CD-1C7C-729A-9A81-DAEB54AEEEE5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {360E8ED8-DB40-446E-8880-BFFD3227FFC2}
+	EndGlobalSection
+EndGlobal

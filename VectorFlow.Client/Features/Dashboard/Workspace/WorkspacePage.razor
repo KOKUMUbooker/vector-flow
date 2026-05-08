@@ -1,0 +1,1443 @@
+@page "/w/{Slug}"
+@layout Features.Layout.MainLayout
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@using System.ComponentModel.DataAnnotations
+@* @inject IWorkspaceService WorkspaceService *@
+@* @inject IProjectService ProjectService *@
+@* @inject IInvitationService InvitationService *@
+@* @inject IAuthService AuthService *@
+
+<PageTitle>@(_workspace?.Name ?? "Workspace") — VectorFlow</PageTitle>
+
+@if (_loading)
+{
+    <div class="ws-loading">
+        <div class="skel skel-header"></div>
+        <div class="skel-tabs-row">
+            <div class="skel skel-tab"></div>
+            <div class="skel skel-tab"></div>
+            <div class="skel skel-tab"></div>
+        </div>
+        <div class="skel skel-body"></div>
+    </div>
+}
+else if (_workspace is null)
+{
+    <div class="ws-not-found">
+        <MudText Typo="Typo.h4" Class="mud-text-secondary">Workspace not found</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-disabled mt-2 mb-6">
+            @Slug doesn't match any workspace you have access to.
+        </MudText>
+        <MudButton Href="/dashboard" Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Outlined.ArrowBack">
+            Back to dashboard
+        </MudButton>
+    </div>
+}
+else
+{
+    <div class="ws-shell">
+
+        <!-- ── WORKSPACE HEADER ─────────────────────────────────────────── -->
+        <div class="ws-header">
+            <div class="ws-header-inner">
+
+                <div class="ws-identity">
+                    <div class="ws-avatar" style="background:@_avatarColor">
+                        @GetInitials(_workspace.Name)
+                    </div>
+                    <div>
+                        <div class="ws-name-row">
+                            <h1 class="ws-title">@_workspace.Name</h1>
+                            <div class="ws-role-badge role-@_workspace.CurrentUserRole.ToString().ToLower()">
+                                @_workspace.CurrentUserRole
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(_workspace.Description))
+                        {
+                            <p class="ws-description">@_workspace.Description</p>
+                        }
+                        <div class="ws-meta-row">
+                            <span class="ws-meta-item">
+                                <MudIcon Icon="@Icons.Material.Outlined.Folder" Style="font-size:13px" />
+                                @_projects.Count project@(_projects.Count != 1 ? "s" : "")
+                            </span>
+                            <span class="ws-meta-dot">·</span>
+                            <span class="ws-meta-item">
+                                <MudIcon Icon="@Icons.Material.Outlined.Group" Style="font-size:13px" />
+                                @_workspace.MemberCount member@(_workspace.MemberCount != 1 ? "s" : "")
+                            </span>
+                            <span class="ws-meta-dot">·</span>
+                            <span class="ws-meta-item">
+                                <MudIcon Icon="@Icons.Material.Outlined.CalendarToday" Style="font-size:13px" />
+                                Created @_workspace.CreatedAt.ToString("MMM yyyy")
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Header actions — only Owners/Admins see certain buttons -->
+                <div class="ws-header-actions">
+                    @if (_canManage)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Outlined.PersonAdd"
+                                   Size="Size.Small"
+                                   OnClick="OpenInviteDialog"
+                                   Class="header-btn">
+                            Invite member
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Outlined.Add"
+                                   Size="Size.Small"
+                                   OnClick="OpenCreateProject"
+                                   Class="header-btn">
+                            New project
+                        </MudButton>
+                    }
+                </div>
+            </div>
+
+            <!-- ── TABS ──────────────────────────────────────────────────── -->
+            <div class="ws-tabs">
+                @foreach (var tab in _tabs)
+                {
+                    <button class="ws-tab @(_activeTab == tab.Id ? "ws-tab-active" : "")"
+                            @onclick="() => _activeTab = tab.Id">
+                        <MudIcon Icon="@tab.Icon" Style="font-size:15px" />
+                        @tab.Label
+                        @if (tab.Badge > 0)
+                        {
+                            <span class="tab-badge">@tab.Badge</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- ── TAB CONTENT ─────────────────────────────────────────────── -->
+        <div class="ws-content">
+
+            <!-- PROJECTS TAB -->
+            @if (_activeTab == "projects")
+            {
+                @if (!_projects.Any())
+                {
+                    <div class="tab-empty">
+                        <div class="empty-icon-wrap">
+                            <MudIcon Icon="@Icons.Material.Outlined.FolderOpen" Class="empty-icon" />
+                        </div>
+                        <MudText Typo="Typo.h6" Class="mt-4 mb-1">No projects yet</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-6">
+                            Projects hold your issues, Kanban board, and labels.
+                        </MudText>
+                        @if (_canManage)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Outlined.Add"
+                                       OnClick="OpenCreateProject">
+                                Create first project
+                            </MudButton>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="projects-grid">
+                        @foreach (var project in _projects)
+                        {
+                            <div class="project-card" @onclick="() => NavigateToProject(project)">
+                                <div class="project-card-header">
+                                    <div class="project-key-badge">@project.KeyPrefix</div>
+                                    @if (_canManage)
+                                    {
+                                        <MudMenu Icon="@Icons.Material.Outlined.MoreHoriz"
+                                                 Size="Size.Small"
+                                                 AnchorOrigin="Origin.BottomRight"
+                                                 TransformOrigin="Origin.TopRight"
+                                                 Class="project-menu">
+                                            <MudMenuItem Icon="@Icons.Material.Outlined.Edit"
+                                                         OnClick="() => OpenEditProject(project)">
+                                                Edit project
+                                            </MudMenuItem>
+                                            <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline"
+                                                         IconColor="Color.Error"
+                                                         OnClick="() => ConfirmDeleteProject(project)"
+                                                         Class="menu-danger">
+                                                Delete project
+                                            </MudMenuItem>
+                                        </MudMenu>
+                                    }
+                                </div>
+
+                                <div class="project-card-body">
+                                    <div class="project-name">@project.Name</div>
+                                    @if (!string.IsNullOrWhiteSpace(project.Description))
+                                    {
+                                        <div class="project-desc">@project.Description</div>
+                                    }
+                                </div>
+
+                                <div class="project-card-footer">
+                                    <div class="project-stat">
+                                        <MudIcon Icon="@Icons.Material.Outlined.BugReport" Style="font-size:13px" />
+                                        @project.IssueCount issue@(project.IssueCount != 1 ? "s" : "")
+                                    </div>
+                                    <div class="project-stat">
+                                        <MudIcon Icon="@Icons.Material.Outlined.Label" Style="font-size:13px" />
+                                        @project.LabelCount label@(project.LabelCount != 1 ? "s" : "")
+                                    </div>
+                                    <div class="project-created">
+                                        Created @project.CreatedAt.ToString("MMM d, yyyy")
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (_canManage)
+                        {
+                            <!-- New project card -->
+                            <div class="project-card project-card-new" @onclick="OpenCreateProject">
+                                <MudIcon Icon="@Icons.Material.Outlined.Add" Class="new-project-icon" />
+                                <span class="new-project-label">New project</span>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+
+            <!-- MEMBERS TAB -->
+            @if (_activeTab == "members")
+            {
+                <div class="members-panel">
+
+                    <div class="panel-toolbar">
+                        <MudTextField @bind-Value="_memberSearch"
+                                      Placeholder="Search members…"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Outlined.Search"
+                                      Class="search-field"
+                                      Immediate="true" />
+                    </div>
+
+                    <div class="members-list">
+                        @{
+                            var filtered = _members
+                                .Where(m => string.IsNullOrEmpty(_memberSearch)
+                                    || m.DisplayName.Contains(_memberSearch, StringComparison.OrdinalIgnoreCase)
+                                    || m.Email.Contains(_memberSearch, StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+                        }
+                        @foreach (var member in filtered)
+                        {
+                            <div class="member-row">
+                                <div class="member-left">
+                                    <div class="member-avatar">
+                                        @if (!string.IsNullOrEmpty(member.AvatarUrl))
+                                        {
+                                            <img src="@member.AvatarUrl" alt="@member.DisplayName" class="avatar-img" />
+                                        }
+                                        else
+                                        {
+                                            <span>@GetInitials(member.DisplayName)</span>
+                                        }
+                                    </div>
+                                    <div class="member-info">
+                                        <div class="member-name">
+                                            @member.DisplayName
+                                            @if (member.IsOwner)
+                                            {
+                                                <span class="owner-crown" title="Workspace owner">♛</span>
+                                            }
+                                        </div>
+                                        <div class="member-email">@member.Email</div>
+                                    </div>
+                                </div>
+
+                                <div class="member-right">
+                                    <div class="member-joined">
+                                        Joined @member.JoinedAt.ToString("MMM d, yyyy")
+                                    </div>
+
+                                    @if (_canManage && !member.IsOwner && member.UserId != _currentUserId)
+                                    {
+                                        <MudSelect T="WorkspaceRole"
+                                                   Value="member.Role"
+                                                   ValueChanged="(r) => HandleRoleChange(member, r)"
+                                                   Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense"
+                                                   Class="role-select"
+                                                   Dense="true">
+                                            @* Owners cannot promote to Owner or demote other Admins (unless they are Owner) *@
+                                            @if (_workspace.CurrentUserRole == WorkspaceRole.Owner)
+                                            {
+                                                <MudSelectItem Value="WorkspaceRole.Admin">Admin</MudSelectItem>
+                                            }
+                                            <MudSelectItem Value="WorkspaceRole.Member">Member</MudSelectItem>
+                                        </MudSelect>
+
+                                        <MudIconButton Icon="@Icons.Material.Outlined.PersonRemove"
+                                                       Color="Color.Error"
+                                                       Size="Size.Small"
+                                                       Title="Remove member"
+                                                       OnClick="() => ConfirmRemoveMember(member)" />
+                                    }
+                                    else
+                                    {
+                                        <div class="member-role-badge role-@member.Role.ToString().ToLower()">
+                                            @member.Role
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- INVITATIONS TAB -->
+            @if (_activeTab == "invitations")
+            {
+                <div class="invitations-panel">
+
+                    <div class="panel-toolbar">
+                        @if (_canManage)
+                        {
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Outlined.PersonAdd"
+                                       Size="Size.Small"
+                                       OnClick="OpenInviteDialog"
+                                       Class="header-btn">
+                                Invite member
+                            </MudButton>
+                        }
+                    </div>
+
+                    @if (!_invitations.Any())
+                    {
+                        <div class="tab-empty">
+                            <div class="empty-icon-wrap">
+                                <MudIcon Icon="@Icons.Material.Outlined.MailOutline" Class="empty-icon" />
+                            </div>
+                            <MudText Typo="Typo.h6" Class="mt-4 mb-1">No pending invitations</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                                Invite teammates by email — they'll get a link to join your workspace.
+                            </MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="invitations-list">
+                            @foreach (var inv in _invitations)
+                            {
+                                <div class="invitation-row">
+                                    <div class="inv-left">
+                                        <div class="inv-avatar">
+                                            @inv.InvitedEmail[0].ToString().ToUpper()
+                                        </div>
+                                        <div class="inv-info">
+                                            <div class="inv-email">@inv.InvitedEmail</div>
+                                            <div class="inv-meta">
+                                                Invited by @inv.InvitedByDisplayName
+                                                · Expires @inv.ExpiresAt.ToString("MMM d, yyyy")
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="inv-right">
+                                        <div class="inv-status-badge status-@inv.Status.ToString().ToLower()">
+                                            @inv.Status
+                                        </div>
+                                        @if (_canManage && inv.Status == InvitationStatus.Pending)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Outlined.Cancel"
+                                                           Color="Color.Error"
+                                                           Size="Size.Small"
+                                                           Title="Cancel invitation"
+                                                           OnClick="() => ConfirmCancelInvitation(inv)" />
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+        </div>
+    </div>
+}
+
+<!-- ── INVITE DIALOG ────────────────────────────────────────────────── -->
+<MudDialog @bind-Visible="_inviteOpen" Options="_dialogSm">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Invite to @(_workspace?.Name)</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+            An email invitation will be sent. The link expires after 7 days.
+        </MudText>
+        <MudForm @ref="_inviteForm" @bind-IsValid="_inviteValid">
+            <div class="field-group">
+                <label class="field-label">Email address</label>
+                <MudTextField @bind-Value="_inviteEmail"
+                              Placeholder="teammate@company.com"
+                              InputType="InputType.Email"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true"
+                              RequiredError="Email is required"
+                              Validation="@(new EmailAddressAttribute() { ErrorMessage = "Enter a valid email" })"
+                              Class="auth-field"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Outlined.AlternateEmail"
+                              AdornmentColor="Color.Default" />
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _inviteOpen = false" Variant="Variant.Text" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="HandleSendInvite"
+                   Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_inviteLoading || !_inviteValid)">
+            @if (_inviteLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Sending…</span>
+            }
+            else { <span>Send invitation</span> }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ── CREATE / EDIT PROJECT DIALOG ────────────────────────────────── -->
+<MudDialog @bind-Visible="_projectDialogOpen" Options="_dialogSm">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_editingProject is null ? "Create project" : "Edit project")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_projectForm" @bind-IsValid="_projectFormValid">
+            <div class="field-group mb-4">
+                <label class="field-label">Project name</label>
+                <MudTextField @bind-Value="_projectName"
+                              Placeholder="e.g. Backend API"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true"
+                              RequiredError="Name is required"
+                              MaxLength="100"
+                              Class="auth-field" />
+            </div>
+            <div class="field-group mb-4">
+                <label class="field-label">Key prefix <span class="field-hint">(used for issue keys, e.g. VF-1)</span></label>
+                <MudTextField @bind-Value="_projectKey"
+                              Placeholder="e.g. VF"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true"
+                              RequiredError="Key prefix is required"
+                              MaxLength="6"
+                              Disabled="@(_editingProject is not null)"
+                              Class="auth-field"
+                              @bind-Value:after="NormalizeKeyPrefix" />
+                @if (_editingProject is not null)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-disabled mt-1">
+                        Key prefix cannot be changed after creation.
+                    </MudText>
+                }
+            </div>
+            <div class="field-group">
+                <label class="field-label">Description <span class="field-hint">(optional)</span></label>
+                <MudTextField @bind-Value="_projectDescription"
+                              Placeholder="What does this project track?"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Lines="3"
+                              MaxLength="500"
+                              Class="auth-field" />
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _projectDialogOpen = false" Variant="Variant.Text" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="HandleSaveProject"
+                   Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_projectLoading || !_projectFormValid)">
+            @if (_projectLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>@(_editingProject is null ? "Creating…" : "Saving…")</span>
+            }
+            else { <span>@(_editingProject is null ? "Create project" : "Save changes")</span> }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ── CONFIRM DIALOG ──────────────────────────────────────────────── -->
+<MudDialog @bind-Visible="_confirmOpen" Options="_dialogSm">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@_confirmTitle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2">@_confirmBody</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _confirmOpen = false" Variant="Variant.Text" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="ExecuteConfirm"
+                   Variant="Variant.Filled" Color="Color.Error"
+                   Disabled="_confirmLoading">
+            @if (_confirmLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>@_confirmActionLabel…</span>
+            }
+            else { <span>@_confirmActionLabel</span> }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
+
+    /* ── LOADING ───────────────────────────────────────────────────────── */
+    .ws-loading {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .skel {
+        border-radius: 10px;
+        background: var(--mud-palette-lines-default);
+        animation: skel-pulse 1.6s ease-in-out infinite;
+    }
+
+    @@keyframes skel-pulse {
+        0%, 100% { opacity: 0.4; }
+        50%       { opacity: 0.8; }
+    }
+
+    .skel-header  { height: 100px; }
+    .skel-tabs-row { display: flex; gap: 8px; }
+    .skel-tab     { height: 36px; width: 100px; border-radius: 8px; background: var(--mud-palette-lines-default); animation: skel-pulse 1.6s ease-in-out infinite; }
+    .skel-body    { height: 300px; }
+
+    /* ── NOT FOUND ─────────────────────────────────────────────────────── */
+    .ws-not-found {
+        max-width: 480px;
+        margin: 80px auto;
+        padding: 40px;
+        text-align: center;
+    }
+
+    /* ── PAGE SHELL ────────────────────────────────────────────────────── */
+    .ws-shell {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 40px 80px;
+        animation: page-in 0.4s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    @@keyframes page-in {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── HEADER ────────────────────────────────────────────────────────── */
+    .ws-header {
+        border-bottom: 1px solid var(--mud-palette-divider);
+        padding-top: 32px;
+        margin-bottom: 0;
+    }
+
+    .ws-header-inner {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .ws-identity {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .ws-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .ws-name-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 4px;
+    }
+
+    .ws-title {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: clamp(1.5rem, 2.5vw, 2rem);
+        letter-spacing: -0.02em;
+        color: var(--mud-palette-text-primary);
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    /* Role badge */
+    .ws-role-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 99px;
+    }
+
+    .role-owner  { background: rgba(146,64,14,0.1);  color: var(--mud-palette-warning); border: 1px solid rgba(146,64,14,0.2); }
+    .role-admin  { background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary); border: 1px solid rgba(67,57,202,0.2); }
+    .role-member { background: rgba(26,122,82,0.1);  color: var(--mud-palette-success); border: 1px solid rgba(26,122,82,0.2); }
+
+    .ws-description {
+        font-size: 13px;
+        color: var(--mud-palette-text-secondary);
+        margin: 0 0 8px;
+        line-height: 1.5;
+    }
+
+    .ws-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .ws-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .ws-meta-dot {
+        color: var(--mud-palette-divider);
+        font-size: 14px;
+    }
+
+    .ws-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .header-btn { border-radius: 8px !important; }
+
+    /* ── TABS ──────────────────────────────────────────────────────────── */
+    .ws-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: -1px;
+    }
+
+    .ws-tab {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 18px;
+        font-family: 'DM Sans', system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--mud-palette-text-secondary);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+        white-space: nowrap;
+    }
+
+    .ws-tab:hover { color: var(--mud-palette-text-primary); }
+
+    .ws-tab-active {
+        color: var(--mud-palette-primary) !important;
+        border-bottom-color: var(--mud-palette-primary) !important;
+    }
+
+    .tab-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        background: var(--mud-palette-primary-lighten);
+        color: var(--mud-palette-primary);
+        padding: 1px 6px;
+        border-radius: 99px;
+        min-width: 18px;
+        text-align: center;
+    }
+
+    /* ── CONTENT AREA ──────────────────────────────────────────────────── */
+    .ws-content {
+        padding-top: 28px;
+    }
+
+    /* ── EMPTY STATES ──────────────────────────────────────────────────── */
+    .tab-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 64px 24px;
+    }
+
+    .empty-icon-wrap {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: var(--mud-palette-background-grey);
+        border: 1px solid var(--mud-palette-divider);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-icon { color: var(--mud-palette-text-disabled) !important; font-size: 28px !important; }
+
+    /* ── PROJECTS GRID ─────────────────────────────────────────────────── */
+    .projects-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .project-card {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        animation: card-in 0.3s ease both;
+    }
+
+    .project-card:hover {
+        border-color: var(--mud-palette-primary);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+        transform: translateY(-1px);
+    }
+
+    @for (int i = 1; i <= 8; i++)
+    {
+        <text>.project-card:nth-child(@i) { animation-delay: @(i * 0.05)s; }</text>
+    }
+
+    @@keyframes card-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .project-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .project-key-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--mud-palette-primary);
+        background: var(--mud-palette-primary-lighten);
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    .project-menu { margin: -8px -8px 0 0; }
+
+    .project-card-body { flex: 1; }
+
+    .project-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 4px;
+        line-height: 1.3;
+    }
+
+    .project-desc {
+        font-size: 12px;
+        color: var(--mud-palette-text-secondary);
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .project-card-footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+
+    .project-stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .project-created {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--mud-palette-text-disabled);
+        margin-left: auto;
+    }
+
+    /* New project card */
+    .project-card-new {
+        border-style: dashed;
+        align-items: center;
+        justify-content: center;
+        min-height: 160px;
+        color: var(--mud-palette-text-disabled);
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .project-card-new:hover {
+        border-color: var(--mud-palette-primary);
+        color: var(--mud-palette-primary);
+    }
+
+    .new-project-icon { font-size: 28px !important; }
+    .new-project-label { font-size: 13px; font-weight: 500; }
+
+    /* ── MEMBERS PANEL ─────────────────────────────────────────────────── */
+    .members-panel, .invitations-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .panel-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .search-field { max-width: 320px; }
+    .search-field .mud-input-outlined .mud-notched-outline { border-radius: 10px !important; }
+
+    .members-list, .invitations-list {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .member-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        transition: background 0.12s;
+    }
+
+    .member-row:last-child { border-bottom: none; }
+    .member-row:hover      { background: var(--mud-palette-background-grey); }
+
+    .member-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .member-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .member-info { min-width: 0; }
+
+    .member-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .owner-crown {
+        font-size: 12px;
+        color: var(--mud-palette-warning);
+    }
+
+    .member-email {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .member-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .member-joined {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+        white-space: nowrap;
+    }
+
+    .role-select { width: 110px; }
+    .role-select .mud-input-outlined .mud-notched-outline { border-radius: 8px !important; }
+
+    .member-role-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 99px;
+    }
+
+    /* ── INVITATIONS ───────────────────────────────────────────────────── */
+    .invitation-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+
+    .invitation-row:last-child { border-bottom: none; }
+
+    .inv-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .inv-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--mud-palette-background-grey);
+        border: 1px dashed var(--mud-palette-divider);
+        color: var(--mud-palette-text-disabled);
+        font-family: 'DM Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .inv-email {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 2px;
+    }
+
+    .inv-meta {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .inv-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .inv-status-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 99px;
+    }
+
+    .status-pending  { background: rgba(37,99,235,0.1); color: var(--mud-palette-info);    border: 1px solid rgba(37,99,235,0.2); }
+    .status-accepted { background: rgba(26,122,82,0.1); color: var(--mud-palette-success); border: 1px solid rgba(26,122,82,0.2); }
+    .status-declined { background: var(--mud-palette-background-grey); color: var(--mud-palette-text-disabled); border: 1px solid var(--mud-palette-divider); }
+    .status-expired  { background: rgba(220,38,38,0.08); color: var(--mud-palette-error);  border: 1px solid rgba(220,38,38,0.15); }
+
+    /* ── SHARED DIALOG FIELDS ──────────────────────────────────────────── */
+    .field-group  { display: flex; flex-direction: column; gap: 6px; }
+    .field-label  { font-size: 12px; font-weight: 600; color: var(--mud-palette-text-primary); font-family: 'DM Sans', system-ui, sans-serif; }
+    .field-hint   { font-weight: 400; color: var(--mud-palette-text-disabled); }
+    .auth-field .mud-input-outlined .mud-notched-outline { border-radius: 10px !important; }
+    .menu-danger  { color: var(--mud-palette-error) !important; }
+
+    /* ── RESPONSIVE ────────────────────────────────────────────────────── */
+    @@media (max-width: 768px) {
+        .ws-shell         { padding: 0 16px 60px; }
+        .ws-header-inner  { flex-direction: column; }
+        .ws-header-actions { width: 100%; }
+        .projects-grid    { grid-template-columns: 1fr; }
+        .member-joined    { display: none; }
+        .ws-tabs          { overflow-x: auto; }
+    }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+
+    // ── Page state ─────────────────────────────────────────────────────
+    private bool _loading = true;
+    private WorkspaceDto? _workspace;
+    private string _avatarColor = "#4339CA";
+    private string _currentUserId = string.Empty;
+    private bool _canManage => _workspace?.CurrentUserRole
+        is WorkspaceRole.Owner or WorkspaceRole.Admin;
+
+    private string _activeTab = "projects";
+
+    private List<ProjectDto>    _projects    = [];
+    private List<MemberDto>     _members     = [];
+    private List<InvitationDto> _invitations = [];
+
+    private string _memberSearch = string.Empty;
+
+    // Tab definitions (built after data loads)
+    private List<TabDef> _tabs = [];
+
+    // ── Dialog state ───────────────────────────────────────────────────
+    // Invite
+    private bool    _inviteOpen;
+    private bool    _inviteLoading;
+    private bool    _inviteValid;
+    private string  _inviteEmail = string.Empty;
+    private MudForm _inviteForm = null!;
+
+    // Project create/edit
+    private bool        _projectDialogOpen;
+    private bool        _projectLoading;
+    private bool        _projectFormValid;
+    private string      _projectName        = string.Empty;
+    private string      _projectKey         = string.Empty;
+    private string      _projectDescription = string.Empty;
+    private ProjectDto? _editingProject;
+    private MudForm     _projectForm = null!;
+
+    // Generic confirm
+    private bool   _confirmOpen;
+    private bool   _confirmLoading;
+    private string _confirmTitle       = string.Empty;
+    private string _confirmBody        = string.Empty;
+    private string _confirmActionLabel = string.Empty;
+    private Func<Task>? _confirmAction;
+
+    private readonly DialogOptions _dialogSm = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true
+    };
+
+    // ── Lifecycle ──────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync() => await Load();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Slug changed (user navigated to different workspace)
+        if (_workspace is not null && !_workspace.Slug.Equals(Slug, StringComparison.OrdinalIgnoreCase))
+            await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            // ── TODO: replace with real calls ───────────────────────────
+            // _currentUserId = (await AuthService.GetCurrentUserAsync()).Id;
+            //
+            // _workspace = await WorkspaceService.GetBySlugAsync(Slug);
+            // if (_workspace is null) { _loading = false; return; }
+            //
+            // _avatarColor = PickColor(_workspace.Id);
+            //
+            // _projects    = await ProjectService.GetByWorkspaceAsync(_workspace.Id);
+            // _members     = await WorkspaceService.GetMembersAsync(_workspace.Id);
+            // _invitations = await InvitationService.GetByWorkspaceAsync(_workspace.Id);
+            // ────────────────────────────────────────────────────────────
+
+            await Task.Delay(600); // remove — simulates network
+
+            _currentUserId = "user-booker";
+
+            _workspace = new WorkspaceDto
+            {
+                Id              = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                Name            = Slug == "vectorflow" ? "VectorFlow" : "Acme Corp",
+                Slug            = Slug,
+                Description     = "Full-stack issue tracking for the VectorFlow project.",
+                OwnerId         = "user-booker",
+                CreatedAt       = DateTime.UtcNow.AddMonths(-3),
+                CurrentUserRole = WorkspaceRole.Owner,
+                MemberCount     = 4,
+                ProjectCount    = 3
+            };
+
+            _avatarColor = PickColor(_workspace.Id);
+
+            _projects =
+            [
+                new ProjectDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, Name = "VectorFlow Backend", KeyPrefix = "VF",  IssueCount = 12, LabelCount = 5, CreatedAt = DateTime.UtcNow.AddMonths(-2), Description = "ASP.NET Core API, SignalR, EF Core, PostgreSQL." },
+                new ProjectDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, Name = "VectorFlow Client",  KeyPrefix = "VFC", IssueCount = 8,  LabelCount = 4, CreatedAt = DateTime.UtcNow.AddMonths(-2), Description = "Blazor WASM frontend and MudBlazor components." },
+                new ProjectDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, Name = "VectorFlow Tests",   KeyPrefix = "VFT", IssueCount = 3,  LabelCount = 2, CreatedAt = DateTime.UtcNow.AddMonths(-1) },
+            ];
+
+            _members =
+            [
+                new MemberDto { UserId = "user-booker", DisplayName = "Booker K.",  Email = "booker@vectorflow.dev", Role = WorkspaceRole.Owner,  IsOwner = true,  JoinedAt = DateTime.UtcNow.AddMonths(-3) },
+                new MemberDto { UserId = "user-jana",   DisplayName = "Jana S.",    Email = "jana@vectorflow.dev",   Role = WorkspaceRole.Admin,  IsOwner = false, JoinedAt = DateTime.UtcNow.AddMonths(-2) },
+                new MemberDto { UserId = "user-alex",   DisplayName = "Alex K.",    Email = "alex@vectorflow.dev",   Role = WorkspaceRole.Member, IsOwner = false, JoinedAt = DateTime.UtcNow.AddMonths(-1) },
+                new MemberDto { UserId = "user-ben",    DisplayName = "Ben M.",     Email = "ben@vectorflow.dev",    Role = WorkspaceRole.Member, IsOwner = false, JoinedAt = DateTime.UtcNow.AddDays(-14) },
+            ];
+
+            _invitations =
+            [
+                new InvitationDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, WorkspaceName = _workspace.Name, InvitedEmail = "newdev@company.com",  InvitedByDisplayName = "Booker K.", Status = InvitationStatus.Pending,  ExpiresAt = DateTime.UtcNow.AddDays(5),  CreatedAt = DateTime.UtcNow.AddDays(-2) },
+                new InvitationDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, WorkspaceName = _workspace.Name, InvitedEmail = "designer@company.com", InvitedByDisplayName = "Jana S.",   Status = InvitationStatus.Accepted, ExpiresAt = DateTime.UtcNow.AddDays(-1), CreatedAt = DateTime.UtcNow.AddDays(-8) },
+                new InvitationDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, WorkspaceName = _workspace.Name, InvitedEmail = "olddev@company.com",   InvitedByDisplayName = "Booker K.", Status = InvitationStatus.Expired,  ExpiresAt = DateTime.UtcNow.AddDays(-5), CreatedAt = DateTime.UtcNow.AddDays(-12) },
+            ];
+
+            RebuildTabs();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load workspace: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void RebuildTabs() =>
+        _tabs =
+        [
+            new("projects",    "Projects",    Icons.Material.Outlined.Folder,     _projects.Count),
+            new("members",     "Members",     Icons.Material.Outlined.Group,       _members.Count),
+            new("invitations", "Invitations", Icons.Material.Outlined.MailOutline, _invitations.Count(i => i.Status == InvitationStatus.Pending)),
+        ];
+
+    // ── Navigation ─────────────────────────────────────────────────────
+    private void NavigateToProject(ProjectDto p) =>
+        Nav.NavigateTo($"/w/{Slug}/projects/{p.Id}");
+
+    // ── Invite ─────────────────────────────────────────────────────────
+    private void OpenInviteDialog()
+    {
+        _inviteEmail = string.Empty;
+        _inviteOpen  = true;
+        _activeTab   = "invitations";
+    }
+
+    private async Task HandleSendInvite()
+    {
+        await _inviteForm.Validate();
+        if (!_inviteValid) return;
+        _inviteLoading = true;
+
+        // TODO: await InvitationService.SendAsync(_workspace!.Id, _inviteEmail);
+        await Task.Delay(800);
+
+        _invitations.Add(new InvitationDto
+        {
+            Id = Guid.NewGuid(), WorkspaceId = _workspace!.Id,
+            WorkspaceName = _workspace.Name, InvitedEmail = _inviteEmail,
+            InvitedByDisplayName = "You", Status = InvitationStatus.Pending,
+            ExpiresAt = DateTime.UtcNow.AddDays(7), CreatedAt = DateTime.UtcNow
+        });
+
+        RebuildTabs();
+        _inviteLoading = false;
+        _inviteOpen    = false;
+        Snackbar.Add($"Invitation sent to {_inviteEmail}", Severity.Success);
+    }
+
+    // ── Create / Edit project ──────────────────────────────────────────
+    private void OpenCreateProject()
+    {
+        _editingProject     = null;
+        _projectName        = string.Empty;
+        _projectKey         = string.Empty;
+        _projectDescription = string.Empty;
+        _projectDialogOpen  = true;
+    }
+
+    private void OpenEditProject(ProjectDto project)
+    {
+        _editingProject     = project;
+        _projectName        = project.Name;
+        _projectKey         = project.KeyPrefix;
+        _projectDescription = project.Description ?? string.Empty;
+        _projectDialogOpen  = true;
+    }
+
+    private void NormalizeKeyPrefix() =>
+        _projectKey = _projectKey.ToUpperInvariant().Trim();
+
+    private async Task HandleSaveProject()
+    {
+        await _projectForm.Validate();
+        if (!_projectFormValid) return;
+        _projectLoading = true;
+
+        await Task.Delay(800); // TODO: call service
+
+        if (_editingProject is null)
+        {
+            // TODO: var created = await ProjectService.CreateAsync(_workspace!.Id, new CreateProjectRequest { ... });
+            _projects.Add(new ProjectDto
+            {
+                Id = Guid.NewGuid(), WorkspaceId = _workspace!.Id,
+                Name = _projectName, KeyPrefix = _projectKey,
+                Description = _projectDescription, IssueCount = 0,
+                LabelCount = 0, CreatedAt = DateTime.UtcNow
+            });
+            Snackbar.Add($"Project \"{_projectName}\" created!", Severity.Success);
+        }
+        else
+        {
+            // TODO: await ProjectService.UpdateAsync(_editingProject.Id, new UpdateProjectRequest { ... });
+            var idx = _projects.IndexOf(_editingProject);
+            @* if (idx >= 0)
+                _projects[idx] = _editingProject with
+                {
+                    Name = _projectName,
+                    Description = _projectDescription
+                }; *@
+            Snackbar.Add("Project updated.", Severity.Success);
+        }
+
+        RebuildTabs();
+        _projectLoading    = false;
+        _projectDialogOpen = false;
+    }
+
+    // ── Delete project ─────────────────────────────────────────────────
+    private void ConfirmDeleteProject(ProjectDto project) =>
+        ShowConfirm(
+            $"Delete \"{project.Name}\"?",
+            "This permanently deletes the project and all its issues, comments, and labels. This cannot be undone.",
+            "Delete",
+            async () =>
+            {
+                // TODO: await ProjectService.DeleteAsync(project.Id);
+                await Task.Delay(600);
+                _projects.Remove(project);
+                RebuildTabs();
+                Snackbar.Add($"\"{project.Name}\" deleted.", Severity.Info);
+            });
+
+    // ── Member role change ─────────────────────────────────────────────
+    private async Task HandleRoleChange(MemberDto member, WorkspaceRole newRole)
+    {
+        if (member.Role == newRole) return;
+        // TODO: await WorkspaceService.ChangeRoleAsync(_workspace!.Id, member.UserId, newRole);
+        await Task.Delay(400);
+        @* var idx = _members.IndexOf(member); *@
+        @* if (idx >= 0) _members[idx] = member with { Role = newRole }; *@
+        Snackbar.Add($"{member.DisplayName} is now {newRole}.", Severity.Success);
+    }
+
+    // ── Remove member ──────────────────────────────────────────────────
+    private void ConfirmRemoveMember(MemberDto member) =>
+        ShowConfirm(
+            $"Remove {member.DisplayName}?",
+            $"{member.DisplayName} will lose access to this workspace and all its projects immediately.",
+            "Remove",
+            async () =>
+            {
+                // TODO: await WorkspaceService.RemoveMemberAsync(_workspace!.Id, member.UserId);
+                await Task.Delay(500);
+                _members.Remove(member);
+                RebuildTabs();
+                Snackbar.Add($"{member.DisplayName} removed.", Severity.Info);
+            });
+
+    // ── Cancel invitation ──────────────────────────────────────────────
+    private void ConfirmCancelInvitation(InvitationDto inv) =>
+        ShowConfirm(
+            $"Cancel invitation to {inv.InvitedEmail}?",
+            "The invitation link will stop working immediately.",
+            "Cancel invitation",
+            async () =>
+            {
+                // TODO: await InvitationService.CancelAsync(_workspace!.Id, inv.Id);
+                await Task.Delay(400);
+                _invitations.Remove(inv);
+                RebuildTabs();
+                Snackbar.Add("Invitation cancelled.", Severity.Info);
+            });
+
+    // ── Generic confirm helper ─────────────────────────────────────────
+    private void ShowConfirm(string title, string body, string action, Func<Task> onConfirm)
+    {
+        _confirmTitle       = title;
+        _confirmBody        = body;
+        _confirmActionLabel = action;
+        _confirmAction      = onConfirm;
+        _confirmOpen        = true;
+    }
+
+    private async Task ExecuteConfirm()
+    {
+        if (_confirmAction is null) return;
+        _confirmLoading = true;
+        try   { await _confirmAction(); }
+        finally
+        {
+            _confirmLoading = false;
+            _confirmOpen    = false;
+            _confirmAction  = null;
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    private static string GetInitials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    private static readonly string[] Palette =
+    [
+        "#4339CA", "#1A7A52", "#92560F", "#2563EB",
+        "#7C3AED", "#0E7490", "#B45309", "#DC2626"
+    ];
+
+    private static string PickColor(Guid id) =>
+        Palette[Math.Abs(id.GetHashCode()) % Palette.Length];
+
+    // ── Tab model ─────────────────────────────────────────────────────
+    private sealed record TabDef(string Id, string Label, string Icon, int Badge);
+
+    // ── Inline DTO / enum stubs ───────────────────────────────────────
+    // Delete this region once VectorFlow.Shared is referenced.
+    #region Shared stubs
+
+    private enum WorkspaceRole    { Owner, Admin, Member }
+    private enum InvitationStatus { Pending, Accepted, Declined, Expired }
+
+    private sealed class WorkspaceDto
+    {
+        public Guid          Id              { get; set; }
+        public string        Name            { get; set; } = string.Empty;
+        public string        Slug            { get; set; } = string.Empty;
+        public string?       Description     { get; set; }
+        public string        OwnerId         { get; set; } = string.Empty;
+        public DateTime      CreatedAt       { get; set; }
+        public WorkspaceRole CurrentUserRole { get; set; }
+        public int           MemberCount     { get; set; }
+        public int           ProjectCount    { get; set; }
+    }
+
+    private sealed class ProjectDto
+    {
+        public Guid     Id          { get; set; }
+        public Guid     WorkspaceId { get; set; }
+        public string   Name        { get; set; } = string.Empty;
+        public string?  Description { get; set; }
+        public string   KeyPrefix   { get; set; } = string.Empty;
+        public int      IssueCount  { get; set; }
+        public int      LabelCount  { get; set; }
+        public DateTime CreatedAt   { get; set; }
+    }
+
+    private sealed class MemberDto
+    {
+        public string        UserId      { get; set; } = string.Empty;
+        public string        DisplayName { get; set; } = string.Empty;
+        public string        Email       { get; set; } = string.Empty;
+        public string?       AvatarUrl   { get; set; }
+        public WorkspaceRole Role        { get; set; }
+        public bool          IsOwner     { get; set; }
+        public DateTime      JoinedAt    { get; set; }
+    }
+
+    private sealed class InvitationDto
+    {
+        public Guid             Id                    { get; set; }
+        public Guid             WorkspaceId           { get; set; }
+        public string           WorkspaceName         { get; set; } = string.Empty;
+        public string           InvitedEmail          { get; set; } = string.Empty;
+        public string           InvitedByDisplayName  { get; set; } = string.Empty;
+        public InvitationStatus Status                { get; set; }
+        public DateTime         ExpiresAt             { get; set; }
+        public DateTime         CreatedAt             { get; set; }
+    }
+
+    #endregion
+}

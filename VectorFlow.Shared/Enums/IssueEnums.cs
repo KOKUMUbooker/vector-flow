@@ -1,4 +1,4 @@
-namespace VectorFlow.Api.Enums;
+namespace VectorFlow.Shared.Enums;
 
 public enum IssueStatus
 {

@@ -1,5 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using VectorFlow.Api.Enums;
+using VectorFlow.Shared.Enums;
 
 namespace VectorFlow.Shared.DTOs;
 
