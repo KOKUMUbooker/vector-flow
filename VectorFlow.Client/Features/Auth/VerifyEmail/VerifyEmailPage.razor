@@ -2,57 +2,15 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @using System.ComponentModel.DataAnnotations
+@using VectorFlow.Client.Features.Auth.VerifyEmail.Components
 
 <PageTitle>Verify your email — VectorFlow</PageTitle>
 
 <div class="auth-shell">
 
     <!-- LEFT PANEL -->
-    <div class="auth-panel">
-        <a href="/" class="panel-brand">VectorFlow</a>
-
-        <div class="panel-body">
-            <div class="panel-kicker">Email verification</div>
-            <p class="panel-headline">One step<br />to go.</p>
-
-            <!-- Envelope animation -->
-            <div class="envelope-wrap">
-                <div class="envelope @(_errorMode ? "envelope-error" : "")">
-                    <div class="env-body"></div>
-                    <div class="env-flap"></div>
-                    <div class="env-letter">
-                        <div class="letter-line"></div>
-                        <div class="letter-line short"></div>
-                        <div class="letter-vf">VF</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="panel-steps">
-                <div class="p-step @(!_errorMode ? "p-step-done" : "")">
-                    <div class="p-step-dot"></div>
-                    <div class="p-step-text">Account created</div>
-                </div>
-                <div class="p-step-connector"></div>
-                <div class="p-step @(!_errorMode ? "p-step-active" : "p-step-error")">
-                    <div class="p-step-dot"></div>
-                    <div class="p-step-text">Verify email</div>
-                </div>
-                <div class="p-step-connector"></div>
-                <div class="p-step p-step-pending">
-                    <div class="p-step-dot"></div>
-                    <div class="p-step-text">Start tracking</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="panel-footer">
-            <p class="panel-note">
-                Check your spam folder if the email doesn't arrive within a minute.
-            </p>
-        </div>
-    </div>
-
+    <LeftPanel _errorMode="@_errorMode"/>
+   
     <!-- RIGHT PANEL -->
     <div class="auth-form-side">
         <div class="auth-form-card">
@@ -82,26 +40,26 @@
                         <div class="field-group">
                             <label class="field-label">Account email</label>
                             <MudTextField @bind-Value="_resendDto.Email"
-                                          Placeholder="you@company.com"
-                                          InputType="InputType.Email"
-                                          Variant="Variant.Outlined"
-                                          Margin="Margin.Dense"
-                                          Required="true"
-                                          RequiredError="Email is required"
-                                          Validation="@(new EmailAddressAttribute() { ErrorMessage = "Enter a valid email" })"
-                                          Class="auth-field"
-                                          Adornment="Adornment.Start"
-                                          AdornmentIcon="@Icons.Material.Outlined.AlternateEmail"
-                                          AdornmentColor="Color.Default" />
+                                Placeholder="you@company.com"
+                                InputType="InputType.Email"
+                                Variant="Variant.Outlined"
+                                Margin="Margin.Dense"
+                                Required="true"
+                                RequiredError="Email is required"
+                                Validation="@(new EmailAddressAttribute() { ErrorMessage = "Enter a valid email" })"
+                                Class="auth-field"
+                                Adornment="Adornment.Start"
+                                AdornmentIcon="@Icons.Material.Outlined.AlternateEmail"
+                                AdornmentColor="Color.Default" />
                         </div>
 
                         <MudButton OnClick="HandleResend"
-                                   Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   Size="Size.Large"
-                                   FullWidth="true"
-                                   Disabled="@(_loading || _resendCooldown > 0)"
-                                   Class="submit-btn">
+                            Variant="Variant.Filled"
+                            Color="Color.Primary"
+                            Size="Size.Large"
+                            FullWidth="true"
+                            Disabled="@(_loading || _resendCooldown > 0)"
+                            Class="submit-btn">
                             @if (_loading)
                             {
                                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -126,11 +84,11 @@
                         If you believe this is a mistake, try registering again or contact support.
                     </MudAlert>
                     <MudButton Href="/register"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Size="Size.Large"
-                               FullWidth="true"
-                               Class="submit-btn">
+                        Variant="Variant.Filled"
+                        Color="Color.Primary"
+                        Size="Size.Large"
+                        FullWidth="true"
+                        Class="submit-btn">
                         Back to register
                     </MudButton>
                 }
@@ -159,26 +117,26 @@
                     <div class="field-group">
                         <label class="field-label">Resend to a different address?</label>
                         <MudTextField @bind-Value="_resendDto.Email"
-                                      Placeholder="you@company.com"
-                                      InputType="InputType.Email"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense"
-                                      Required="true"
-                                      RequiredError="Email is required"
-                                      Validation="@(new EmailAddressAttribute() { ErrorMessage = "Enter a valid email" })"
-                                      Class="auth-field"
-                                      Adornment="Adornment.Start"
-                                      AdornmentIcon="@Icons.Material.Outlined.AlternateEmail"
-                                      AdornmentColor="Color.Default" />
+                            Placeholder="you@company.com"
+                            InputType="InputType.Email"
+                            Variant="Variant.Outlined"
+                            Margin="Margin.Dense"
+                            Required="true"
+                            RequiredError="Email is required"
+                            Validation="@(new EmailAddressAttribute() { ErrorMessage = "Enter a valid email" })"
+                            Class="auth-field"
+                            Adornment="Adornment.Start"
+                            AdornmentIcon="@Icons.Material.Outlined.AlternateEmail"
+                            AdornmentColor="Color.Default" />
                     </div>
 
                     <MudButton OnClick="HandleResend"
-                               Variant="Variant.Outlined"
-                               Color="Color.Primary"
-                               Size="Size.Large"
-                               FullWidth="true"
-                               Disabled="@(_loading || _resendCooldown > 0)"
-                               Class="submit-btn">
+                        Variant="Variant.Outlined"
+                        Color="Color.Primary"
+                        Size="Size.Large"
+                        FullWidth="true"
+                        Disabled="@(_loading || _resendCooldown > 0)"
+                        Class="submit-btn">
                         @if (_loading)
                         {
                             <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -199,10 +157,10 @@
             <MudDivider Class="my-6" />
             <div class="back-link">
                 <MudButton Href="/login"
-                           Variant="Variant.Text"
-                           Color="Color.Default"
-                           StartIcon="@Icons.Material.Outlined.ArrowBack"
-                           Class="back-btn">
+                    Variant="Variant.Text"
+                    Color="Color.Default"
+                    StartIcon="@Icons.Material.Outlined.ArrowBack"
+                    Class="back-btn">
                     Back to sign in
                 </MudButton>
             </div>
@@ -219,199 +177,6 @@
         min-height: 100vh;
         display: grid;
         grid-template-columns: 1fr 1fr;
-    }
-
-    /* LEFT */
-    .auth-panel {
-        background: var(--mud-palette-dark, #0D0D0F);
-        color: var(--mud-palette-white);
-        display: flex;
-        flex-direction: column;
-        padding: 40px 48px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .auth-panel::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background-image:
-            linear-gradient(var(--mud-palette-primary) 1px, transparent 1px),
-            linear-gradient(90deg, var(--mud-palette-primary) 1px, transparent 1px);
-        background-size: 48px 48px;
-        opacity: 0.04;
-        pointer-events: none;
-    }
-
-    .auth-panel::after {
-        content: '';
-        position: absolute;
-        top: 30%;
-        right: -100px;
-        width: 380px;
-        height: 380px;
-        background: radial-gradient(circle, var(--mud-palette-info) 0%, transparent 65%);
-        opacity: 0.07;
-        pointer-events: none;
-    }
-
-    .panel-brand {
-        font-family: 'DM Serif Display', Georgia, serif;
-        font-size: 1.25rem;
-        color: var(--mud-palette-white);
-        text-decoration: none;
-        position: relative;
-        z-index: 1;
-    }
-
-    .panel-body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        position: relative;
-        z-index: 1;
-        align-items: flex-start;
-    }
-
-    .panel-kicker {
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--mud-palette-info);
-        margin-bottom: 16px;
-    }
-
-    .panel-headline {
-        font-family: 'DM Serif Display', Georgia, serif;
-        font-size: clamp(2rem, 3vw, 3rem);
-        line-height: 1.1;
-        letter-spacing: -0.02em;
-        color: var(--mud-palette-white);
-        margin: 0 0 36px;
-    }
-
-    /* Envelope illustration */
-    .envelope-wrap {
-        margin-bottom: 36px;
-    }
-
-    .envelope {
-        width: 80px;
-        height: 56px;
-        position: relative;
-    }
-
-    .env-body {
-        position: absolute;
-        inset: 0;
-        border: 2px solid var(--mud-palette-primary);
-        border-radius: 6px;
-        background: rgba(67,57,202,0.1);
-    }
-
-    .envelope-error .env-body {
-        border-color: var(--mud-palette-error);
-        background: rgba(220,38,38,0.08);
-    }
-
-    .env-flap {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 28px;
-        border-left: 40px solid transparent;
-        border-right: 40px solid transparent;
-        border-top: 28px solid var(--mud-palette-primary);
-        opacity: 0.4;
-    }
-
-    .envelope-error .env-flap { border-top-color: var(--mud-palette-error); }
-
-    .env-letter {
-        position: absolute;
-        bottom: 6px;
-        left: 10px;
-        right: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-    }
-
-    .letter-line {
-        height: 2px;
-        background: rgba(255,255,255,0.2);
-        border-radius: 1px;
-    }
-
-    .letter-line.short { width: 60%; }
-
-    .letter-vf {
-        font-family: 'DM Mono', monospace;
-        font-size: 8px;
-        color: var(--mud-palette-primary);
-        margin-top: 2px;
-    }
-
-    /* Progress steps */
-    .panel-steps {
-        display: flex;
-        align-items: center;
-        gap: 0;
-    }
-
-    .p-step {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .p-step-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.15);
-        background: transparent;
-        transition: all 0.3s;
-    }
-
-    .p-step-done .p-step-dot   { background: var(--mud-palette-success); border-color: var(--mud-palette-success); }
-    .p-step-active .p-step-dot { background: var(--mud-palette-primary); border-color: var(--mud-palette-primary); box-shadow: 0 0 0 3px rgba(67,57,202,0.25); }
-    .p-step-error .p-step-dot  { background: var(--mud-palette-error);   border-color: var(--mud-palette-error); }
-    .p-step-pending .p-step-dot { background: transparent; }
-
-    .p-step-text {
-        font-family: 'DM Mono', monospace;
-        font-size: 9px;
-        color: rgba(255,255,255,0.4);
-        white-space: nowrap;
-    }
-
-    .p-step-done .p-step-text   { color: var(--mud-palette-success); }
-    .p-step-active .p-step-text { color: var(--mud-palette-white); }
-    .p-step-error .p-step-text  { color: var(--mud-palette-error); }
-
-    .p-step-connector {
-        height: 2px;
-        width: 32px;
-        background: rgba(255,255,255,0.1);
-        margin-bottom: 16px;
-        flex-shrink: 0;
-    }
-
-    .panel-footer { position: relative; z-index: 1; }
-
-    .panel-note {
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        color: rgba(255,255,255,0.3);
-        line-height: 1.5;
-        margin: 0;
     }
 
     /* RIGHT */
@@ -494,7 +259,7 @@
     private bool _loading;
     private int _resendCooldown;
 
-    private bool _errorMode;
+    protected bool _errorMode;
     private string _errorType = string.Empty;
 
     private readonly ResendVerificationDto _resendDto = new() { Email = string.Empty };
@@ -540,8 +305,8 @@
 
     public class ResendVerificationDto
     {
-        [System.ComponentModel.DataAnnotations.Required]
-        [System.ComponentModel.DataAnnotations.EmailAddress]
+        [Required]
+        [EmailAddress]
         public required string Email { get; set; }
     }
 }
