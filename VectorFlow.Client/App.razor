@@ -3,12 +3,14 @@
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Features.Common.NotFound)">
         <Found Context="routeData">
-             <AuthorizeRouteView RouteData="@routeData"
-                                DefaultLayout="@typeof(Features.Layout.MainLayout)">
-                    <NotAuthorized>
-                        @* Redirect to login if the route requires auth *@
-                        <RedirectToLogin />
-                    </NotAuthorized>
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Features.Layout.MainLayout)">
+                <NotAuthorized>
+                    @* Redirect to login if the route requires auth *@
+                    <RedirectToLogin />
+                </NotAuthorized>
+                <Authorizing>
+                    <div></div>
+                </Authorizing>
             </AuthorizeRouteView>
         </Found>
     </Router>
