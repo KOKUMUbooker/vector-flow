@@ -8,7 +8,7 @@ public interface IAuthService
     /// Validates credentials and returns tokens + user details on success.
     /// Returns null if the email doesn't exist or password is wrong.
     /// </summary>
-    Task<AuthResult> LoginAsync(LoginRequest request);
+    Task<AuthResult> LoginAsync(LoginRequest request,string baseUrl);
 
     /// <summary>
     /// Creates a new user account and sends a verification email.
