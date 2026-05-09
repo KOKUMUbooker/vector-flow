@@ -48,13 +48,25 @@ public class Program
             o.ApiToken = Environment.GetEnvironmentVariable("Resend__ApiKey")!;
         });
 
+
+        // Configure a Development CORS policy
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("DevCors", policy =>
+            {
+                policy.WithOrigins("http://localhost:5131")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials(); // If using cookies/auth headers
+            });
+        }); 
+
         builder.Services.AddTransient<IResend, ResendClient>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IEmailService, EmailService>();
         builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
         builder.Services.AddScoped<IInvitationService, InvitationService>();
         builder.Services.AddScoped<IIssueService, IssueService>();
-        builder.Services.AddScoped<IProjectService, ProjectService>();
         builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILabelService, LabelService>();
@@ -68,6 +80,7 @@ public class Program
 
         if (app.Environment.IsDevelopment())
         {
+            app.UseCors("DevCors");
             app.MapOpenApi();
             app.MapScalarApiReference();
         }
