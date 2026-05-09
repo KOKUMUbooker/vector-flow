@@ -1,5 +1,4 @@
-﻿// VectorFlow.Client/Services/ClientAuthService.cs
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using VectorFlow.Client.Services.Interfaces;
 using VectorFlow.Shared.DTOs;
@@ -12,7 +11,7 @@ public class ClientAuthService(
 {
     private HttpClient Http => httpClientFactory.CreateClient("VectorFlowApi");
 
-    public async Task<UILoginResult> LoginAsync(LoginRequest request)
+     public async Task<UILoginResult> LoginAsync(LoginRequest request)
     {
         try
         {

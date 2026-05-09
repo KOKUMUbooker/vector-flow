@@ -8,17 +8,19 @@ namespace VectorFlow.Api.Controllers;
 
 [ApiController]
 [Route("/api/auth/")]
-public class AuthController(IAuthService authService, IHostEnvironment env) : ControllerBase
+public class AuthController(
+    IAuthService authService, 
+    IHostEnvironment env,
+    IConfiguration configuration) : ControllerBase
 {
    [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var result = await authService.LoginAsync(request);
-
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var result = await authService.LoginAsync(request,baseUrl);
         if (!result.Succeeded && !result.EmailNotVerified)
             return Unauthorized(new { Message = "Invalid email or password." });
 
-        // TODO: On client to check whether email is not verified, check for Forbidden HTTP status code
         if (result.EmailNotVerified)
             return StatusCode(403, new
             {
@@ -150,23 +152,24 @@ public class AuthController(IAuthService authService, IHostEnvironment env) : Co
 
     private void AttachTokenCookies(string accessToken, string refreshToken)
     {
-        var secure = !HttpContext.RequestServices
-            .GetRequiredService<IWebHostEnvironment>().IsDevelopment();
-
+        var accessTknExpMins = configuration.GetValue<int>("JwtSettings:AccessTokenExpirationMinutes", 15);
         var accessOptions = new CookieOptions
         {
             HttpOnly = true,
             Secure = env.IsDevelopment() ? false : true, // Ensure cookie only works under https connection
             SameSite = env.IsDevelopment() ? SameSiteMode.Lax :  SameSiteMode.Strict, 
-            Expires = DateTime.UtcNow.AddMinutes(15)
+            Expires = DateTime.UtcNow.AddMinutes(accessTknExpMins),
+            IsEssential = true
         };
 
+        var refreshTknExpDays = configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
         var refreshOptions = new CookieOptions
         {
             HttpOnly = true,
             Secure = env.IsDevelopment() ? false : true, // Ensure cookie only works under https connection
             SameSite = env.IsDevelopment() ? SameSiteMode.Lax :  SameSiteMode.Strict, 
-            Expires = DateTime.UtcNow.AddDays(7)
+            Expires = DateTime.UtcNow.AddDays(refreshTknExpDays),
+            IsEssential = true
         };
 
         Response.Cookies.Append("accessToken", accessToken, accessOptions);

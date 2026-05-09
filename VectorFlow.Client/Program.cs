@@ -29,10 +29,11 @@ public class Program
         // RefreshTokenHandler needs VectorFlowAuthStateProvider injected,
         // so register it as Scoped (not Transient).
         builder.Services.AddScoped<RefreshTokenHandler>();
-
+       
         builder.Services.AddHttpClient("VectorFlowApi", client =>
-            client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]
-                ?? builder.HostEnvironment.BaseAddress))
+            client.BaseAddress = new Uri( builder.HostEnvironment.IsDevelopment() ?
+                Constants.Constants.ApiBaseUrl
+                : builder.HostEnvironment.BaseAddress))
             .AddHttpMessageHandler<RefreshTokenHandler>();
 
         builder.Services.AddMudServices();

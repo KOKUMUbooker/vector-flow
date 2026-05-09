@@ -1,10 +1,13 @@
 ﻿@page "/login"
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject IClientAuthService ClientAuthService
 @using System.ComponentModel.DataAnnotations
 @using VectorFlow.Client.Features.Auth.Login.Components
 @using VectorFlow.Client.Features.Auth.Common
 @using VectorFlow.Shared.DTOs
+@using VectorFlow.Client.Services
+@using VectorFlow.Client.Services.Interfaces
 
 <PageTitle>Sign in — VectorFlow</PageTitle>
 
@@ -201,6 +204,7 @@
     private bool _loading;
     private bool _showPassword;
 
+
     private readonly LoginRequest _model = new();
 
     private record FeedItem(string Initials, string AvatarBg, string Name, string Action, string Target, string Time);
@@ -214,33 +218,34 @@
 
     private async Task HandleLogin()
     {
-        await _form.ValidateAsync();
-        if (!_isValid) return;
+        try {
+            await _form.ValidateAsync();
+            if (!_isValid) return;
 
-        _loading = true;
-        StateHasChanged();
+            _loading = true;
+            StateHasChanged();
 
-        var data = new LoginRequest{
-            Email = _model.Email,
-            Password = _model.Password
-        };
+            var result = await ClientAuthService.LoginAsync(_model);
+            
+            if (result.Succeeded)
+            {
+                Snackbar.Add("Signed in successfully!", Severity.Success);
+                Nav.NavigateTo("/dashboard");
+                return;
+            }
 
-        // TODO: call your service / API here
-        // e.g. await AuthService.LoginAsync(data);
+            if (result.EmailNotVerified)
+            {
+                // Redirect to the verify-email page — user can resend from there
+                Snackbar.Add("Please verify your email before signing in.", Severity.Warning);
+                Nav.NavigateTo("/verify-email");
+                return;
+            }
 
-        await Task.Delay(1200); // remove — placeholder
-        _loading = false;
-        Snackbar.Add("Signed in successfully!", Severity.Success);
-        Nav.NavigateTo("/dashboard");
-    }
-
-    public class LoginRequest
-    {
-        [System.ComponentModel.DataAnnotations.Required]
-        [System.ComponentModel.DataAnnotations.EmailAddress]
-        public string Email { get; set; } = string.Empty;
-
-        [System.ComponentModel.DataAnnotations.Required]
-        public string Password { get; set; } = string.Empty;
+            Snackbar.Add(result.Error ?? "Sign in failed.", Severity.Error);
+        }
+        finally{
+             _loading = false;
+        }
     }
 }

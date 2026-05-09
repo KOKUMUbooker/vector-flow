@@ -6,6 +6,7 @@ using VectorFlow.Api.Data;
 using VectorFlow.Api.Models;
 using VectorFlow.Api.Services;
 using VectorFlow.Api.Services.Interfaces;
+using VectorFlow.Api.Hubs;
 
 namespace VectorFlow.Api;
 
@@ -41,10 +42,24 @@ public class Program
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
         builder.Services.AddHttpClient<ResendClient>();
+        builder.Services.AddSignalR();
         builder.Services.Configure<ResendClientOptions>( o =>
         {
             o.ApiToken = Environment.GetEnvironmentVariable("Resend__ApiKey")!;
         });
+
+
+        // Configure a Development CORS policy
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("DevCors", policy =>
+            {
+                policy.WithOrigins("http://localhost:5131")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials(); // If using cookies/auth headers
+            });
+        }); 
 
         builder.Services.AddTransient<IResend, ResendClient>();
         builder.Services.AddScoped<IAuthService, AuthService>();
@@ -52,10 +67,11 @@ public class Program
         builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
         builder.Services.AddScoped<IInvitationService, InvitationService>();
         builder.Services.AddScoped<IIssueService, IssueService>();
-        builder.Services.AddScoped<IProjectService, ProjectService>();
         builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILabelService, LabelService>();
+        builder.Services.AddScoped<IProjectService, ProjectService>();
+        builder.Services.AddScoped<IProjectHubBroadcaster, ProjectHubBroadcaster>();
         builder.Services.AddControllers();
         builder.Services.AddAuthorization();
         builder.Services.AddOpenApi();
@@ -64,6 +80,7 @@ public class Program
 
         if (app.Environment.IsDevelopment())
         {
+            app.UseCors("DevCors");
             app.MapOpenApi();
             app.MapScalarApiReference();
         }
@@ -74,6 +91,7 @@ public class Program
         app.UseAuthentication();  
         app.UseAuthorization();
 
+        app.MapHub<ProjectHub>("/hubs/project");
         app.MapControllers();
 
         app.Run();

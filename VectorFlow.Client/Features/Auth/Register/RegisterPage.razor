@@ -1,8 +1,12 @@
 ﻿@page "/register"
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject IClientAuthService ClientAuthService
 @using System.ComponentModel.DataAnnotations
 @using VectorFlow.Client.Features.Auth.Register.Components
+@using VectorFlow.Shared.DTOs
+@using VectorFlow.Client.Services
+@using VectorFlow.Client.Services.Interfaces
 
 <PageTitle>Create your workspace — VectorFlow</PageTitle>
 
@@ -373,33 +377,24 @@
 
     private async Task HandleRegister()
     {
-        await _form.ValidateAsync();
-        if (!_isValid || !_agreedToTerms) return;
+        try{
+            await _form.ValidateAsync();
+            if (!_isValid || !_agreedToTerms) return;
 
-        _loading = true;
-        StateHasChanged();
+            _loading = true;
+            StateHasChanged();
 
-        // TODO: call your service / API here
-        // e.g. await AuthService.RegisterAsync(_model);
+            var result = await ClientAuthService.RegisterAsync(_model);
+            if (result.Succeeded){
+                Snackbar.Add("Account created! Check your email to verify.", Severity.Success);
+                Nav.NavigateTo("/verify-email");
+                return;
+            }
 
-        await Task.Delay(1400); // remove — placeholder
-        _loading = false;
-        Snackbar.Add("Account created! Check your email to verify.", Severity.Success);
-        Nav.NavigateTo("/login");
-    }
-
-    public class RegisterRequest
-    {
-        [Required]
-        [MaxLength(100)]
-        public string DisplayName { get; set; } = string.Empty;
-
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-
-        [Required]
-        [MinLength(8)]
-        public string Password { get; set; } = string.Empty;
+            Snackbar.Add(result.Errors.Any() ? result.Errors.ElementAt(0) : "Sign in failed.", Severity.Error);
+        }
+        finally {
+            _loading = false;
+        }
     }
 }

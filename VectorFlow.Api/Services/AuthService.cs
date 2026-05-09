@@ -23,36 +23,34 @@ public class AuthService(
 
     // ── Login ────────────────────────────────────────────────────────────────
 
-public async Task<AuthResult> LoginAsync(LoginRequest request)
-{
-    var user = await userManager.FindByEmailAsync(request.Email);
-    if (user is null) return AuthResult.InvalidCredentials();
-
-    var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
-    if (!passwordValid) return AuthResult.InvalidCredentials();
-
-    // Check email verification before issuing tokens
-    if (!user.EmailConfirmed)
+    public async Task<AuthResult> LoginAsync(LoginRequest request, string baseUrl)
     {
-        // Rotate the verification token on each failed login attempt
-        // so the link in any previous email is immediately invalidated
-        user.EmailVerificationToken = GenerateSecureToken();
-        user.EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(24);
-        await db.SaveChangesAsync();
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is null) return AuthResult.InvalidCredentials();
 
-        // Send a fresh verification email automatically
-        // so the user doesn't have to go request one manually
-        var baseUrl = configuration["ApiBaseUrl"]
-            ?? throw new InvalidOperationException("ApiBaseUrl not configured.");
-        var verificationUrl = $"{baseUrl}/api/auth/verify-email?token={user.EmailVerificationToken}";
-        var html = await templateService.GenerateVerificationEmail(AppName, user.DisplayName, verificationUrl);
-        await emailService.SendEmailAsync(user.Email!, "Verify your email", html);
+        var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
+        if (!passwordValid) return AuthResult.InvalidCredentials();
 
-        return AuthResult.UnverifiedEmail(user.EmailVerificationToken);
+        // Check email verification before issuing tokens
+        if (!user.EmailConfirmed)
+        {
+            // Rotate the verification token on each failed login attempt
+            // so the link in any previous email is immediately invalidated
+            user.EmailVerificationToken = GenerateSecureToken();
+            user.EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(24);
+            await db.SaveChangesAsync();
+
+            // Send a fresh verification email automatically
+            // so the user doesn't have to go request one manually
+            var verificationUrl = $"{baseUrl}/api/auth/verify-email?token={user.EmailVerificationToken}";
+            var html = await templateService.GenerateVerificationEmail(AppName, user.DisplayName, verificationUrl);
+            await emailService.SendEmailAsync(user.Email!, "Verify your email", html);
+
+            return AuthResult.UnverifiedEmail(user.EmailVerificationToken);
+        }
+
+        return await BuildAuthResultAsync(user);
     }
-
-    return await BuildAuthResultAsync(user);
-}
 
     // ── Register ──────────────────────────────────────────────────────────────
 
@@ -223,7 +221,8 @@ public async Task<AuthResult> LoginAsync(LoginRequest request)
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken.Token,
-            User = MapToDto(user)
+            User = MapToDto(user),
+            Succeeded = true
         };
     }
 
