@@ -28,7 +28,7 @@
                     Go to homepage
                 </MudButton>
 
-                <MudButton OnClick="GoBack"
+                @* <MudButton OnClick="GoBack"
                     Variant="Variant.Outlined"
                     Color="Color.Primary"
                     Size="Size.Large"
@@ -36,7 +36,7 @@
                     Class="submit-btn"
                     StartIcon="@Icons.Material.Outlined.ArrowBack">
                     Go back
-                </MudButton>
+                </MudButton> *@
             </div>
 
             <MudDivider Class="my-8" />
@@ -152,10 +152,10 @@
         _currentPath = uri.PathAndQuery;
     }
 
-    private void GoBack()
-    {
-        // Blazor WASM doesn't expose history directly;
-        // fall back to JS interop or navigate home
-        Nav.NavigateTo("/");
-    }
+    // private void GoBack()
+    // {
+    //    // Blazor WASM doesn't expose history directly;
+    //    // fall back to JS interop or navigate home
+    //     Nav.NavigateTo("/");
+    // }
 }
