@@ -1,6 +1,15 @@
-﻿<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Features.Common.NotFound)">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Features.Layout.MainLayout)"/>
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-</Router>
+﻿@using VectorFlow.Client.Features.Common
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Features.Common.NotFound)">
+        <Found Context="routeData">
+             <AuthorizeRouteView RouteData="@routeData"
+                                DefaultLayout="@typeof(Features.Layout.MainLayout)">
+                    <NotAuthorized>
+                        @* Redirect to login if the route requires auth *@
+                        <RedirectToLogin />
+                    </NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+    </Router>
+</CascadingAuthenticationState>
