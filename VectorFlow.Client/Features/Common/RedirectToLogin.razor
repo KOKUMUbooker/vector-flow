@@ -1,0 +1,12 @@
+﻿@* VectorFlow.Client/Components/RedirectToLogin.razor *@
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Pass the current URL as returnUrl so after login
+        // the user lands back where they were trying to go
+        var returnUrl = Uri.EscapeDataString(Nav.Uri);
+        Nav.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: false);
+    }
+}

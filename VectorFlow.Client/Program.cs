@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using VectorFlow.Client.Services;
+using VectorFlow.Client.Services.Interfaces;
 
 namespace VectorFlow.Client;
 
@@ -13,10 +15,30 @@ public class Program
         builder.RootComponents.Add<App>("#app");
         builder.RootComponents.Add<HeadOutlet>("head::after");
 
+        // ── Auth state ──────────────────────────────────────────────────────────
+        // Scoped so every component tree gets the same instance within a circuit.
+        builder.Services.AddScoped<VectorFlowAuthStateProvider>();
+
+        // Register as the base class — Blazor resolves it by the base type.
+        builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
+            sp.GetRequiredService<VectorFlowAuthStateProvider>());
+
+        builder.Services.AddAuthorizationCore();
+
+        // ── HTTP client ─────────────────────────────────────────────────────────
+        // RefreshTokenHandler needs VectorFlowAuthStateProvider injected,
+        // so register it as Scoped (not Transient).
+        builder.Services.AddScoped<RefreshTokenHandler>();
+
+        builder.Services.AddHttpClient("VectorFlowApi", client =>
+            client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]
+                ?? builder.HostEnvironment.BaseAddress))
+            .AddHttpMessageHandler<RefreshTokenHandler>();
+
         builder.Services.AddMudServices();
-        builder.Services.AddSingleton<ThemeService>();
-        builder.Services.AddSingleton<ICustomLocalStorageService,CustomLocalStorageService>();
-         builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+        builder.Services.AddScoped<IClientAuthService, ClientAuthService>();
+        builder.Services.AddScoped<ThemeService>();
+        builder.Services.AddScoped<ICustomLocalStorageService,CustomLocalStorageService>();
 
         await builder.Build().RunAsync();
     }
