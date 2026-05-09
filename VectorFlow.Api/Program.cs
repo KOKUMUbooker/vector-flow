@@ -6,6 +6,7 @@ using VectorFlow.Api.Data;
 using VectorFlow.Api.Models;
 using VectorFlow.Api.Services;
 using VectorFlow.Api.Services.Interfaces;
+using VectorFlow.Api.Hubs;
 
 namespace VectorFlow.Api;
 
@@ -41,6 +42,7 @@ public class Program
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
         builder.Services.AddHttpClient<ResendClient>();
+        builder.Services.AddSignalR();
         builder.Services.Configure<ResendClientOptions>( o =>
         {
             o.ApiToken = Environment.GetEnvironmentVariable("Resend__ApiKey")!;
@@ -56,6 +58,8 @@ public class Program
         builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILabelService, LabelService>();
+        builder.Services.AddScoped<IProjectService, ProjectService>();
+        builder.Services.AddScoped<IProjectHubBroadcaster, ProjectHubBroadcaster>();
         builder.Services.AddControllers();
         builder.Services.AddAuthorization();
         builder.Services.AddOpenApi();
@@ -74,6 +78,7 @@ public class Program
         app.UseAuthentication();  
         app.UseAuthorization();
 
+        app.MapHub<ProjectHub>("/hubs/project");
         app.MapControllers();
 
         app.Run();
