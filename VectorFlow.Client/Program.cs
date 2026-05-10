@@ -28,13 +28,18 @@ public class Program
         // ── HTTP client ─────────────────────────────────────────────────────────
         // RefreshTokenHandler needs VectorFlowAuthStateProvider injected,
         // so register it as Scoped (not Transient).
+        builder.Services.AddTransient<CredentialsHandler>();
         builder.Services.AddScoped<RefreshTokenHandler>();
        
         builder.Services.AddHttpClient("VectorFlowApi", client =>
-            client.BaseAddress = new Uri( builder.HostEnvironment.IsDevelopment() ?
-                Constants.Constants.ApiBaseUrl
-                : builder.HostEnvironment.BaseAddress))
-            .AddHttpMessageHandler<RefreshTokenHandler>();
+        {
+            client.BaseAddress = new Uri(
+                builder.HostEnvironment.IsDevelopment()
+                    ? Constants.Constants.ApiBaseUrl
+                    : builder.HostEnvironment.BaseAddress);
+        })
+        .AddHttpMessageHandler<CredentialsHandler>() // Comes first - ensured cookies get attached on every request
+        .AddHttpMessageHandler<RefreshTokenHandler>();
 
         builder.Services.AddMudServices();
         builder.Services.AddScoped<IClientAuthService, ClientAuthService>();
