@@ -1,8 +1,12 @@
 @page "/verify-email"
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject IClientAuthService ClientAuthService
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.WebUtilities
 @using VectorFlow.Client.Features.Auth.VerifyEmail.Components
+@using VectorFlow.Client.Services.Interfaces
+@using VectorFlow.Shared.DTOs
 
 <PageTitle>Verify your email — VectorFlow</PageTitle>
 
@@ -81,7 +85,7 @@
                 {
                     <!-- Invalid token — can't resend without email, just offer login -->
                     <MudAlert Severity="Severity.Error" Class="mb-4" Variant="Variant.Outlined">
-                        If you believe this is a mistake, try registering again or contact support.
+                        If you believe this is a mistake, try registering or logging in again or contact support.
                     </MudAlert>
                     <MudButton Href="/register"
                         Variant="Variant.Filled"
@@ -274,22 +278,40 @@
             _errorMode = true;
             _errorType = error.ToString(); // "expired" or "invalid"
         }
+        if (query.TryGetValue("email", out var email))
+        {
+            _resendDto.Email = email.ToString();
+        }
     }
 
     private async Task HandleResend()
     {
-        await _form.ValidateAsync();
-        if (!_isValid) return;
+        try 
+        {
+            await _form.ValidateAsync();
+            if (!_isValid) return;
 
-        _loading = true;
-        StateHasChanged();
+            _loading = true;
+            StateHasChanged();
 
-        // TODO: await AuthService.ResendVerificationAsync(_resendDto);
-        await Task.Delay(1000);
+            var result = await ClientAuthService.ResendVerificationLinkAsync(_resendDto);
+            if (result.Succeeded)
+            {
+                Snackbar.Add(result.Message, Severity.Success);
+                StartCooldown();
+                return;
+            }
 
-        _loading = false;
-        Snackbar.Add("Verification email sent!", Severity.Success);
-        StartCooldown();
+            Snackbar.Add(
+                result.Errors.Any() 
+                    ? result.Errors.ElementAt(0) : 
+                    "Failed to send email verification link", 
+                Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async void StartCooldown()
@@ -301,12 +323,5 @@
             _resendCooldown--;
             StateHasChanged();
         }
-    }
-
-    public class ResendVerificationDto
-    {
-        [Required]
-        [EmailAddress]
-        public required string Email { get; set; }
     }
 }
