@@ -7,6 +7,7 @@ using VectorFlow.Api.Models;
 using VectorFlow.Api.Services;
 using VectorFlow.Api.Services.Interfaces;
 using VectorFlow.Api.Hubs;
+using VectorFlow.Api.Extensions;
 
 namespace VectorFlow.Api;
 
@@ -73,6 +74,7 @@ public class Program
         builder.Services.AddScoped<IProjectService, ProjectService>();
         builder.Services.AddScoped<IProjectHubBroadcaster, ProjectHubBroadcaster>();
         builder.Services.AddControllers();
+        builder.Services.AddJwtAuthentication(builder.Configuration);
         builder.Services.AddAuthorization();
         builder.Services.AddOpenApi();
 

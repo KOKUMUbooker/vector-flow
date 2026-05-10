@@ -3,6 +3,7 @@
 @inject ISnackbar Snackbar
 @inject IClientAuthService ClientAuthService
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.WebUtilities
 @using VectorFlow.Client.Features.Auth.Login.Components
 @using VectorFlow.Client.Features.Auth.Common
 @using VectorFlow.Shared.DTOs
@@ -35,6 +36,7 @@
                         Placeholder="you@company.com"
                         InputType="InputType.Email"
                         Variant="Variant.Outlined"
+                        T="string"
                         Margin="Margin.Dense"
                         Required="true"
                         RequiredError="Email is required"
@@ -204,10 +206,22 @@
     private bool _loading;
     private bool _showPassword;
 
-
     private readonly LoginRequest _model = new();
 
     private record FeedItem(string Initials, string AvatarBg, string Name, string Action, string Target, string Time);
+
+
+    protected override void OnInitialized()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        // ?email=...  → success path
+        if (query.TryGetValue("email", out var email))
+        {
+            _model.Email = email.ToString();
+        }
+    }
 
     private readonly List<FeedItem> _feed =
     [
