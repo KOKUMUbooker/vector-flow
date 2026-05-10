@@ -19,6 +19,7 @@ public class InvitationDto
     public Guid Id { get; set; }
     public Guid WorkspaceId { get; set; }
     public string WorkspaceName { get; set; } = string.Empty;
+    public string WorkspaceSlug { get; set; } = string.Empty;
     public string InvitedEmail { get; set; } = string.Empty;
     public string InvitedByDisplayName { get; set; } = string.Empty;
     public InvitationStatus Status { get; set; }
