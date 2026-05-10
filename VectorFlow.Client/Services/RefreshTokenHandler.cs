@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using Microsoft.AspNetCore.Components.WebAssembly.Http; // Required so as to call : request.SetBrowserRequestCredentials
 
 namespace VectorFlow.Client.Services;
 
@@ -23,9 +22,6 @@ public class RefreshTokenHandler(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        // Enables cookies for cross-origin requests in Blazor WASM
-        request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
-
         var response = await base.SendAsync(request, cancellationToken);
 
         // Only intercept 401s — and not if we're already in a refresh attempt
