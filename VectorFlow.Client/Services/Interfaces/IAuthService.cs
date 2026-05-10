@@ -6,6 +6,9 @@ public interface IClientAuthService
 {
     Task<UILoginResult> LoginAsync(LoginRequest request);
     Task<RegisterResult> RegisterAsync(RegisterRequest request);
+    Task<MessageResponse> ForgotPasswordAsync(ForgotPasswordDto request);
+    Task<MessageResponse> ResetPasswordAsync(PasswordResetDto request);
+    Task<MessageResponse> ResendVerificationLinkAsync(ResendVerificationDto request);
     Task LogoutAsync();
     Task<UserDto?> GetCurrentUserAsync();
 }
