@@ -286,6 +286,7 @@ public class InvitationService(
             Id = invitation.Id,
             WorkspaceId = invitation.WorkspaceId,
             WorkspaceName = workspace.Name,
+            WorkspaceSlug = workspace.Slug,
             InvitedEmail = invitation.InvitedEmail,
             InvitedByDisplayName = invitation.InvitedBy?.DisplayName ?? "A workspace admin",
             Status = invitation.Status,
