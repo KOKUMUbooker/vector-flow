@@ -11,7 +11,7 @@ public class ClientAuthService(
 {
     private HttpClient Http => httpClientFactory.CreateClient("VectorFlowApi");
 
-     public async Task<UILoginResult> LoginAsync(LoginRequest request)
+    public async Task<UILoginResult> LoginAsync(LoginRequest request)
     {
         try
         {
@@ -53,6 +53,72 @@ public class ClientAuthService(
         catch
         {
             return RegisterResult.Failure(["Unable to reach the server."]);
+        }
+    }
+
+    public async Task<MessageResponse> ForgotPasswordAsync(ForgotPasswordDto request)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/forgot-password", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var msg = await response.Content.ReadFromJsonAsync<MessageResponse>();
+                return MessageResponse.Success(msg?.Message?? "Password reset link sent successfully");
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<ErrorBody>();
+            var errors = body?.Errors ?? ["Sending password reset link failed."];
+            return MessageResponse.Failure(errors);
+        }
+        catch
+        {
+            return MessageResponse.Failure(["Unable to reach the server."]);
+        }
+    }
+
+    public async Task<MessageResponse> ResetPasswordAsync(PasswordResetDto request)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/reset-password", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var msg = await response.Content.ReadFromJsonAsync<MessageResponse>();
+                return MessageResponse.Success(msg?.Message?? "Password updated successfully");
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<ErrorBody>();
+            var errors = body?.Errors ?? ["Password update failed."];
+            return MessageResponse.Failure(errors);
+        }
+        catch
+        {
+            return MessageResponse.Failure(["Unable to reach the server."]);
+        }
+    }
+
+    public async Task<MessageResponse> ResendVerificationLinkAsync(ResendVerificationDto request)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/resend-verification", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var msg = await response.Content.ReadFromJsonAsync<MessageResponse>();
+                return MessageResponse.Success(msg?.Message?? "Email verification link sent successfully");
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<ErrorBody>();
+            var errors = body?.Errors ?? ["Sending email verification link failed."];
+            return MessageResponse.Failure(errors);
+        }
+        catch
+        {
+            return MessageResponse.Failure(["Unable to reach the server."]);
         }
     }
 
