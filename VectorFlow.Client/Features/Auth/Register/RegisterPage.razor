@@ -130,11 +130,11 @@
                     @if (_loading)
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        <span>Creating your workspace…</span>
+                        <span>Creating your account…</span>
                     }
                     else
                     {
-                        <span>Create your workspace →</span>
+                        <span>Create your account →</span>
                     }
                 </MudButton>
 
@@ -387,11 +387,11 @@
             var result = await ClientAuthService.RegisterAsync(_model);
             if (result.Succeeded){
                 Snackbar.Add("Account created! Check your email to verify.", Severity.Success);
-                Nav.NavigateTo("/verify-email");
+                Nav.NavigateTo($"/verify-email?email={_model.Email}");
                 return;
             }
 
-            Snackbar.Add(result.Errors.Any() ? result.Errors.ElementAt(0) : "Sign in failed.", Severity.Error);
+            Snackbar.Add(result.Errors.Any() ? result.Errors.ElementAt(0) : "Sign up failed.", Severity.Error);
         }
         finally {
             _loading = false;

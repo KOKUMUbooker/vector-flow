@@ -252,7 +252,7 @@
             {
                 // Redirect to the verify-email page — user can resend from there
                 Snackbar.Add("Please verify your email before signing in.", Severity.Warning);
-                Nav.NavigateTo("/verify-email");
+                Nav.NavigateTo($"/verify-email?email={_model.Email}");
                 return;
             }
 
