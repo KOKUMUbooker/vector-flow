@@ -86,3 +86,17 @@ public class UserDto
     public string Email { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
 }
+
+public class MessageResponse
+{
+    public bool Succeeded { get; set; }
+    public IEnumerable<string> Errors { get; set; } = [];
+
+    public string Message { get; set; } = string.Empty;
+
+    public static MessageResponse Success(string msg) =>
+        new() { Succeeded = true , Message = msg};
+
+    public static MessageResponse Failure(IEnumerable<string> errors) =>
+        new() { Succeeded = false, Errors = errors };
+}
