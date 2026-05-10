@@ -161,7 +161,7 @@ public class AuthController(
         {
             HttpOnly = true,
             Secure = env.IsDevelopment() ? false : true, // Ensure cookie only works under https connection
-            SameSite = env.IsDevelopment() ? SameSiteMode.None :  SameSiteMode.Strict, 
+            SameSite = env.IsDevelopment() ? SameSiteMode.Lax :  SameSiteMode.Strict, 
             Expires = DateTime.UtcNow.AddMinutes(accessTknExpMins),
             IsEssential = true
         };
@@ -171,7 +171,7 @@ public class AuthController(
         {
             HttpOnly = true,
             Secure = env.IsDevelopment() ? false : true, // Ensure cookie only works under https connection
-            SameSite = env.IsDevelopment() ? SameSiteMode.None :  SameSiteMode.Strict, 
+            SameSite = env.IsDevelopment() ? SameSiteMode.Lax :  SameSiteMode.Strict, 
             Expires = DateTime.UtcNow.AddDays(refreshTknExpDays),
             IsEssential = true
         };
