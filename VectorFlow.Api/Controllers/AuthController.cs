@@ -150,6 +150,10 @@ public class AuthController(
         return Ok();
     }
 
+    // For this to work with blazor wasm site ensure your request that requires server to set
+    // cookies in res, makes the request with this 
+    //      request.SetBrowserRequestCredentials(BrowserRequestCredentials.Include);
+    // That is if server & client are running separately
     private void AttachTokenCookies(string accessToken, string refreshToken)
     {
         var accessTknExpMins = configuration.GetValue<int>("JwtSettings:AccessTokenExpirationMinutes", 15);
@@ -157,7 +161,7 @@ public class AuthController(
         {
             HttpOnly = true,
             Secure = env.IsDevelopment() ? false : true, // Ensure cookie only works under https connection
-            SameSite = env.IsDevelopment() ? SameSiteMode.Lax :  SameSiteMode.Strict, 
+            SameSite = env.IsDevelopment() ? SameSiteMode.None :  SameSiteMode.Strict, 
             Expires = DateTime.UtcNow.AddMinutes(accessTknExpMins),
             IsEssential = true
         };
@@ -167,7 +171,7 @@ public class AuthController(
         {
             HttpOnly = true,
             Secure = env.IsDevelopment() ? false : true, // Ensure cookie only works under https connection
-            SameSite = env.IsDevelopment() ? SameSiteMode.Lax :  SameSiteMode.Strict, 
+            SameSite = env.IsDevelopment() ? SameSiteMode.None :  SameSiteMode.Strict, 
             Expires = DateTime.UtcNow.AddDays(refreshTknExpDays),
             IsEssential = true
         };
