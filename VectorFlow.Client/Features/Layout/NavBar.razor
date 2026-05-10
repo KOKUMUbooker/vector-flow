@@ -1,537 +1,311 @@
+@using System.Security.Claims
+@using Microsoft.Extensions.Identity.Core
+@using Microsoft.AspNetCore.Components.Authorization
 @using VectorFlow.Client.Services
+@using VectorFlow.Client.Services.Interfaces
 @using VectorFlow.Client.Theme
+@using System.Text.Json   
 @inject ThemeService ThemeService
 @inject NavigationManager Nav
-@* @inject IAuthService AuthService *@
-@* @inject IWorkspaceService WorkspaceService *@
+@inject IClientAuthService AuthService
+@inject ISnackbar Snackbar
 @implements IDisposable
 
 <MudAppBar Elevation="0" Class="vf-appbar">
-    <MudContainer MaxWidth="MaxWidth.Large" Class="d-flex align-center justify-space-between px-0">
+    <MudContainer MaxWidth="@(_isAuthenticated ? MaxWidth.ExtraLarge : MaxWidth.Large)"
+                  Class="d-flex align-center justify-space-between px-0">
 
         <!-- Brand — always visible -->
-        <MudLink Href="@(_isAuthenticated ? "/dashboard" : "/")" Class="vf-brand">
+        <a href="/" class="vf-brand">
             <div class="vf-logo">VF</div>
-            <MudText Typo="Typo.h6" Class="vf-brand-name">VectorFlow</MudText>
-        </MudLink>
+            <span class="vf-brand-name d-none d-sm-flex">VectorFlow</span>
+        </a>
 
-        @if (!_isAuthenticated)
-        {
-            <!-- ── UNAUTHENTICATED: marketing nav ── -->
-            <div class="d-none d-md-flex align-center gap-6">
-                <MudLink Href="/#features"  Underline="Underline.None" Class="vf-nav-link">Features</MudLink>
-                <MudLink Href="/#how"       Underline="Underline.None" Class="vf-nav-link">How it works</MudLink>
-                <MudLink Href="/#roles"     Underline="Underline.None" Class="vf-nav-link">Roles</MudLink>
-            </div>
+        <AuthorizeView>
 
-            <div class="d-flex align-center gap-2">
-                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                    OnClick="ToggleTheme"
-                    Size="Size.Medium"
-                    Color="Color.Default" />
+            <!-- AUTHENTICATED NAV -->
+            <Authorized Context="authState">
 
-                <MudDivider Vertical="true" FlexItem="true" Class="mx-1" Style="height:24px; align-self:center;" />
 
-                <MudButton Href="/login"    Variant="Variant.Text"   Color="Color.Primary" Class="d-none d-sm-flex">Sign in</MudButton>
-                <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary" Class="vf-cta-btn">Get started</MudButton>
-            </div>
-        }
-        else
-        {
-            <!-- ── AUTHENTICATED: app nav ── -->
+                @if (!string.IsNullOrEmpty(_currentWorkspace))
+                {
+                    <div class="workspace-crumb">
+                        <MudIcon Icon="@Icons.Material.Outlined.GridView" Style="font-size:14px; opacity:0.5;" />
+                        <span class="crumb-text"
+                              @onclick="@(() => Nav.NavigateTo($"/w/{_currentWorkspaceSlug}"))">
+                            @_currentWorkspace
+                        </span>
+                        @if (!string.IsNullOrEmpty(_currentProject))
+                        {
+                            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Style="font-size:14px; opacity:0.4;" />
+                            <span class="crumb-text crumb-active">@_currentProject</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div></div>
+                }
 
-            <!-- (hidden on mobile) -->
-            <div class="d-none d-md-flex align-center gap-2 ws-nav">
+                <div class="d-flex align-center gap-2">
+                    <MudTooltip Text="@(_isDarkMode ? "Light mode" : "Dark mode")">
+                        <MudIconButton
+                            Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                            OnClick="ToggleTheme" Size="Size.Small" Color="Color.Default" />
+                    </MudTooltip>
 
-                <MudButton Href="/dashboard"
-                    Variant="Variant.Text"
-                    Color="@(IsActive("/dashboard") ? Color.Primary : Color.Default)"
-                    StartIcon="@Icons.Material.Outlined.GridView"
-                    Class="@AppNavClass("/dashboard")">
-                    Dashboard
-                </MudButton>
-            </div>
+                    <MudDivider Vertical="true" FlexItem="true" Style="height:20px; align-self:center;" Class="mx-1" />
 
-            <!-- Right: new issue shortcut + theme + user menu -->
-            <div class="d-flex align-center gap-2">
+                @{
+                    var user = authState.User; // use authState from Authorized component as its reactive
 
-                <!-- Theme toggle -->
-                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                               OnClick="ToggleTheme"
-                               Size="Size.Medium"
-                               Color="Color.Default" />
+                    var displayName =
+                        user.FindFirstValue(ClaimTypes.Name) ?? "";
 
-                <!-- User menu -->
-                <MudMenu AnchorOrigin="Origin.BottomRight"
-                         TransformOrigin="Origin.TopRight"
-                         Class="user-menu">
-                    <ActivatorContent>
-                        <MudTooltip Text="@_currentUser.DisplayName" Placement="Placement.Bottom" Arrow="true">
-                            <button class="user-avatar-btn" type="button">
-                                @if (!string.IsNullOrEmpty(_currentUser.AvatarUrl))
-                                {
-                                    <img src="@_currentUser.AvatarUrl" alt="@_currentUser.DisplayName" class="user-avatar-img" />
-                                }
-                                else
-                                {
-                                    <span class="user-avatar-initials">@GetInitials(_currentUser.DisplayName)</span>
-                                }
-                            </button>
-                        </MudTooltip>
-                    </ActivatorContent>
-                    <ChildContent>
-                        <!-- User identity header -->
-                        <div class="menu-identity">
-                            <div class="menu-avatar-lg">
-                                @if (!string.IsNullOrEmpty(_currentUser.AvatarUrl))
-                                {
-                                    <img src="@_currentUser.AvatarUrl" alt="@_currentUser.DisplayName" class="user-avatar-img" />
-                                }
-                                else
-                                {
-                                    <span class="user-avatar-initials">@GetInitials(_currentUser.DisplayName)</span>
-                                }
+                    var email =
+                        user.FindFirstValue(ClaimTypes.Email) ?? "";
+
+                    var initials = GetInitials(displayName);
+                    _isAuthenticated = !string.IsNullOrEmpty(email);
+                }
+                    <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                        <ActivatorContent >
+                            <MudAvatar>
+                            <div  @onclick="@context.ToggleAsync" class="user-avatar" title="@displayName">@initials</div>
+                            </MudAvatar>
+                        </ActivatorContent>
+                        <ChildContent >
+                            <div class="user-menu-header">
+                                <div class="user-menu-avatar">@initials</div>
+                                <div class="user-menu-info">
+                                    <div class="user-menu-name">@displayName</div>
+                                    <div class="user-menu-email">@email</div>
+                                </div>
                             </div>
-                            <div>
-                                <div class="menu-display-name">@_currentUser.DisplayName</div>
-                                <div class="menu-email">@_currentUser.Email</div>
-                            </div>
-                        </div>
+                            <MudDivider Class="my-1" />
+                            <MudMenuItem Icon="@Icons.Material.Outlined.Dashboard"
+                                         OnClick="@(() => Nav.NavigateTo("/dashboard"))">
+                                Dashboard
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Outlined.WorkOutline"
+                                         OnClick="@(() => Nav.NavigateTo("/dashboard"))">
+                                My workspaces
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Outlined.MarkEmailUnread"
+                                         OnClick="@(() => Nav.NavigateTo("/invitations"))">
+                                Invitations
+                            </MudMenuItem>
+                            <MudDivider Class="my-1" />
+                            <MudMenuItem Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+                                         OnClick="ToggleTheme">
+                                @(_isDarkMode ? "Light mode" : "Dark mode")
+                            </MudMenuItem>
+                            <MudDivider Class="my-1" />
+                            <MudMenuItem Icon="@Icons.Material.Outlined.Logout"
+                                         OnClick="HandleLogout"
+                                         Style="color: var(--mud-palette-error);">
+                                Sign out
+                            </MudMenuItem>
+                        </ChildContent>
+                    </MudMenu>
+                </div>
+            </Authorized>
 
-                        <MudDivider Class="my-1" />
+            <!-- UNAUTHENTICATED NAV -->
+            <NotAuthorized>
+                <div class="d-none d-md-flex align-center gap-6">
+                    <MudLink Href="/#features" Underline="Underline.None" Class="vf-nav-link">Features</MudLink>
+                    <MudLink Href="/#how" Underline="Underline.None" Class="vf-nav-link">How it works</MudLink>
+                    <MudLink Href="/#roles" Underline="Underline.None" Class="vf-nav-link">Roles</MudLink>
+                </div>
+                <div class="d-flex align-center gap-2">
+                    <MudIconButton
+                        Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                        OnClick="ToggleTheme" Size="Size.Medium" Color="Color.Default" />
+                    <MudDivider Vertical="true" FlexItem="true" Style="height:24px; align-self:center;" Class="mx-1" />
+                    <MudButton Href="/login" Variant="Variant.Text" Color="Color.Primary" Class="d-none d-sm-flex">
+                        Sign in
+                    </MudButton>
+                    <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary" Class="vf-cta-btn">
+                        Get started
+                    </MudButton>
+                </div>
+            </NotAuthorized>
 
-                        <MudMenuItem Href="/dashboard" Icon="@Icons.Material.Outlined.GridView">
-                            Dashboard
-                        </MudMenuItem>
+            <!-- LOADING -->
+            <Authorizing>
+                <div class="nav-loading">
+                    <div class="nav-skel nav-skel-sm"></div>
+                    <div class="nav-skel nav-skel-lg"></div>
+                </div>
+            </Authorizing>
 
-                        <MudMenuItem Icon="@Icons.Material.Outlined.AccountCircle"
-                                     OnClick="GoToProfile">
-                            Profile settings
-                        </MudMenuItem>
-
-                        <MudDivider Class="my-1" />
-
-                        <!-- Theme row inside menu (mobile fallback) -->
-                        <div class="menu-theme-row">
-                            <div class="menu-theme-label">
-                                <MudIcon Icon="@(_isDarkMode ? Icons.Material.Outlined.DarkMode : Icons.Material.Outlined.LightMode)"
-                                         Style="font-size:16px" />
-                                <span>@(_isDarkMode ? "Dark" : "Light") mode</span>
-                            </div>
-                            <MudSwitch T="bool"
-                                Value="_isDarkMode"
-                                ValueChanged="OnThemeSwitchChanged"
-                                Color="Color.Primary"
-                                Class="menu-theme-switch" />
-                        </div>
-
-                        <MudDivider Class="my-1" />
-
-                        <MudMenuItem Icon="@Icons.Material.Outlined.Logout"
-                                IconColor="Color.Error"
-                                OnClick="HandleSignOut"
-                                Class="menu-signout">
-                            Sign out
-                        </MudMenuItem>
-                    </ChildContent>
-                </MudMenu>
-
-            </div>
-        }
-
+        </AuthorizeView>
     </MudContainer>
 </MudAppBar>
 
 <style>
-    /* ── APPBAR BASE ───────────────────────────────────────────────────── */
     .vf-appbar {
         background-color: rgba(var(--mud-palette-background-rgb), 0.88) !important;
         backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--mud-palette-divider) !important;
         transition: background-color 0.2s ease;
+        z-index: 100;
     }
-
-    /* ── BRAND ─────────────────────────────────────────────────────────── */
     .vf-brand {
         text-decoration: none !important;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-shrink: 0;
+        display: flex; align-items: center; gap: 10px; flex-shrink: 0;
     }
-
     .vf-brand-name {
         font-family: 'DM Serif Display', Georgia, serif !important;
-        font-size: 1.15rem !important;
+        font-size: 1.1rem !important;
         color: var(--mud-palette-text-primary) !important;
         font-weight: 400 !important;
     }
-
     .vf-logo {
-        width: 32px;
-        height: 32px;
-        background: var(--mud-palette-primary);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-family: 'DM Mono', monospace;
-        font-size: 12px;
-        font-weight: 500;
-        flex-shrink: 0;
+        width: 32px; height: 32px;
+        background: var(--mud-palette-primary); border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-family: 'DM Mono', monospace;
+        font-size: 12px; font-weight: 500; flex-shrink: 0;
     }
-
-    /* ── UNAUTHENTICATED NAV ───────────────────────────────────────────── */
     .vf-nav-link {
-        font-size: 14px !important;
-        font-weight: 500 !important;
+        font-size: 14px !important; font-weight: 500 !important;
         color: var(--mud-palette-text-secondary) !important;
         transition: color 0.15s !important;
     }
-
     .vf-nav-link:hover { color: var(--mud-palette-primary) !important; }
-
     .vf-cta-btn {
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        text-transform: none !important;
-        border-radius: 8px !important;
+        font-size: 14px !important; font-weight: 600 !important;
+        text-transform: none !important; border-radius: 8px !important;
         padding: 6px 18px !important;
     }
-
-    /* ── AUTHENTICATED NAV ─────────────────────────────────────────────── */
-    .ws-nav {
-        flex: 1;
-        padding: 0 32px;
-        overflow: hidden;
+    .workspace-crumb {
+        display: flex; align-items: center; gap: 6px;
+        font-family: 'DM Mono', monospace; font-size: 12px;
+        color: var(--mud-palette-text-secondary);
     }
-
-    .nav-divider {
-        width: 1px;
-        height: 18px;
-        background: var(--mud-palette-divider);
-        margin: 0 4px;
-        flex-shrink: 0;
+    .crumb-text {
+        cursor: pointer; transition: color 0.15s; white-space: nowrap;
+        overflow: hidden; text-overflow: ellipsis; max-width: 160px;
     }
-
-    /* Active/inactive app nav buttons */
-    .app-nav-btn {
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        text-transform: none !important;
-        letter-spacing: 0 !important;
-        border-radius: 8px !important;
-        padding: 4px 12px !important;
-        min-width: 0 !important;
-        transition: background 0.15s !important;
+    .crumb-text:hover { color: var(--mud-palette-primary); }
+    .crumb-active { color: var(--mud-palette-text-primary); font-weight: 500; cursor: default; }
+    .crumb-active:hover { color: var(--mud-palette-text-primary); }
+    .user-avatar {
+        width: 32px; height: 32px; border-radius: 50%;
+        background: var(--mud-palette-primary); color: white;
+        font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: opacity 0.15s; flex-shrink: 0; user-select: none;
     }
-
-    .app-nav-btn.nav-active {
-        background: var(--mud-palette-primary-lighten) !important;
+    .user-avatar:hover { opacity: 0.85; }
+    .user-menu-header {
+        display: flex; align-items: center; gap: 12px; padding: 12px 16px 8px;
     }
-
-    /* Workspace pills */
-    .ws-pill {
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        max-width: 140px;
-        overflow: hidden;
+    .user-menu-avatar {
+        width: 36px; height: 36px; border-radius: 50%;
+        background: var(--mud-palette-primary); color: white;
+        font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 600;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-
-    .ws-pill-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    .ws-overflow-chip {
-        font-family: 'DM Mono', monospace !important;
-        font-size: 10px !important;
-        height: 22px !important;
-        border-radius: 99px !important;
-    }
-
-    /* Quick-create button */
-    .new-issue-btn {
-        border-radius: 8px !important;
-        width: 32px !important;
-        height: 32px !important;
-    }
-
-    /* ── USER AVATAR BUTTON ─────────────────────────────────────────────── */
-    .user-avatar-btn {
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        background: var(--mud-palette-primary);
-        border: 2px solid transparent;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        transition: border-color 0.15s, box-shadow 0.15s;
-        overflow: hidden;
-    }
-
-    .user-avatar-btn:hover {
-        border-color: var(--mud-palette-primary);
-        box-shadow: 0 0 0 3px var(--mud-palette-primary-lighten);
-    }
-
-    .user-avatar-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
-    }
-
-    .user-avatar-initials {
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        font-weight: 600;
-        color: white;
-        user-select: none;
-    }
-
-    /* ── USER MENU ──────────────────────────────────────────────────────── */
-    .menu-identity {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px 10px;
-    }
-
-    .menu-avatar-lg {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background: var(--mud-palette-primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        overflow: hidden;
-    }
-
-    .menu-display-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--mud-palette-text-primary);
-        line-height: 1.3;
-    }
-
-    .menu-email {
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        color: var(--mud-palette-text-disabled);
-        line-height: 1.3;
-    }
-
-    .menu-theme-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 4px 16px;
-    }
-
-    .menu-theme-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: var(--mud-palette-text-primary);
-    }
-
-    .menu-theme-switch { margin: 0 !important; }
-
-    .menu-signout { color: var(--mud-palette-error) !important; }
-
-    /* ── SHARED UTILITIES ───────────────────────────────────────────────── */
+    .user-menu-name { font-size: 13px; font-weight: 600; color: var(--mud-palette-text-primary); white-space: nowrap; }
+    .user-menu-email { font-size: 11px; color: var(--mud-palette-text-disabled); font-family: 'DM Mono', monospace; white-space: nowrap; }
+    .nav-loading { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .nav-skel { height: 28px; border-radius: 6px; background: var(--mud-palette-lines-default); animation: nav-skel-pulse 1.4s ease-in-out infinite; }
+    .nav-skel-sm { width: 32px; border-radius: 50%; }
+    .nav-skel-lg { width: 80px; }
+    @@keyframes nav-skel-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
     .gap-2 { gap: 8px; }
     .gap-6 { gap: 24px; }
 </style>
 
 @code {
-    private bool _isDarkMode;
-    private bool _isAuthenticated;
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
 
-    // Populated once auth state is known
-    private UserDto _currentUser = new();
-    private List<NavWorkspace> _workspaces = [];
+    private bool   _isDarkMode;
+    private bool   _isAuthenticated;
+    private string _currentWorkspace    = string.Empty;
+    private string _currentWorkspaceSlug = string.Empty;
+    private string _currentProject      = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         _isDarkMode = ThemeService.IsDarkMode;
         ThemeService.OnThemeChanged += HandleThemeChanged;
-
-        await ResolveAuthState();
-
-        // Re-check whenever the user navigates (handles login/logout redirects)
         Nav.LocationChanged += OnLocationChanged;
+
+        await ResolveAuthStateAsync();
+        ParseRouteContext(Nav.Uri);
     }
 
-    private async Task ResolveAuthState()
+    private async Task ResolveAuthStateAsync()
     {
-        // TODO: replace with your real auth service check, e.g.:
-        //   var user = await AuthService.GetCurrentUserAsync();  // returns null if not authed
-        //   _isAuthenticated = user is not null;
-        //   if (_isAuthenticated)
-        //   {
-        //       _currentUser = user!;
-        //       var wsDtos = await WorkspaceService.GetAllAsync();
-        //       _workspaces = wsDtos.Select(MapNavWorkspace).ToList();
-        //   }
+        if (AuthenticationState is null) return;
+        var state = await AuthenticationState;
+        var user  = state.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated == true;
+    }
 
-        // ── MOCK: toggle _isAuthenticated to test both states ─────────────
-        _isAuthenticated = false;
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        ParseRouteContext(e.Location);
+        InvokeAsync(StateHasChanged);
+    }
 
-        if (_isAuthenticated)
+    private void ParseRouteContext(string uri)
+    {
+        _currentWorkspace     = string.Empty;
+        _currentWorkspaceSlug = string.Empty;
+        _currentProject       = string.Empty;
+
+        var path = new Uri(uri).AbsolutePath.TrimStart('/');
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length >= 2 && segments[0] == "w")
         {
-            _currentUser = new UserDto
-            {
-                Id          = "user-booker",
-                DisplayName = "Booker K.",
-                Email       = "booker@vectorflow.dev",
-                AvatarUrl   = null
-            };
-
-            _workspaces =
-            [
-                new("vectorflow", "VectorFlow", "VF", "#4339CA"),
-                new("acme-corp",  "Acme Corp",  "AC", "#1A7A52"),
-            ];
+            _currentWorkspaceSlug = segments[1];
+            _currentWorkspace     = FormatSlug(segments[1]);
         }
-        // ── END MOCK ──────────────────────────────────────────────────────
+        if (segments.Length >= 4 && segments[2] == "projects")
+        {
+            // Replace with real project name lookup once ProjectService is wired
+            _currentProject = "Project";
+        }
     }
 
-    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    private static string FormatSlug(string slug) =>
+        System.Globalization.CultureInfo.CurrentCulture.TextInfo
+            .ToTitleCase(slug.Replace("-", " "));
+
+    private async Task HandleLogout()
     {
-        // Re-evaluate auth on every navigation so the bar stays in sync
-        // (e.g. after the user logs out and is redirected to /login)
-        await ResolveAuthState();
-        await InvokeAsync(StateHasChanged);
+        await AuthService.LogoutAsync();
+        Nav.NavigateTo("/login");
+        Snackbar.Add("You've been signed out.", Severity.Info,
+            cfg => cfg.VisibleStateDuration = 2000);
     }
 
-    // ── Theme ─────────────────────────────────────────────────────────────
+    private void ToggleTheme() => ThemeService.Toggle();
+
     private void HandleThemeChanged()
     {
         _isDarkMode = ThemeService.IsDarkMode;
         InvokeAsync(StateHasChanged);
     }
 
-    private void ToggleTheme() => ThemeService.Toggle();
-
-    private void OnThemeSwitchChanged(bool value)
-    {
-        if (value != _isDarkMode) ThemeService.Toggle();
-    }
-
-    // ── Navigation ────────────────────────────────────────────────────────
-    private bool IsActive(string href)
-    {
-        var current = Nav.ToBaseRelativePath(Nav.Uri);
-        var target  = href.TrimStart('/');
-        return current.Equals(target, StringComparison.OrdinalIgnoreCase)
-            || current.StartsWith(target + "/", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private string AppNavClass(string href) =>
-        $"app-nav-btn {(IsActive(href) ? "nav-active" : "")}";
-
-    private void OpenNewIssue()
-    {
-        // TODO: open a global "create issue" dialog
-        // For now navigate to dashboard where the user can pick a project
-        Nav.NavigateTo("/dashboard");
-    }
-
-    private void GoToProfile() => Nav.NavigateTo("/settings/profile");
-
-    private async Task HandleSignOut()
-    {
-        // TODO: await AuthService.SignOutAsync();
-        // Clears HttpOnly cookies server-side, then:
-        _isAuthenticated = false;
-        _currentUser     = new();
-        _workspaces      = [];
-        Nav.NavigateTo("/login");
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
     private static string GetInitials(string name)
     {
         var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length >= 2
             ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
-            : name[..Math.Min(2, name.Length)].ToUpper();
-    }
-
-    private static NavWorkspace MapNavWorkspace(WorkspaceDto dto) => new(
-        dto.Slug,
-        dto.Name,
-        GetInitials(dto.Name),
-        PickAvatarColor(dto.Id)
-    );
-
-    private static readonly string[] AvatarPalette =
-    [
-        "#4339CA", "#1A7A52", "#92560F", "#2563EB",
-        "#7C3AED", "#0E7490", "#B45309", "#DC2626"
-    ];
-
-    private static string PickAvatarColor(Guid id)
-    {
-        var idx = Math.Abs(id.GetHashCode()) % AvatarPalette.Length;
-        return AvatarPalette[idx];
+            : name.Length >= 2 ? name[..2].ToUpper() : name.ToUpper();
     }
 
     public void Dispose()
     {
-        ThemeService.OnThemeChanged   -= HandleThemeChanged;
-        Nav.LocationChanged           -= OnLocationChanged;
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+        Nav.LocationChanged        -= OnLocationChanged;
     }
-
-    // ── Lightweight nav view-model ─────────────────────────────────────────
-    // Only what the appbar needs — no need to carry the full WorkspaceDto.
-    private sealed record NavWorkspace(
-        string Slug,
-        string Name,
-        string Initials,
-        string Color
-    )
-    {
-        /// Truncates long workspace names to keep nav pills compact.
-        public string ShortName => Name.Length > 16 ? Name[..14].TrimEnd() + "…" : Name;
-    }
-
-    // ── Inline stubs (delete once VectorFlow.Shared is referenced) ─────────
-    #region Shared stubs
-
-    private enum WorkspaceRole { Owner, Admin, Member }
-
-    private sealed class WorkspaceDto
-    {
-        public Guid          Id              { get; set; }
-        public string        Name            { get; set; } = string.Empty;
-        public string        Slug            { get; set; } = string.Empty;
-        public string        OwnerId         { get; set; } = string.Empty;
-        public DateTime      CreatedAt       { get; set; }
-        public WorkspaceRole CurrentUserRole { get; set; }
-        public int           MemberCount     { get; set; }
-        public int           ProjectCount    { get; set; }
-    }
-
-    private sealed class UserDto
-    {
-        public string  Id          { get; set; } = string.Empty;
-        public string  DisplayName { get; set; } = string.Empty;
-        public string  Email       { get; set; } = string.Empty;
-        public string? AvatarUrl   { get; set; }
-    }
-
-    #endregion
 }
