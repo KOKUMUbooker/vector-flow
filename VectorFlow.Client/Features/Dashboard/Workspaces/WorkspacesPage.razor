@@ -1,0 +1,834 @@
+@page "/workspaces"
+@layout Features.Layout.MainLayout
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@using VectorFlow.Shared.DTOs
+@using VectorFlow.Shared.Enums
+@* @inject IWorkspaceService WorkspaceService *@
+
+<PageTitle>Workspaces — VectorFlow</PageTitle>
+
+<div class="page-shell">
+
+    <!-- ── PAGE HEADER ────────────────────────────────────────────────── -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Workspaces</h1>
+            <p class="page-sub">Every workspace you belong to, across all your teams.</p>
+        </div>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Outlined.Add"
+                   OnClick="OpenCreateDialog"
+                   Class="create-btn">
+            New workspace
+        </MudButton>
+    </div>
+
+    @if (_loading)
+    {
+        <!-- Skeleton grid -->
+        <div class="ws-grid">
+            @for (int i = 0; i < 4; i++)
+            {
+                <div class="skel skel-card"></div>
+            }
+        </div>
+    }
+    else if (!_workspaces.Any())
+    {
+        <!-- Empty state -->
+        <div class="empty-state">
+            <div class="empty-visual">
+                <div class="empty-icon-ring">
+                    <MudIcon Icon="@Icons.Material.Outlined.BusinessCenter" Class="empty-icon" />
+                </div>
+                <!-- Decorative orbit dots -->
+                <div class="orbit-dot orbit-1"></div>
+                <div class="orbit-dot orbit-2"></div>
+                <div class="orbit-dot orbit-3"></div>
+            </div>
+            <MudText Typo="Typo.h5" Class="empty-title mt-6 mb-2">No workspaces yet</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary empty-body mb-8">
+                A workspace is your team's home in VectorFlow. Create one and invite your teammates — it takes under a minute.
+            </MudText>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Outlined.Add"
+                       OnClick="OpenCreateDialog"
+                       Size="Size.Large"
+                       Class="create-btn">
+                Create your first workspace
+            </MudButton>
+        </div>
+    }
+    else
+    {
+        <!-- Stats strip -->
+        <div class="stats-strip">
+            <div class="stat-pill">
+                <span class="stat-num">@_workspaces.Count</span>
+                <span class="stat-lbl">workspace@(_workspaces.Count != 1 ? "s" : "")</span>
+            </div>
+            <div class="stat-sep"></div>
+            <div class="stat-pill">
+                <span class="stat-num">@_workspaces.Count(w => w.CurrentUserRole == WorkspaceRole.Owner)</span>
+                <span class="stat-lbl">owned</span>
+            </div>
+            <div class="stat-sep"></div>
+            <div class="stat-pill">
+                <span class="stat-num">@_workspaces.Sum(w => w.ProjectCount)</span>
+                <span class="stat-lbl">total projects</span>
+            </div>
+            <div class="stat-sep"></div>
+            <div class="stat-pill">
+                <span class="stat-num">@_workspaces.Sum(w => w.MemberCount)</span>
+                <span class="stat-lbl">total members</span>
+            </div>
+        </div>
+
+        <!-- Workspace grid -->
+        <div class="ws-grid">
+            @foreach (var (ws, idx) in _workspaces.Select((w, i) => (w, i)))
+            {
+                <div class="ws-card" style="animation-delay:@(idx * 0.06)s"
+                     @onclick="() => NavigateTo(ws)">
+
+                    <!-- Card top accent strip -->
+                    <div class="card-accent" style="background:@PickColor(ws.Id)"></div>
+
+                    <div class="card-body">
+
+                        <!-- Header row: avatar + role + menu -->
+                        <div class="card-header-row">
+                            <div class="ws-avatar" style="background:@PickColor(ws.Id)">
+                                @GetInitials(ws.Name)
+                            </div>
+                            <div class="role-badge role-@ws.CurrentUserRole.ToString().ToLower()">
+                                @ws.CurrentUserRole
+                            </div>
+                            @if (ws.CurrentUserRole is WorkspaceRole.Owner or WorkspaceRole.Admin)
+                            {
+                                <MudMenu Icon="@Icons.Material.Outlined.MoreHoriz"
+                                         Size="Size.Small"
+                                         AnchorOrigin="Origin.BottomRight"
+                                         TransformOrigin="Origin.TopRight"
+                                         Class="card-menu"
+                                         @onclick:stopPropagation="true">
+                                    <MudMenuItem Icon="@Icons.Material.Outlined.Settings"
+                                                 OnClick="() => NavigateTo(ws)">
+                                        Open workspace
+                                    </MudMenuItem>
+                                    @if (ws.CurrentUserRole == WorkspaceRole.Owner)
+                                    {
+                                        <MudMenuItem Icon="@Icons.Material.Outlined.Edit"
+                                                     OnClick="() => OpenEditDialog(ws)">
+                                            Edit details
+                                        </MudMenuItem>
+                                        <MudDivider />
+                                        <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline"
+                                                     IconColor="Color.Error"
+                                                     OnClick="() => ConfirmDelete(ws)"
+                                                     Class="menu-danger">
+                                            Delete workspace
+                                        </MudMenuItem>
+                                    }
+                                    else
+                                    {
+                                        <MudMenuItem Icon="@Icons.Material.Outlined.ExitToApp"
+                                                     IconColor="Color.Warning"
+                                                     OnClick="() => ConfirmLeave(ws)"
+                                                     Class="menu-warn">
+                                            Leave workspace
+                                        </MudMenuItem>
+                                    }
+                                </MudMenu>
+                            }
+                            else
+                            {
+                                <!-- Members see leave option -->
+                                <MudMenu Icon="@Icons.Material.Outlined.MoreHoriz"
+                                         Size="Size.Small"
+                                         AnchorOrigin="Origin.BottomRight"
+                                         TransformOrigin="Origin.TopRight"
+                                         Class="card-menu"
+                                         @onclick:stopPropagation="true">
+                                    <MudMenuItem Icon="@Icons.Material.Outlined.ExitToApp"
+                                                 IconColor="Color.Warning"
+                                                 OnClick="() => ConfirmLeave(ws)"
+                                                 Class="menu-warn">
+                                        Leave workspace
+                                    </MudMenuItem>
+                                </MudMenu>
+                            }
+                        </div>
+
+                        <!-- Name & description -->
+                        <div class="card-identity">
+                            <div class="ws-name">@ws.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(ws.Description))
+                            {
+                                <div class="ws-desc">@ws.Description</div>
+                            }
+                            else
+                            {
+                                <div class="ws-desc ws-desc-empty">No description</div>
+                            }
+                        </div>
+
+                        <!-- Stats footer -->
+                        <div class="card-footer">
+                            <div class="card-stat">
+                                <MudIcon Icon="@Icons.Material.Outlined.Folder" Style="font-size:13px" />
+                                @ws.ProjectCount project@(ws.ProjectCount != 1 ? "s" : "")
+                            </div>
+                            <div class="card-stat">
+                                <MudIcon Icon="@Icons.Material.Outlined.Group" Style="font-size:13px" />
+                                @ws.MemberCount member@(ws.MemberCount != 1 ? "s" : "")
+                            </div>
+                            <div class="card-created">
+                                @ws.CreatedAt.ToString("MMM yyyy")
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Create new card -->
+            <div class="ws-card ws-card-new" @onclick="OpenCreateDialog">
+                <div class="new-card-inner">
+                    <div class="new-card-icon">
+                        <MudIcon Icon="@Icons.Material.Outlined.Add" Style="font-size:24px" />
+                    </div>
+                    <span class="new-card-label">New workspace</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- ── CREATE / EDIT DIALOG ───────────────────────────────────────── -->
+<MudDialog @bind-Visible="_dialogOpen" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(_editingWorkspace is null ? "Create workspace" : "Edit workspace")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-5">
+            @(_editingWorkspace is null
+                ? "Give your team's workspace a name. You can add a description and invite members after creation."
+                : "Update the workspace name or description.")
+        </MudText>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <div class="field-group mb-4">
+                <label class="field-label">Workspace name</label>
+                <MudTextField @bind-Value="_draftName"
+                              Placeholder="e.g. Acme Engineering"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true"
+                              RequiredError="Name is required"
+                              MaxLength="80"
+                              Class="auth-field"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Outlined.Business"
+                              AdornmentColor="Color.Default"
+                              @bind-Value:after="OnNameChanged" />
+                @if (_editingWorkspace is null && !string.IsNullOrWhiteSpace(_draftName))
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-disabled mt-1">
+                        Slug: <strong>@_slugPreview</strong>
+                    </MudText>
+                }
+            </div>
+            <div class="field-group">
+                <label class="field-label">
+                    Description
+                    <span class="field-hint">(optional)</span>
+                </label>
+                <MudTextField @bind-Value="_draftDescription"
+                              Placeholder="What does this workspace track?"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Lines="3"
+                              MaxLength="300"
+                              Class="auth-field" />
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog" Variant="Variant.Text" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="HandleSave"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(_saving || !_formValid)">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>@(_editingWorkspace is null ? "Creating…" : "Saving…")</span>
+            }
+            else
+            {
+                <span>@(_editingWorkspace is null ? "Create workspace" : "Save changes")</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ── CONFIRM DIALOG ─────────────────────────────────────────────── -->
+<MudDialog @bind-Visible="_confirmOpen" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@_confirmTitle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2">@_confirmBody</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _confirmOpen = false" Variant="Variant.Text" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="ExecuteConfirm"
+                   Variant="Variant.Filled"
+                   Color="Color.Error"
+                   Disabled="_confirmLoading">
+            @if (_confirmLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @_confirmAction
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
+
+    /* ── SHELL ─────────────────────────────────────────────────────────── */
+    .page-shell {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 40px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+        animation: page-in 0.4s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    @@keyframes page-in {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── HEADER ────────────────────────────────────────────────────────── */
+    .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: clamp(1.8rem, 3vw, 2.4rem);
+        letter-spacing: -0.02em;
+        color: var(--mud-palette-text-primary);
+        margin: 0 0 6px;
+        line-height: 1.15;
+    }
+
+    .page-sub {
+        font-size: 14px;
+        color: var(--mud-palette-text-secondary);
+        margin: 0;
+    }
+
+    .create-btn { border-radius: 10px !important; white-space: nowrap; }
+
+    /* ── STATS STRIP ───────────────────────────────────────────────────── */
+    .stats-strip {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        padding: 12px 24px;
+        width: fit-content;
+    }
+
+    .stat-pill {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        padding: 0 16px;
+    }
+
+    .stat-pill:first-child { padding-left: 0; }
+
+    .stat-num {
+        font-family: 'DM Serif Display', Georgia, serif;
+        font-size: 1.6rem;
+        letter-spacing: -0.02em;
+        color: var(--mud-palette-text-primary);
+        line-height: 1;
+    }
+
+    .stat-lbl {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+        white-space: nowrap;
+    }
+
+    .stat-sep {
+        width: 1px;
+        height: 28px;
+        background: var(--mud-palette-divider);
+        flex-shrink: 0;
+    }
+
+    /* ── SKELETON ──────────────────────────────────────────────────────── */
+    .skel {
+        border-radius: 12px;
+        background: var(--mud-palette-lines-default);
+        animation: skel-pulse 1.6s ease-in-out infinite;
+    }
+
+    @@keyframes skel-pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+
+    .skel-card { height: 220px; }
+
+    /* ── EMPTY STATE ───────────────────────────────────────────────────── */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 64px 24px;
+    }
+
+    .empty-visual {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-icon-ring {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary-lighten);
+        border: 2px solid var(--mud-palette-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: ring-breathe 3s ease-in-out infinite;
+    }
+
+    @@keyframes ring-breathe {
+        0%,100% { box-shadow: 0 0 0 0 rgba(67,57,202,0.15); }
+        50%      { box-shadow: 0 0 0 12px rgba(67,57,202,0); }
+    }
+
+    .empty-icon { color: var(--mud-palette-primary) !important; font-size: 32px !important; }
+
+    .orbit-dot {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        opacity: 0.5;
+    }
+
+    .orbit-1 { top: 4px; right: 10px; animation: orbit-spin 4s linear infinite; }
+    .orbit-2 { bottom: 6px; left: 8px; animation: orbit-spin 4s linear infinite 1.3s; opacity: 0.3; }
+    .orbit-3 { top: 50%; right: 0; animation: orbit-spin 4s linear infinite 2.6s; opacity: 0.4; }
+
+    @@keyframes orbit-spin { 0%{transform:scale(1)} 50%{transform:scale(1.4)} 100%{transform:scale(1)} }
+
+    .empty-title { font-family: 'DM Serif Display', Georgia, serif; letter-spacing: -0.02em; color: var(--mud-palette-text-primary); }
+    .empty-body  { max-width: 400px; line-height: 1.7; }
+
+    /* ── WORKSPACE GRID ────────────────────────────────────────────────── */
+    .ws-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: 16px;
+    }
+
+    /* ── WORKSPACE CARD ────────────────────────────────────────────────── */
+    .ws-card {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 14px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        display: flex;
+        flex-direction: column;
+        animation: card-in 0.35s cubic-bezier(.4,0,.2,1) both;
+        position: relative;
+    }
+
+    @@keyframes card-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .ws-card:hover {
+        border-color: var(--mud-palette-primary);
+        box-shadow: 0 6px 24px rgba(0,0,0,0.07);
+        transform: translateY(-2px);
+    }
+
+    /* Coloured top accent stripe */
+    .card-accent {
+        height: 4px;
+        width: 100%;
+        flex-shrink: 0;
+    }
+
+    .card-body {
+        padding: 18px 18px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        flex: 1;
+    }
+
+    /* Header row */
+    .card-header-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ws-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        color: white;
+        font-family: 'DM Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .role-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        font-weight: 500;
+        padding: 2px 7px;
+        border-radius: 99px;
+    }
+
+    .role-owner  { background: rgba(146,64,14,0.1);  color: var(--mud-palette-warning); border: 1px solid rgba(146,64,14,0.2); }
+    .role-admin  { background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary); border: 1px solid rgba(67,57,202,0.2); }
+    .role-member { background: rgba(26,122,82,0.1);  color: var(--mud-palette-success); border: 1px solid rgba(26,122,82,0.2); }
+
+    .card-menu { margin-left: auto; }
+    .menu-danger { color: var(--mud-palette-error) !important; }
+    .menu-warn   { color: var(--mud-palette-warning) !important; }
+
+    /* Identity */
+    .card-identity { flex: 1; }
+
+    .ws-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 4px;
+        line-height: 1.3;
+    }
+
+    .ws-desc {
+        font-size: 12px;
+        color: var(--mud-palette-text-secondary);
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .ws-desc-empty { color: var(--mud-palette-text-disabled); font-style: italic; }
+
+    /* Footer stats */
+    .card-footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+
+    .card-stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .card-created {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--mud-palette-text-disabled);
+        margin-left: auto;
+    }
+
+    /* New workspace card */
+    .ws-card-new {
+        border-style: dashed;
+        min-height: 180px;
+        align-items: center;
+        justify-content: center;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .ws-card-new:hover {
+        border-color: var(--mud-palette-primary);
+        color: var(--mud-palette-primary);
+        background: var(--mud-palette-primary-lighten);
+    }
+
+    .new-card-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 32px;
+    }
+
+    .new-card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        border: 1.5px dashed currentColor;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s;
+    }
+
+    .ws-card-new:hover .new-card-icon { transform: scale(1.1); }
+
+    .new-card-label { font-size: 13px; font-weight: 500; }
+
+    /* ── DIALOG FIELDS ─────────────────────────────────────────────────── */
+    .field-group  { display: flex; flex-direction: column; gap: 6px; }
+    .field-label  { font-size: 12px; font-weight: 600; color: var(--mud-palette-text-primary); font-family: 'DM Sans', system-ui, sans-serif; }
+    .field-hint   { font-weight: 400; color: var(--mud-palette-text-disabled); }
+    .auth-field .mud-input-outlined .mud-notched-outline { border-radius: 10px !important; }
+
+    /* ── RESPONSIVE ────────────────────────────────────────────────────── */
+    @@media (max-width: 768px) {
+        .page-shell   { padding: 24px 16px 60px; }
+        .page-header  { flex-direction: column; }
+        .stats-strip  { flex-wrap: wrap; width: 100%; }
+        .ws-grid      { grid-template-columns: 1fr; }
+    }
+</style>
+
+@code {
+    private bool _loading = true;
+    private List<WorkspaceDto> _workspaces = [];
+
+    // Dialog — create / edit
+    private bool          _dialogOpen;
+    private bool          _saving;
+    private bool          _formValid;
+    private MudForm       _form = null!;
+    private WorkspaceDto? _editingWorkspace;
+    private string        _draftName        = string.Empty;
+    private string        _draftDescription = string.Empty;
+    private string        _slugPreview      = string.Empty;
+
+    // Confirm
+    private bool        _confirmOpen;
+    private bool        _confirmLoading;
+    private string      _confirmTitle  = string.Empty;
+    private string      _confirmBody   = string.Empty;
+    private string      _confirmAction = string.Empty;
+    private Func<Task>? _confirmTask;
+
+    private readonly DialogOptions _dialogOpts = new()
+    {
+        MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true
+    };
+
+    // ── Lifecycle ──────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        // TODO: _workspaces = await WorkspaceService.GetUserWorkspacesAsync();
+
+        await Task.Delay(600); // remove — simulates network
+
+        _workspaces =
+        [
+            new WorkspaceDto
+            {
+                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                Name = "VectorFlow", Slug = "vectorflow",
+                Description = "Full-stack issue tracking built with ASP.NET Core and Blazor WASM.",
+                OwnerId = "user-booker", CreatedAt = DateTime.UtcNow.AddMonths(-3),
+                CurrentUserRole = WorkspaceRole.Owner, MemberCount = 4, ProjectCount = 3
+            },
+            new WorkspaceDto
+            {
+                Id = Guid.Parse("00000000-0000-0000-0000-000000000002"),
+                Name = "Acme Corp", Slug = "acme-corp",
+                Description = "Internal tooling and platform work.",
+                OwnerId = "user-alice", CreatedAt = DateTime.UtcNow.AddMonths(-1),
+                CurrentUserRole = WorkspaceRole.Admin, MemberCount = 8, ProjectCount = 2
+            },
+            new WorkspaceDto
+            {
+                Id = Guid.Parse("00000000-0000-0000-0000-000000000003"),
+                Name = "Side Project", Slug = "side-project",
+                Description = null,
+                OwnerId = "user-booker", CreatedAt = DateTime.UtcNow.AddDays(-14),
+                CurrentUserRole = WorkspaceRole.Owner, MemberCount = 1, ProjectCount = 1
+            },
+        ];
+
+        _loading = false;
+    }
+
+    // ── Navigation ─────────────────────────────────────────────────────
+    private void NavigateTo(WorkspaceDto ws) => Nav.NavigateTo($"/w/{ws.Slug}");
+
+    // ── Dialog: create ─────────────────────────────────────────────────
+    private void OpenCreateDialog()
+    {
+        _editingWorkspace = null;
+        _draftName        = string.Empty;
+        _draftDescription = string.Empty;
+        _slugPreview      = string.Empty;
+        _dialogOpen       = true;
+    }
+
+    // ── Dialog: edit ───────────────────────────────────────────────────
+    private void OpenEditDialog(WorkspaceDto ws)
+    {
+        _editingWorkspace = ws;
+        _draftName        = ws.Name;
+        _draftDescription = ws.Description ?? string.Empty;
+        _dialogOpen       = true;
+    }
+
+    private void CloseDialog() => _dialogOpen = false;
+
+    private void OnNameChanged() =>
+        _slugPreview = _draftName.ToLowerInvariant().Trim().Replace(" ", "-");
+
+    private async Task HandleSave()
+    {
+        await _form.Validate();
+        if (!_formValid) return;
+        _saving = true;
+
+        await Task.Delay(800); // TODO: call service
+
+        if (_editingWorkspace is null)
+        {
+            // TODO: var created = await WorkspaceService.CreateAsync(new CreateWorkspaceRequest { Name = _draftName, Description = _draftDescription });
+            var newWs = new WorkspaceDto
+            {
+                Id = Guid.NewGuid(), Name = _draftName, Slug = _slugPreview,
+                Description = _draftDescription.Length > 0 ? _draftDescription : null,
+                OwnerId = "user-booker", CreatedAt = DateTime.UtcNow,
+                CurrentUserRole = WorkspaceRole.Owner, MemberCount = 1, ProjectCount = 0
+            };
+            _workspaces.Insert(0, newWs);
+            Snackbar.Add($"Workspace \"{_draftName}\" created!", Severity.Success);
+        }
+        else
+        {
+            // TODO: await WorkspaceService.UpdateAsync(_editingWorkspace.Id, new UpdateWorkspaceRequest { Name = _draftName, Description = _draftDescription });
+            var idx = _workspaces.IndexOf(_editingWorkspace);
+            @* if (idx >= 0) *@
+                @* _workspaces[idx] = _editingWorkspace with
+                {
+                    Name = _draftName,
+                    Description = _draftDescription.Length > 0 ? _draftDescription : null
+                }; *@
+            Snackbar.Add("Workspace updated.", Severity.Success);
+        }
+
+        _saving     = false;
+        _dialogOpen = false;
+    }
+
+    // ── Confirm: delete workspace ──────────────────────────────────────
+    private void ConfirmDelete(WorkspaceDto ws) =>
+        ShowConfirm(
+            $"Delete \"{ws.Name}\"?",
+            "This permanently deletes the workspace, all its projects, issues, and member history. This cannot be undone.",
+            "Delete",
+            async () =>
+            {
+                // TODO: await WorkspaceService.DeleteAsync(ws.Id);
+                await Task.Delay(700);
+                _workspaces.Remove(ws);
+                Snackbar.Add($"\"{ws.Name}\" deleted.", Severity.Info);
+            });
+
+    // ── Confirm: leave workspace ───────────────────────────────────────
+    private void ConfirmLeave(WorkspaceDto ws) =>
+        ShowConfirm(
+            $"Leave \"{ws.Name}\"?",
+            "You'll lose access to all projects and issues in this workspace immediately.",
+            "Leave",
+            async () =>
+            {
+                // TODO: await WorkspaceService.LeaveAsync(ws.Id);
+                await Task.Delay(500);
+                _workspaces.Remove(ws);
+                Snackbar.Add($"You left \"{ws.Name}\".", Severity.Info);
+            });
+
+    private void ShowConfirm(string title, string body, string action, Func<Task> task)
+    {
+        _confirmTitle  = title;
+        _confirmBody   = body;
+        _confirmAction = action;
+        _confirmTask   = task;
+        _confirmOpen   = true;
+    }
+
+    private async Task ExecuteConfirm()
+    {
+        if (_confirmTask is null) return;
+        _confirmLoading = true;
+        try   { await _confirmTask(); }
+        finally { _confirmLoading = false; _confirmOpen = false; _confirmTask = null; }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────
+    private static string GetInitials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    private static readonly string[] Palette =
+    [
+        "#4339CA", "#1A7A52", "#92560F", "#2563EB",
+        "#7C3AED", "#0E7490", "#B45309", "#DC2626"
+    ];
+
+    private static string PickColor(Guid id) =>
+        Palette[Math.Abs(id.GetHashCode()) % Palette.Length];
+}
