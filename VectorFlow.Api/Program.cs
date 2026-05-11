@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 using Resend;
 using VectorFlow.Api.Data;
@@ -62,6 +63,7 @@ public class Program
             });
         }); 
 
+        builder.Services.AddControllersWithViews();
         builder.Services.AddTransient<IResend, ResendClient>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IEmailService, EmailService>();
@@ -87,6 +89,14 @@ public class Program
             app.MapScalarApiReference();
         }
 
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
+
+        // Serve Blazor wasm
+        app.UseBlazorFrameworkFiles();
+        app.UseStaticFiles(); 
         app.UseHttpsRedirection();
         app.UseRouting();
 
@@ -95,6 +105,10 @@ public class Program
 
         app.MapHub<ProjectHub>("/hubs/project");
         app.MapControllers();
+
+        // Fallback — any route not matched by the API returns index.html
+        // so Blazor's client-side router takes over
+        app.MapFallbackToFile("index.html");
 
         app.Run();
     }

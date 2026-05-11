@@ -57,19 +57,20 @@ public class AuthController(
  
         // Redirect to the Blazor client with the outcome as a query param
         // so the UI can show the appropriate message without an extra API call
-        var clientBase = GetClientBaseUrl();
+        // var clientBase = GetClientBaseUrl(); 
+        var baseUrl = $"{Request.Scheme}://{Request.Host}"; // Since api now serves the UI
  
         if (result.Succeeded)
-            return Redirect($"{clientBase}/email-verified?email={Uri.EscapeDataString(result.RedirectEmail!)}");
+            return Redirect($"{baseUrl}/email-verified?email={Uri.EscapeDataString(result.RedirectEmail!)}");
  
         if (result.AlreadyVerified)
-            return Redirect($"{clientBase}/email-verified?already=true");
+            return Redirect($"{baseUrl}/email-verified?already=true");
  
         if (result.TokenExpired)
-            return Redirect($"{clientBase}/verify-email?error=expired");
+            return Redirect($"{baseUrl}/verify-email?error=expired");
  
         // Invalid token
-        return Redirect($"{clientBase}/verify-email?error=invalid");
+        return Redirect($"{baseUrl}/verify-email?error=invalid");
     }
 
     // ── Resend verification ───────────────────────────────────────────────────
