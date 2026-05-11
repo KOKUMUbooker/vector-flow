@@ -1,0 +1,31 @@
+**/.git
+**/.gitignore
+**/.vs
+**/.vscode
+\*\*/.idea
+
+# Build output
+
+**/bin
+**/obj
+
+# Test project — not needed in the production image
+
+VectorFlow.Tests/
+
+# Local environment files
+
+.env
+_.env
+\*\*/_.user
+
+# Docker files themselves
+
+Dockerfile
+docker-compose\*.yml
+.dockerignore
+
+# Docs
+
+\*.md
+LICENSE
