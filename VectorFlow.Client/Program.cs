@@ -33,10 +33,9 @@ public class Program
        
         builder.Services.AddHttpClient("VectorFlowApi", client =>
         {
-            client.BaseAddress = new Uri(
-                builder.HostEnvironment.IsDevelopment()
-                    ? Constants.Constants.ApiBaseUrl
-                    : builder.HostEnvironment.BaseAddress);
+            // Use "Constants.Constants.ApiBaseUrl" when running UI and api separately
+            // var url =  builder.HostEnvironment.IsDevelopment() ? Constants.Constants.ApiBaseUrl : builder.HostEnvironment.BaseAddress;
+            client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
         })
         .AddHttpMessageHandler<CredentialsHandler>() // Comes first - ensured cookies get attached on every request
         .AddHttpMessageHandler<RefreshTokenHandler>();
