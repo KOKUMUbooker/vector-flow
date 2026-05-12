@@ -3,11 +3,12 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @using VectorFlow.Client.Features.Dashboard.Home.Components
+@using VectorFlow.Client.Services.Interfaces
 @using VectorFlow.Shared.DTOs
 @using VectorFlow.Shared.Enums
+@inject IClientAuthService AuthService
 @* @inject IWorkspaceService WorkspaceService *@
 @* @inject IIssueService IssueService *@
-@* @inject IAuthService AuthService *@
 
 <PageTitle>Dashboard — VectorFlow</PageTitle>
 
@@ -824,6 +825,9 @@ else
 
 @code {
     // ── Page state ───────────────────────────────────────────────────────
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
     private bool _loading = true;
     private bool _isFirstTimeUser;
 
