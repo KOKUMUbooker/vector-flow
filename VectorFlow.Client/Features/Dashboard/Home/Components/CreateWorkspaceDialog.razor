@@ -1,6 +1,7 @@
 ﻿@inject ISnackbar Snackbar
 
-<MudDialog @bind-Visible="@Open" Options="_dialogOptions">
+<MudDialog Visible="Open"
+           VisibleChanged="OnVisibleChanged" Options="_dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">Create a workspace</MudText>
     </TitleContent>
@@ -74,8 +75,16 @@
     [Parameter,EditorRequired]
     public bool Open { get; set; }
 
-    [Parameter,EditorRequired]
+    [Parameter]
     public EventCallback<bool> OpenChanged { get; set; }
+
+    [Parameter,EditorRequired]
+    public EventCallback<bool> OnOpenChangeWorkspaceDialog { get; set; }
+
+    private async Task OnVisibleChanged(bool value)
+    {
+        await OpenChanged.InvokeAsync(value);
+    }
 
     private bool _wsLoading;
     private bool _wsFormValid;
@@ -93,7 +102,7 @@
 
     private async Task CloseDialog()
     {
-        await OpenChanged.InvokeAsync(false);
+        await OnOpenChangeWorkspaceDialog.InvokeAsync(false);
     }
 
     private void OnWorkspaceNameChanged()
@@ -119,6 +128,6 @@
         _wsLoading = false;
         Snackbar.Add($"Workspace \"{_newWorkspaceName}\" created!", Severity.Success);
         
-        await OpenChanged.InvokeAsync(false);
+        await OnOpenChangeWorkspaceDialog.InvokeAsync(false);
     }
 }
