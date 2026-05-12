@@ -42,6 +42,7 @@ public class Program
 
         builder.Services.AddMudServices();
         builder.Services.AddScoped<IClientAuthService, ClientAuthService>();
+        builder.Services.AddScoped<IDashboardService, DashboardService>();
         builder.Services.AddScoped<ThemeService>();
         builder.Services.AddScoped<ICustomLocalStorageService,CustomLocalStorageService>();
 
