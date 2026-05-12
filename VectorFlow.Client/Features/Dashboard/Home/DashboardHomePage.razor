@@ -17,7 +17,7 @@
 }
 else if (_isFirstTimeUser)
 {
-   <FirstTimeUserContent OpenCreateWorkspace="OpenCreateWorkspace" _userInitials="@_userInitials" _userName="@_userName"/>
+   <FirstTimeUserContent  OpenCreateWorkspace="OpenCreateWorkspace" _userInitials="@_userInitials" _userName="@_userName"/>
 }
 else
 {
@@ -232,7 +232,9 @@ else
 }
 
 <!-- CREATE WORKSPACE DIALOG -->
-<CreateWorkspaceDialog _createWorkspaceOpen="@_createWorkspaceOpen" OnCompleteAction="@OnCompleteWorkspaceCreation"/>
+<CreateWorkspaceDialog
+    @bind-Open="_createWorkspaceOpen"
+    @OpenChanged="OnOpenChangeWorkspaceDialog" />
 
 <style>
     @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
@@ -844,7 +846,7 @@ else
     private List<DashProject>   _recentProjects = [];
 
     // Dialog
-    protected bool  _createWorkspaceOpen;
+    private bool  _createWorkspaceOpen;
 
     // ── View models ──────────────────────────────────────────────────────
     // Flat view models the UI binds to — mapped from server DTOs.
@@ -1219,6 +1221,10 @@ else
 
     // ── Workspace creation ────────────────────────────────────────────────
     private void OpenCreateWorkspace() => _createWorkspaceOpen = true;
+    protected void OnOpenChangeWorkspaceDialog (bool show)
+    {
+        _createWorkspaceOpen = show;    
+    }
 
     private void OnCompleteWorkspaceCreation(string workspaceSlugPreview)
     {
