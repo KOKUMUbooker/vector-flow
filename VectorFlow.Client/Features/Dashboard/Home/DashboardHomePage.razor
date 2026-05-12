@@ -7,8 +7,7 @@
 @using VectorFlow.Shared.DTOs
 @using VectorFlow.Shared.Enums
 @inject IClientAuthService AuthService
-@* @inject IWorkspaceService WorkspaceService *@
-@* @inject IIssueService IssueService *@
+@inject IDashboardService DashboardService
 
 <PageTitle>Dashboard — VectorFlow</PageTitle>
 
@@ -18,13 +17,10 @@
 }
 else if (_isFirstTimeUser)
 {
-   <FirstTimeUserContent  OpenCreateWorkspace="OpenCreateWorkspace" _userInitials="@_userInitials" _userName="@_userName"/>
+   <FirstTimeUserContent OpenCreateWorkspace="OpenCreateWorkspace" _userInitials="@_userInitials" _userName="@_userName"/>
 }
 else
 {
-    <!-- ══════════════════════════════════════════════
-         RETURNING USER — has workspaces and issues
-    ══════════════════════════════════════════════ -->
     <div class="dash-shell">
 
         <!-- ── HEADER ──────────────────────────────────────────── -->
@@ -34,22 +30,21 @@ else
                 <div>
                     <h1 class="greeting-name">@_greeting, @_userName.</h1>
                     <p class="greeting-sub">
-                        @_assignedCount issue@(_assignedCount != 1 ? "s" : "") assigned to you
-                        @if (_overdueCount > 0)
+                        @_stats.AssignedCount issue@(_stats.AssignedCount != 1 ? "s" : "") assigned to you
+                        @if (_stats.OverdueCount > 0)
                         {
-                            <span class="overdue-pill">@_overdueCount overdue</span>
+                            <span class="overdue-pill">@_stats.OverdueCount overdue</span>
                         }
                     </p>
                 </div>
             </div>
-
             <div class="dash-header-actions">
                 <MudButton Variant="Variant.Outlined"
-                    Color="Color.Primary"
-                    StartIcon="@Icons.Material.Outlined.Add"
-                    Size="Size.Small"
-                    OnClick="OpenCreateWorkspace"
-                    Class="header-action-btn">
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Outlined.Add"
+                           Size="Size.Small"
+                           OnClick="OpenCreateWorkspace"
+                           Class="header-action-btn">
                     New workspace
                 </MudButton>
             </div>
@@ -58,32 +53,20 @@ else
         <!-- ── STAT STRIP ──────────────────────────────────────── -->
         <div class="stat-strip">
             <div class="stat-card">
-                <div class="stat-value">@_assignedCount</div>
+                <div class="stat-value">@_stats.AssignedCount</div>
                 <div class="stat-label">Assigned to me</div>
-                <div class="stat-bar-track">
-                    <div class="stat-bar-fill stat-fill-primary" style="width:@(Math.Min((_assignedCount / 10.0) * 100, 100))%"></div>
-                </div>
             </div>
             <div class="stat-card">
-                <div class="stat-value stat-urgent">@_overdueCount</div>
+                <div class="stat-value stat-urgent">@_stats.OverdueCount</div>
                 <div class="stat-label">Overdue</div>
-                <div class="stat-bar-track">
-                    <div class="stat-bar-fill stat-fill-error" style="width:@(Math.Min((_overdueCount / 5.0) * 100, 100))%"></div>
-                </div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">@_inProgressCount</div>
+                <div class="stat-value">@_stats.InProgressCount</div>
                 <div class="stat-label">In progress</div>
-                <div class="stat-bar-track">
-                    <div class="stat-bar-fill stat-fill-info" style="width:@(Math.Min((_inProgressCount / 10.0) * 100, 100))%"></div>
-                </div>
             </div>
             <div class="stat-card">
-                <div class="stat-value stat-success">@_workspaceCount</div>
-                <div class="stat-label">Workspace@(_workspaceCount != 1 ? "s" : "")</div>
-                <div class="stat-bar-track">
-                    <div class="stat-bar-fill stat-fill-success" style="width:@(Math.Min((_workspaceCount / 5.0) * 100, 100))%"></div>
-                </div>
+                <div class="stat-value stat-success">@_stats.WorkspaceCount</div>
+                <div class="stat-label">Workspace@(_stats.WorkspaceCount != 1 ? "s" : "")</div>
             </div>
         </div>
 
@@ -93,27 +76,25 @@ else
             <!-- LEFT COL: My issues -->
             <div class="dash-col-main">
 
-                <!-- My issues header -->
                 <div class="section-header">
                     <div class="section-title-group">
                         <span class="section-label">My issues</span>
-                        @if (_urgentIssues.Any())
+                        @if (_issues.HighPriority.Any())
                         {
-                            <span class="urgent-badge">@_urgentIssues.Count urgent</span>
+                            <span class="urgent-badge">@_issues.HighPriority.Count urgent</span>
                         }
                     </div>
                     <div class="section-filters">
                         @foreach (var f in _filters)
                         {
-                            <button class="filter-pill @(_activeFilter == f ? "filter-active" : "")"
-                                    @onclick="() => SetFilter(f)">
-                                @f
+                            <button class="filter-pill @(_activeFilter == f.Key ? "filter-active" : "")"
+                                    @onclick="() => _activeFilter = f.Key">
+                                @f.Label
                             </button>
                         }
                     </div>
                 </div>
 
-                <!-- Issue list -->
                 <div class="issue-list">
                     @{
                         var displayed = GetFilteredIssues();
@@ -121,7 +102,8 @@ else
                     @if (!displayed.Any())
                     {
                         <div class="issue-empty">
-                            <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Style="font-size:32px; color:var(--mud-palette-success); opacity:0.6" />
+                            <MudIcon Icon="@Icons.Material.Outlined.CheckCircle"
+                                     Style="font-size:32px; color:var(--mud-palette-success); opacity:0.6" />
                             <MudText Typo="Typo.body2" Class="mud-text-disabled mt-2">
                                 No issues here — you're clear.
                             </MudText>
@@ -134,7 +116,7 @@ else
                             <div class="issue-row @(issue.IsOverdue ? "issue-overdue" : "")"
                                  @onclick="() => NavigateToIssue(issue)">
                                 <div class="issue-row-left">
-                                    <div class="issue-status-dot status-@issue.StatusClass"></div>
+                                    <div class="issue-status-dot status-@StatusCss(issue.Status)"></div>
                                     <div class="issue-content">
                                         <div class="issue-row-meta">
                                             <span class="issue-key">@issue.Key</span>
@@ -148,7 +130,9 @@ else
                                     </div>
                                 </div>
                                 <div class="issue-row-right">
-                                    <span class="issue-pri pri-@issue.PriorityClass">@issue.PriorityLabel</span>
+                                    <span class="issue-pri pri-@PriorityCss(issue.Priority)">
+                                        @issue.Priority
+                                    </span>
                                     @if (issue.DueDate.HasValue)
                                     {
                                         <span class="issue-due @(issue.IsOverdue ? "due-overdue" : "")">
@@ -168,23 +152,21 @@ else
             <!-- RIGHT COL: Workspaces + jump links -->
             <div class="dash-col-side">
 
-                <!-- Workspaces -->
                 <div class="side-section">
                     <div class="section-header">
                         <span class="section-label">Workspaces</span>
                         <MudIconButton Icon="@Icons.Material.Outlined.Add"
-                            Size="Size.Small"
-                            Color="Color.Primary"
-                            OnClick="OpenCreateWorkspace"
-                            Title="New workspace" />
+                                       Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="OpenCreateWorkspace"
+                                       Title="New workspace" />
                     </div>
-
                     <div class="workspace-list">
                         @foreach (var ws in _workspaces)
                         {
-                            <div class="workspace-card" @onclick="() => NavigateToWorkspace(ws)">
-                                <div class="ws-icon" style="background:@ws.AvatarColor">
-                                    @ws.Initials
+                            <div class="workspace-card" @onclick="() => OpenWorkspace(ws.Slug)">
+                                <div class="ws-icon" style="background:@PickAvatarColor(ws.Id)">
+                                    @GetInitials(ws.Name)
                                 </div>
                                 <div class="ws-info">
                                     <div class="ws-name">@ws.Name</div>
@@ -193,13 +175,12 @@ else
                                         · @ws.MemberCount member@(ws.MemberCount != 1 ? "s" : "")
                                     </div>
                                 </div>
-                                <div class="ws-role @ws.RoleCssClass">@ws.RoleLabel</div>
+                                <div class="@RoleCss(ws.Role)">@ws.Role</div>
                             </div>
                         }
                     </div>
                 </div>
 
-                <!-- Recent projects -->
                 @if (_recentProjects.Any())
                 {
                     <div class="side-section">
@@ -209,7 +190,9 @@ else
                         <div class="project-list">
                             @foreach (var p in _recentProjects)
                             {
-                                <div class="project-row" @onclick="() => NavigateToProject(p)">
+                                <div class="project-row"
+                                    @onclick="() => OpenProject(p.WorkspaceSlug,p.Id)">
+                                     
                                     <div class="project-key-badge">@p.KeyPrefix</div>
                                     <div class="project-info">
                                         <div class="project-name">@p.Name</div>
@@ -227,12 +210,10 @@ else
                 }
 
             </div>
-
         </div>
     </div>
 }
 
-<!-- CREATE WORKSPACE DIALOG -->
 <CreateWorkspaceDialog
     @bind-Open="_createWorkspaceOpen"
     OnOpenChangeWorkspaceDialog="OnOpenChangeWorkspaceDialog" />
@@ -240,671 +221,151 @@ else
 <style>
     @@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@@0;1&family=DM+Mono:wght@@400;500&family=DM+Sans:wght@@300;400;500;600&display=swap');
 
-    /* ── SHARED ────────────────────────────────────────────────────────── */
-    .field-group   { display: flex; flex-direction: column; gap: 6px; }
-    .field-label   {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--mud-palette-text-primary);
-        font-family: 'DM Sans', system-ui, sans-serif;
-    }
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 12px; font-weight: 600; color: var(--mud-palette-text-primary); font-family: 'DM Sans', system-ui, sans-serif; }
+    .auth-field .mud-input-outlined .mud-notched-outline { border-radius: 10px !important; }
 
-    .auth-field .mud-input-outlined .mud-notched-outline {
-        border-radius: 10px !important;
-    }
+    .empty-shell { min-height: calc(100vh - 64px); display: flex; align-items: flex-start; justify-content: center; padding: 64px 40px; background: var(--mud-palette-background); }
+    .empty-inner { width: 100%; max-width: 760px; display: flex; flex-direction: column; gap: 48px; animation: card-rise 0.5s cubic-bezier(.4,0,.2,1) both; }
 
-    /* ── EMPTY STATE ───────────────────────────────────────────────────── */
-    .empty-shell {
-        min-height: calc(100vh - 64px);
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 64px 40px;
-        background: var(--mud-palette-background);
-    }
+    @@keyframes card-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
-    .empty-inner {
-        width: 100%;
-        max-width: 760px;
-        display: flex;
-        flex-direction: column;
-        gap: 48px;
-        animation: card-rise 0.5s cubic-bezier(.4,0,.2,1) both;
-    }
+    .empty-eyebrow { display: flex; align-items: center; gap: 10px; }
+    .user-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--mud-palette-primary); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; }
+    .eyebrow-text { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mud-palette-text-disabled); text-transform: uppercase; letter-spacing: 0.08em; }
+    .empty-headline { font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(2.4rem, 4vw, 3.6rem); line-height: 1.1; letter-spacing: -0.02em; color: var(--mud-palette-text-primary); margin: 0 0 16px; }
+    .empty-sub { font-size: 1rem; color: var(--mud-palette-text-secondary); line-height: 1.7; max-width: 540px; margin: 0; }
+    .empty-cta-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .cta-btn { border-radius: 10px !important; height: 48px !important; font-size: 14px !important; letter-spacing: 0 !important; padding: 0 28px !important; }
 
-    @@keyframes card-rise {
-        from { opacity: 0; transform: translateY(16px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
+    .dash-shell { max-width: 1160px; margin: 0 auto; padding: 40px 40px 80px; display: flex; flex-direction: column; gap: 32px; animation: card-rise 0.4s cubic-bezier(.4,0,.2,1) both; }
 
-    .empty-eyebrow {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
+    .dash-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .dash-greeting { display: flex; align-items: center; gap: 14px; }
+    .greeting-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--mud-palette-primary); color: white; font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .greeting-name { font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(1.6rem, 2.5vw, 2.2rem); letter-spacing: -0.02em; color: var(--mud-palette-text-primary); margin: 0 0 2px; line-height: 1.15; }
+    .greeting-sub { font-size: 13px; color: var(--mud-palette-text-secondary); margin: 0; display: flex; align-items: center; gap: 8px; }
+    .overdue-pill { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; background: rgba(220,38,38,0.1); color: var(--mud-palette-error); border: 1px solid rgba(220,38,38,0.2); padding: 2px 8px; border-radius: 99px; }
+    .header-action-btn { border-radius: 8px !important; white-space: nowrap; }
 
-    .user-dot {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: var(--mud-palette-primary);
-        color: white;
-        font-size: 10px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: 'DM Mono', monospace;
-    }
-
-    .eyebrow-text {
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        color: var(--mud-palette-text-disabled);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-
-    .empty-headline {
-        font-family: 'DM Serif Display', Georgia, serif;
-        font-size: clamp(2.4rem, 4vw, 3.6rem);
-        line-height: 1.1;
-        letter-spacing: -0.02em;
-        color: var(--mud-palette-text-primary);
-        margin: 0 0 16px;
-    }
-
-    .empty-sub {
-        font-size: 1rem;
-        color: var(--mud-palette-text-secondary);
-        line-height: 1.7;
-        max-width: 540px;
-        margin: 0;
-    }
-
-    .empty-cta-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-
-    .cta-btn {
-        border-radius: 10px !important;
-        height: 48px !important;
-        font-size: 14px !important;
-        letter-spacing: 0 !important;
-        padding: 0 28px !important;
-    }
-
-    
-    /* ── RETURNING USER DASHBOARD ──────────────────────────────────────── */
-    .dash-shell {
-        max-width: 1160px;
-        margin: 0 auto;
-        padding: 40px 40px 80px;
-        display: flex;
-        flex-direction: column;
-        gap: 32px;
-        animation: card-rise 0.4s cubic-bezier(.4,0,.2,1) both;
-    }
-
-    /* Header */
-    .dash-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
-    }
-
-    .dash-greeting {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-
-    .greeting-avatar {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: var(--mud-palette-primary);
-        color: white;
-        font-family: 'DM Mono', monospace;
-        font-size: 14px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .greeting-name {
-        font-family: 'DM Serif Display', Georgia, serif;
-        font-size: clamp(1.6rem, 2.5vw, 2.2rem);
-        letter-spacing: -0.02em;
-        color: var(--mud-palette-text-primary);
-        margin: 0 0 2px;
-        line-height: 1.15;
-    }
-
-    .greeting-sub {
-        font-size: 13px;
-        color: var(--mud-palette-text-secondary);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .overdue-pill {
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        font-weight: 500;
-        background: rgba(220,38,38,0.1);
-        color: var(--mud-palette-error);
-        border: 1px solid rgba(220,38,38,0.2);
-        padding: 2px 8px;
-        border-radius: 99px;
-    }
-
-    .header-action-btn {
-        border-radius: 8px !important;
-        white-space: nowrap;
-    }
-
-    /* Stat strip */
-    .stat-strip {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-    }
-
-    .stat-card {
-        background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider);
-        border-radius: 12px;
-        padding: 18px 20px 14px;
-        transition: border-color 0.15s;
-    }
-
+    .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .stat-card { background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider); border-radius: 12px; padding: 18px 20px 14px; transition: border-color 0.15s; }
     .stat-card:hover { border-color: var(--mud-palette-primary); }
-
-    .stat-value {
-        font-family: 'DM Serif Display', Georgia, serif;
-        font-size: 2.2rem;
-        line-height: 1;
-        letter-spacing: -0.02em;
-        color: var(--mud-palette-text-primary);
-        margin-bottom: 4px;
-    }
-
-    .stat-urgent  { color: var(--mud-palette-error); }
+    .stat-value { font-family: 'DM Serif Display', Georgia, serif; font-size: 2.2rem; line-height: 1; letter-spacing: -0.02em; color: var(--mud-palette-text-primary); margin-bottom: 4px; }
+    .stat-urgent { color: var(--mud-palette-error); }
     .stat-success { color: var(--mud-palette-success); }
+    .stat-label { font-size: 12px; color: var(--mud-palette-text-secondary); margin-bottom: 12px; font-weight: 500; }
 
-    .stat-label {
-        font-size: 12px;
-        color: var(--mud-palette-text-secondary);
-        margin-bottom: 12px;
-        font-weight: 500;
-    }
+    .dash-grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: flex-start; }
+    .dash-col-main, .dash-col-side { display: flex; flex-direction: column; gap: 24px; }
 
-    .stat-bar-track {
-        height: 3px;
-        background: var(--mud-palette-lines-default);
-        border-radius: 99px;
-        overflow: hidden;
-    }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .section-title-group { display: flex; align-items: center; gap: 10px; }
+    .section-label { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mud-palette-text-disabled); }
+    .urgent-badge { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; background: rgba(220,38,38,0.1); color: var(--mud-palette-error); border: 1px solid rgba(220,38,38,0.15); padding: 2px 8px; border-radius: 99px; }
 
-    .stat-bar-fill {
-        height: 100%;
-        border-radius: 99px;
-        transition: width 1s cubic-bezier(.4,0,.2,1);
-    }
+    .section-filters { display: flex; gap: 4px; }
+    .filter-pill { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--mud-palette-divider); background: transparent; color: var(--mud-palette-text-disabled); cursor: pointer; transition: all 0.15s; }
+    .filter-pill:hover { border-color: var(--mud-palette-primary); color: var(--mud-palette-primary); }
+    .filter-active { background: var(--mud-palette-primary-lighten); border-color: var(--mud-palette-primary); color: var(--mud-palette-primary); }
 
-    .stat-fill-primary { background: var(--mud-palette-primary); }
-    .stat-fill-error   { background: var(--mud-palette-error); }
-    .stat-fill-info    { background: var(--mud-palette-info); }
-    .stat-fill-success { background: var(--mud-palette-success); }
-
-    /* Main grid */
-    .dash-grid {
-        display: grid;
-        grid-template-columns: 1fr 340px;
-        gap: 24px;
-        align-items: flex-start;
-    }
-
-    .dash-col-main,
-    .dash-col-side {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
-
-    /* Section headers */
-    .section-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .section-title-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .section-label {
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--mud-palette-text-disabled);
-    }
-
-    .urgent-badge {
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        font-weight: 500;
-        background: rgba(220,38,38,0.1);
-        color: var(--mud-palette-error);
-        border: 1px solid rgba(220,38,38,0.15);
-        padding: 2px 8px;
-        border-radius: 99px;
-    }
-
-    /* Filter pills */
-    .section-filters {
-        display: flex;
-        gap: 4px;
-    }
-
-    .filter-pill {
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        font-weight: 500;
-        padding: 3px 10px;
-        border-radius: 99px;
-        border: 1px solid var(--mud-palette-divider);
-        background: transparent;
-        color: var(--mud-palette-text-disabled);
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-
-    .filter-pill:hover {
-        border-color: var(--mud-palette-primary);
-        color: var(--mud-palette-primary);
-    }
-
-    .filter-active {
-        background: var(--mud-palette-primary-lighten);
-        border-color: var(--mud-palette-primary);
-        color: var(--mud-palette-primary);
-    }
-
-    /* Issue list */
-    .issue-list {
-        background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .issue-empty {
-        padding: 48px 24px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-    }
-
-    .issue-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 14px 16px;
-        border-bottom: 1px solid var(--mud-palette-divider);
-        cursor: pointer;
-        transition: background 0.12s;
-    }
-
+    .issue-list { background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider); border-radius: 12px; overflow: hidden; }
+    .issue-empty { padding: 48px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .issue-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--mud-palette-divider); cursor: pointer; transition: background 0.12s; }
     .issue-row:last-child { border-bottom: none; }
-    .issue-row:hover      { background: var(--mud-palette-background-grey); }
-
-    .issue-row-left {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        flex: 1;
-        min-width: 0;
-    }
-
-    /* Status dot */
-    .issue-status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        margin-top: 6px;
-    }
-
-    .status-backlog    { background: var(--mud-palette-text-disabled); }
-    .status-todo       { background: var(--mud-palette-info); }
-    .status-inprogress {
-        background: var(--mud-palette-primary);
-        box-shadow: 0 0 0 2px var(--mud-palette-primary-lighten);
-    }
-    .status-inreview   { background: var(--mud-palette-warning); }
-    .status-done       { background: var(--mud-palette-success); }
-
+    .issue-row:hover { background: var(--mud-palette-background-grey); }
+    .issue-row-left { display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 0; }
+    .issue-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+    .status-backlog { background: var(--mud-palette-text-disabled); }
+    .status-todo { background: var(--mud-palette-info); }
+    .status-inprogress { background: var(--mud-palette-primary); box-shadow: 0 0 0 2px var(--mud-palette-primary-lighten); }
+    .status-inreview { background: var(--mud-palette-warning); }
+    .status-done { background: var(--mud-palette-success); }
     .issue-content { flex: 1; min-width: 0; }
-
-    .issue-row-meta {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 3px;
-        flex-wrap: wrap;
-    }
-
-    .issue-key {
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        color: var(--mud-palette-primary);
-        font-weight: 500;
-    }
-
-    .issue-project {
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        color: var(--mud-palette-text-disabled);
-    }
-
-    .issue-overdue-tag {
-        font-family: 'DM Mono', monospace;
-        font-size: 9px;
-        background: rgba(220,38,38,0.1);
-        color: var(--mud-palette-error);
-        padding: 1px 5px;
-        border-radius: 3px;
-    }
-
-    .issue-row-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--mud-palette-text-primary);
-        line-height: 1.4;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .issue-row-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-shrink: 0;
-    }
-
-    /* Priority chips */
-    .issue-pri {
-        font-family: 'DM Mono', monospace;
-        font-size: 9px;
-        font-weight: 500;
-        padding: 2px 6px;
-        border-radius: 3px;
-        white-space: nowrap;
-    }
-
+    .issue-row-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; flex-wrap: wrap; }
+    .issue-key { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mud-palette-primary); font-weight: 500; }
+    .issue-project { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mud-palette-text-disabled); }
+    .issue-overdue-tag { font-family: 'DM Mono', monospace; font-size: 9px; background: rgba(220,38,38,0.1); color: var(--mud-palette-error); padding: 1px 5px; border-radius: 3px; }
+    .issue-row-title { font-size: 13px; font-weight: 500; color: var(--mud-palette-text-primary); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .issue-row-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .issue-pri { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
     .pri-urgent { background: rgba(220,38,38,0.12); color: var(--mud-palette-error); }
-    .pri-high   { background: rgba(217,119,6,0.12); color: var(--mud-palette-warning); }
-    .pri-medium { background: rgba(37,99,235,0.1);  color: var(--mud-palette-info); }
-    .pri-low    { background: var(--mud-palette-lines-default); color: var(--mud-palette-text-disabled); }
-
-    .issue-due {
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        color: var(--mud-palette-text-disabled);
-        white-space: nowrap;
-    }
-
+    .pri-high { background: rgba(217,119,6,0.12); color: var(--mud-palette-warning); }
+    .pri-medium { background: rgba(37,99,235,0.1); color: var(--mud-palette-info); }
+    .pri-low { background: var(--mud-palette-lines-default); color: var(--mud-palette-text-disabled); }
+    .issue-due { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mud-palette-text-disabled); white-space: nowrap; }
     .due-overdue { color: var(--mud-palette-error) !important; }
-
-    /* Overdue row highlight */
     .issue-overdue { border-left: 2px solid var(--mud-palette-error); }
 
-    /* Side sections */
-    .side-section {
-        background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider);
-        border-radius: 12px;
-        padding: 18px 16px;
-    }
-
-    /* Workspace cards */
+    .side-section { background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider); border-radius: 12px; padding: 18px 16px; }
     .workspace-list { display: flex; flex-direction: column; gap: 8px; }
-
-    .workspace-card {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid var(--mud-palette-divider);
-        cursor: pointer;
-        transition: border-color 0.15s, background 0.12s;
-        background: var(--mud-palette-background);
-    }
-
-    .workspace-card:hover {
-        border-color: var(--mud-palette-primary);
-        background: var(--mud-palette-primary-lighten);
-    }
-
-    .ws-icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        color: white;
-        font-family: 'DM Mono', monospace;
-        font-size: 11px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
+    .workspace-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--mud-palette-divider); cursor: pointer; transition: border-color 0.15s, background 0.12s; background: var(--mud-palette-background); }
+    .workspace-card:hover { border-color: var(--mud-palette-primary); background: var(--mud-palette-primary-lighten); }
+    .ws-icon { width: 32px; height: 32px; border-radius: 8px; color: white; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .ws-info { flex: 1; min-width: 0; }
+    .ws-name { font-size: 13px; font-weight: 600; color: var(--mud-palette-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ws-meta { font-size: 11px; color: var(--mud-palette-text-disabled); font-family: 'DM Mono', monospace; }
+    .ws-role { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 99px; flex-shrink: 0; }
+    .role-owner { background: rgba(146,64,14,0.1); color: var(--mud-palette-warning); border: 1px solid rgba(146,64,14,0.2); }
+    .role-admin { background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary); border: 1px solid rgba(67,57,202,0.2); }
+    .role-member { background: rgba(26,122,82,0.1); color: var(--mud-palette-success); border: 1px solid rgba(26,122,82,0.2); }
 
-    .ws-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--mud-palette-text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .ws-meta {
-        font-size: 11px;
-        color: var(--mud-palette-text-disabled);
-        font-family: 'DM Mono', monospace;
-    }
-
-    .ws-role {
-        font-family: 'DM Mono', monospace;
-        font-size: 9px;
-        font-weight: 500;
-        padding: 2px 7px;
-        border-radius: 99px;
-        flex-shrink: 0;
-    }
-
-    .role-owner  { background: rgba(146,64,14,0.1);  color: var(--mud-palette-warning); border: 1px solid rgba(146,64,14,0.2); }
-    .role-admin  { background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary); border: 1px solid rgba(67,57,202,0.2); }
-    .role-member { background: rgba(26,122,82,0.1);  color: var(--mud-palette-success); border: 1px solid rgba(26,122,82,0.2); }
-
-    /* Recent projects */
     .project-list { display: flex; flex-direction: column; gap: 6px; }
-
-    .project-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.12s;
-    }
-
+    .project-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.12s; }
     .project-row:hover { background: var(--mud-palette-background-grey); }
-
-    .project-key-badge {
-        font-family: 'DM Mono', monospace;
-        font-size: 9px;
-        font-weight: 600;
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: var(--mud-palette-primary-lighten);
-        color: var(--mud-palette-primary);
-        flex-shrink: 0;
-    }
-
+    .project-key-badge { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: var(--mud-palette-primary-lighten); color: var(--mud-palette-primary); flex-shrink: 0; }
     .project-info { flex: 1; min-width: 0; }
+    .project-name { font-size: 12px; font-weight: 600; color: var(--mud-palette-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .project-ws { font-size: 11px; color: var(--mud-palette-text-disabled); font-family: 'DM Mono', monospace; }
+    .project-open-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mud-palette-text-disabled); display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 
-    .project-name {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--mud-palette-text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .project-ws {
-        font-size: 11px;
-        color: var(--mud-palette-text-disabled);
-        font-family: 'DM Mono', monospace;
-    }
-
-    .project-open-count {
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        color: var(--mud-palette-text-disabled);
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        flex-shrink: 0;
-    }
-
-    /* ── RESPONSIVE ────────────────────────────────────────────────────── */
     @@media (max-width: 960px) {
-        .dash-shell  { padding: 24px 20px 60px; }
-        .dash-grid   { grid-template-columns: 1fr; }
-        .stat-strip  { grid-template-columns: repeat(2, 1fr); }
-        .concept-grid { grid-template-columns: 1fr 1fr; }
-        .ghost-kanban { grid-template-columns: 1fr 1fr; }
-        .empty-shell  { padding: 40px 20px; }
+        .dash-shell { padding: 24px 20px 60px; }
+        .dash-grid { grid-template-columns: 1fr; }
+        .stat-strip { grid-template-columns: repeat(2, 1fr); }
+        .empty-shell { padding: 40px 20px; }
     }
 
     @@media (max-width: 600px) {
-        .stat-strip   { grid-template-columns: 1fr 1fr; }
-        .concept-grid { grid-template-columns: 1fr; }
-        .ghost-kanban { grid-template-columns: 1fr; }
-        .dash-header  { flex-direction: column; align-items: flex-start; }
+        .stat-strip { grid-template-columns: 1fr 1fr; }
+        .dash-header { flex-direction: column; align-items: flex-start; }
     }
 </style>
 
 @code {
-    // ── Page state ───────────────────────────────────────────────────────
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationState { get; set; }
 
-    private bool _loading = true;
+    // ── Page state ───────────────────────────────────────────────────────
+    private bool _loading        = true;
     private bool _isFirstTimeUser;
 
     protected string _userName     = "there";
     protected string _userInitials = "?";
     protected string _greeting     = "Good morning";
 
-    private int _assignedCount;
-    private int _overdueCount;
-    private int _inProgressCount;
-    private int _workspaceCount;
+    // Bound directly from DashboardDto — no client-side computation
+    private DashboardStatsDto            _stats          = new();
+    private List<DashboardWorkspaceDto>  _workspaces     = [];
+    private List<DashboardProjectDto>    _recentProjects = [];
+    private DashboardIssuesDto           _issues         = new();
 
-    private string _activeFilter           = "All";
-    private readonly string[] _filters     = ["All", "In Progress", "Overdue", "High priority"];
+    private bool _createWorkspaceOpen;
 
-    // View-model lists derived from server DTOs
-    private List<DashIssue>     _myIssues       = [];
-    private List<DashIssue>     _urgentIssues   = [];
-    private List<DashWorkspace> _workspaces     = [];
-    private List<DashProject>   _recentProjects = [];
+    // ── Filter tab model ─────────────────────────────────────────────────
+    // Enum key maps 1-to-1 with the server-grouped buckets in DashboardIssuesDto,
+    // so switching filter tabs is just picking a different list — no LINQ needed.
+    private enum IssueFilter { All, InProgress, Overdue, HighPriority }
 
-    // Dialog
-    private bool  _createWorkspaceOpen;
+    private IssueFilter _activeFilter = IssueFilter.All;
 
-    // ── View models ──────────────────────────────────────────────────────
-    // Flat view models the UI binds to — mapped from server DTOs.
-    // Keeps the template free of enum switches and string formatting logic.
-
-    private sealed record DashIssue(
-        Guid          Id,
-        Guid          ProjectId,
-        string        Key,
-        string        Title,
-        string        ProjectName,
-        string        WorkspaceSlug,
-        IssueStatus   Status,
-        IssuePriority Priority,
-        IssueType     Type,
-        string?       AssigneeDisplayName,
-        DateTime?     DueDate,
-        bool          IsOverdue,
-        // Pre-computed CSS tokens
-        string StatusClass,
-        string PriorityClass,
-        string StatusLabel,
-        string PriorityLabel
-    );
-
-    private sealed record DashWorkspace(
-        Guid          Id,
-        string        Slug,
-        string        Name,
-        string        Initials,
-        string        AvatarColor,   // deterministic colour from name hash
-        WorkspaceRole Role,
-        int           ProjectCount,
-        int           MemberCount
-    )
-    {
-        public string RoleLabel   => Role.ToString();
-        public string RoleCssClass => Role switch
-        {
-            WorkspaceRole.Owner  => "role-owner",
-            WorkspaceRole.Admin  => "role-admin",
-            _                   => "role-member"
-        };
-    }
-
-    private sealed record DashProject(
-        Guid   Id,
-        Guid   WorkspaceId,
-        string WorkspaceSlug,
-        string WorkspaceName,
-        string KeyPrefix,
-        string Name,
-        int    OpenIssueCount   // IssueCount from ProjectDto (all non-done)
-    );
+    private static readonly (IssueFilter Key, string Label)[] _filters =
+    [
+        (IssueFilter.All,          "All"),
+        (IssueFilter.InProgress,   "In Progress"),
+        (IssueFilter.Overdue,      "Overdue"),
+        (IssueFilter.HighPriority, "High priority"),
+    ];
 
     // ── Lifecycle ────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
@@ -930,178 +391,46 @@ else
 
         try
         {
-            // ── Real implementation (wire up once services exist) ──────────
-            //
-            // 1. Current user
-            // UserDto me = await AuthService.GetMeAsync();
-            // _userName     = FirstName(me.DisplayName);
-            // _userInitials = GetInitials(me.DisplayName);
-            //
-            // 2. Workspaces  →  GET /api/workspaces  returns List<WorkspaceDto>
-            // List<WorkspaceDto> workspaceDtos = await WorkspaceService.GetAllAsync();
-            // if (!workspaceDtos.Any()) { _isFirstTimeUser = true; return; }
-            //
-            // _workspaces     = workspaceDtos.Select(MapWorkspace).ToList();
-            // _workspaceCount = _workspaces.Count;
-            //
-            // 3. Projects per workspace  →  GET /api/workspaces/{id}/projects  returns List<ProjectDto>
-            // var projectsByWs = new Dictionary<Guid, (WorkspaceDto Ws, List<ProjectDto> Projects)>();
-            // foreach (var ws in workspaceDtos)
-            // {
-            //     var projects = await ProjectService.GetByWorkspaceAsync(ws.Id);
-            //     projectsByWs[ws.Id] = (ws, projects);
-            // }
-            //
-            // _recentProjects = projectsByWs.Values
-            //     .SelectMany(x => x.Projects.Select(p => MapProject(p, x.Ws)))
-            //     .OrderByDescending(p => p.OpenIssueCount)
-            //     .Take(5)
-            //     .ToList();
-            //
-            // 4. Issues assigned to me  →  GET /api/projects/{id}/issues?assigneeId={me.Id}&excludeStatus=Done
-            //    IssueDto has: Id, ProjectId, Key, Title, Status (IssueStatus enum), Priority (IssuePriority enum),
-            //                  Type (IssueType enum), AssigneeId, AssigneeDisplayName, DueDate, Labels, etc.
-            //
-            // var allIssues = new List<DashIssue>();
-            // foreach (var (ws, projects) in projectsByWs.Values)
-            //     foreach (var project in projects)
-            //     {
-            //         var issues = await IssueService.GetByProjectAsync(
-            //             project.Id,
-            //             assigneeId: me.Id,
-            //             excludeStatuses: [IssueStatus.Done]);
-            //         allIssues.AddRange(issues.Select(i => MapIssue(i, project.Name, ws.Slug)));
-            //     }
-            //
-            // _myIssues = allIssues
-            //     .OrderBy(i => i.IsOverdue ? 0 : 1)
-            //     .ThenBy(i => PriorityOrder(i.Priority))
-            //     .ToList();
-            //
-            // _urgentIssues    = _myIssues.Where(i => i.Priority is IssuePriority.Urgent or IssuePriority.High).ToList();
-            // _assignedCount   = _myIssues.Count;
-            // _overdueCount    = _myIssues.Count(i => i.IsOverdue);
-            // _inProgressCount = _myIssues.Count(i => i.Status == IssueStatus.InProgress);
-            // ─────────────────────────────────────────────────────────────
+            // ── Resolve display name from the auth state cascade ──────────
+            // This reads the claims that your JWT authentication handler
+            // puts into the ClaimsPrincipal — adjust claim names to match
+            // whatever your token uses ("name", "displayName", "given_name").
+            if (AuthenticationState is not null)
+            {
+                var authState = await AuthenticationState;
+                var user      = authState.User;
 
-            // ── MOCK — delete once services are wired ─────────────────────
-            await Task.Delay(700);
+                if (user.Identity?.IsAuthenticated == true)
+                {
+                    var displayName = user.FindFirst("name")?.Value
+                                   ?? user.FindFirst("displayName")?.Value
+                                   ?? user.Identity.Name
+                                   ?? "there";
 
-            _userName     = "Booker";
-            _userInitials = "BK";
+                    _userName     = FirstName(displayName);
+                    _userInitials = GetInitials(displayName);
+                }
+            }
 
-            // Set to true to preview the empty / first-time state
-            _isFirstTimeUser = false;
+            // ── Single API call ───────────────────────────────────────────
+            // GET /api/dashboard — returns DashboardDto
+            var summary = await DashboardService.GetDashboardAsync();
+
+            if (summary is null)
+            {
+                Snackbar.Add("Could not load dashboard data.", Severity.Error);
+                return;
+            }
+
+            _isFirstTimeUser = summary.IsFirstTimeUser;
 
             if (!_isFirstTimeUser)
             {
-                // Simulate WorkspaceDto responses
-                var wsDto1 = new WorkspaceDto
-                {
-                    Id              = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                    Name            = "VectorFlow",
-                    Slug            = "vectorflow",
-                    OwnerId         = "user-booker",
-                    CreatedAt       = DateTime.UtcNow.AddMonths(-3),
-                    CurrentUserRole = WorkspaceRole.Owner,
-                    MemberCount     = 4,
-                    ProjectCount    = 3
-                };
-                var wsDto2 = new WorkspaceDto
-                {
-                    Id              = Guid.Parse("00000000-0000-0000-0000-000000000002"),
-                    Name            = "Acme Corp",
-                    Slug            = "acme-corp",
-                    OwnerId         = "user-alice",
-                    CreatedAt       = DateTime.UtcNow.AddMonths(-1),
-                    CurrentUserRole = WorkspaceRole.Admin,
-                    MemberCount     = 2,
-                    ProjectCount    = 1
-                };
-
-                _workspaces     = [MapWorkspace(wsDto1), MapWorkspace(wsDto2)];
-                _workspaceCount = _workspaces.Count;
-
-                // Simulate ProjectDto responses
-                var projectDtos = new List<(ProjectDto Project, WorkspaceDto Ws)>
-                {
-                    (new ProjectDto { Id = Guid.Parse("00000000-0000-0000-0000-000000000010"), WorkspaceId = wsDto1.Id, Name = "VectorFlow Backend", KeyPrefix = "VF",  IssueCount = 8,  CreatedAt = DateTime.UtcNow }, wsDto1),
-                    (new ProjectDto { Id = Guid.Parse("00000000-0000-0000-0000-000000000011"), WorkspaceId = wsDto1.Id, Name = "VectorFlow Client",  KeyPrefix = "VFC", IssueCount = 5,  CreatedAt = DateTime.UtcNow }, wsDto1),
-                    (new ProjectDto { Id = Guid.Parse("00000000-0000-0000-0000-000000000012"), WorkspaceId = wsDto2.Id, Name = "Acme Platform",      KeyPrefix = "AC",  IssueCount = 3,  CreatedAt = DateTime.UtcNow }, wsDto2),
-                };
-
-                _recentProjects = projectDtos
-                    .Select(x => MapProject(x.Project, x.Ws))
-                    .OrderByDescending(p => p.OpenIssueCount)
-                    .Take(5)
-                    .ToList();
-
-                // Simulate IssueDto responses (assigned to current user, status != Done)
-                var issueDtos = new List<(IssueDto Issue, string ProjectName, string WorkspaceSlug)>
-                {
-                    (new IssueDto
-                    {
-                        Id = Guid.NewGuid(), ProjectId = projectDtos[0].Project.Id,
-                        Key = "VF-05", Title = "Wire SignalR hub to issue service",
-                        Status = IssueStatus.InProgress, Priority = IssuePriority.High,
-                        Type = IssueType.Feature, AssigneeDisplayName = "Booker K.",
-                        DueDate = DateTime.Today.AddDays(-1),
-                        CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-                    }, "VectorFlow Backend", "vectorflow"),
-
-                    (new IssueDto
-                    {
-                        Id = Guid.NewGuid(), ProjectId = projectDtos[1].Project.Id,
-                        Key = "VFC-08", Title = "Add label filtering to board view",
-                        Status = IssueStatus.InProgress, Priority = IssuePriority.Medium,
-                        Type = IssueType.Feature, AssigneeDisplayName = "Booker K.",
-                        DueDate = DateTime.Today.AddDays(3),
-                        CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-                    }, "VectorFlow Client", "vectorflow"),
-
-                    (new IssueDto
-                    {
-                        Id = Guid.NewGuid(), ProjectId = projectDtos[0].Project.Id,
-                        Key = "VF-11", Title = "Write xUnit tests for WorkspaceService",
-                        Status = IssueStatus.Backlog, Priority = IssuePriority.High,
-                        Type = IssueType.Task, AssigneeDisplayName = "Booker K.",
-                        DueDate = DateTime.Today.AddDays(5),
-                        CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-                    }, "VectorFlow Backend", "vectorflow"),
-
-                    (new IssueDto
-                    {
-                        Id = Guid.NewGuid(), ProjectId = projectDtos[2].Project.Id,
-                        Key = "AC-02", Title = "Set up CI/CD pipeline",
-                        Status = IssueStatus.Todo, Priority = IssuePriority.Urgent,
-                        Type = IssueType.Task, AssigneeDisplayName = "Booker K.",
-                        DueDate = DateTime.Today.AddDays(-2),
-                        CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-                    }, "Acme Platform", "acme-corp"),
-
-                    (new IssueDto
-                    {
-                        Id = Guid.NewGuid(), ProjectId = projectDtos[1].Project.Id,
-                        Key = "VFC-09", Title = "Markdown preview in issue descriptions",
-                        Status = IssueStatus.Backlog, Priority = IssuePriority.Low,
-                        Type = IssueType.Feature, AssigneeDisplayName = "Booker K.",
-                        DueDate = null,
-                        CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-                    }, "VectorFlow Client", "vectorflow"),
-                };
-
-                _myIssues = issueDtos
-                    .Select(x => MapIssue(x.Issue, x.ProjectName, x.WorkspaceSlug))
-                    .OrderBy(i => i.IsOverdue ? 0 : 1)
-                    .ThenBy(i => PriorityOrder(i.Priority))
-                    .ToList();
-
-                _urgentIssues    = _myIssues.Where(i => i.Priority is IssuePriority.Urgent or IssuePriority.High).ToList();
-                _assignedCount   = _myIssues.Count;
-                _overdueCount    = _myIssues.Count(i => i.IsOverdue);
-                _inProgressCount = _myIssues.Count(i => i.Status == IssueStatus.InProgress);
+                _stats          = summary.Stats;
+                _workspaces     = summary.Workspaces;
+                _recentProjects = summary.RecentProjects;
+                _issues         = summary.Issues;
             }
-            // ── END MOCK ──────────────────────────────────────────────────
         }
         catch (Exception ex)
         {
@@ -1113,77 +442,41 @@ else
         }
     }
 
-    // ── DTO → View-model mappers ─────────────────────────────────────────
-
-    private static DashWorkspace MapWorkspace(WorkspaceDto dto) => new(
-        Id           : dto.Id,
-        Slug         : dto.Slug,
-        Name         : dto.Name,
-        Initials     : GetInitials(dto.Name),
-        AvatarColor  : PickAvatarColor(dto.Id),
-        Role         : dto.CurrentUserRole,
-        ProjectCount : dto.ProjectCount,
-        MemberCount  : dto.MemberCount
-    );
-
-    private static DashProject MapProject(ProjectDto dto, WorkspaceDto ws) => new(
-        Id             : dto.Id,
-        WorkspaceId    : ws.Id,
-        WorkspaceSlug  : ws.Slug,
-        WorkspaceName  : ws.Name,
-        KeyPrefix      : dto.KeyPrefix,
-        Name           : dto.Name,
-        OpenIssueCount : dto.IssueCount   // server returns total open issues in IssueCount
-    );
-
-    /// <summary>
-    /// Maps an <see cref="IssueDto"/> (received from GET /api/projects/{id}/issues)
-    /// to the flat dashboard view-model.
-    /// </summary>
-    private static DashIssue MapIssue(IssueDto dto, string projectName, string workspaceSlug)
+    // ── Filtering ─────────────────────────────────────────────────────────
+    // Server pre-grouped the buckets — just pick the right list.
+    private List<DashboardIssueDto> GetFilteredIssues() => _activeFilter switch
     {
-        var isOverdue = dto.DueDate.HasValue && dto.DueDate.Value.Date < DateTime.Today
-                        && dto.Status != IssueStatus.Done;
-        return new DashIssue(
-            Id                  : dto.Id,
-            ProjectId           : dto.ProjectId,
-            Key                 : dto.Key,
-            Title               : dto.Title,
-            ProjectName         : projectName,
-            WorkspaceSlug       : workspaceSlug,
-            Status              : dto.Status,
-            Priority            : dto.Priority,
-            Type                : dto.Type,
-            AssigneeDisplayName : dto.AssigneeDisplayName,
-            DueDate             : dto.DueDate,
-            IsOverdue           : isOverdue,
-            StatusClass         : StatusCssClass(dto.Status),
-            PriorityClass       : PriorityCssClass(dto.Priority),
-            StatusLabel         : StatusLabel(dto.Status),
-            PriorityLabel       : dto.Priority.ToString()
-        );
+        IssueFilter.InProgress   => _issues.InProgress,
+        IssueFilter.Overdue      => _issues.Overdue,
+        IssueFilter.HighPriority => _issues.HighPriority,
+        _                        => _issues.All,
+    };
+
+    // ── Navigation ────────────────────────────────────────────────────────
+    private void NavigateToIssue(DashboardIssueDto issue) =>
+        Nav.NavigateTo($"/w/{issue.WorkspaceSlug}/projects/{issue.ProjectId}/issues/{issue.Id}");
+
+    // ── Dialog ────────────────────────────────────────────────────────────
+    private void OpenCreateWorkspace() => _createWorkspaceOpen = true;
+
+    protected void OnOpenChangeWorkspaceDialog(bool show) =>
+        _createWorkspaceOpen = show;
+
+    private void OnCompleteWorkspaceCreation(string slug)
+    {
+        _createWorkspaceOpen = false;
+        Nav.NavigateTo($"/w/{slug}");
     }
 
-    // ── CSS / display helpers for enums ─────────────────────────────────
-
-    private static string StatusCssClass(IssueStatus s) => s switch
+    // ── CSS helpers ───────────────────────────────────────────────────────
+    private static string StatusCss(IssueStatus s) => s switch
     {
-        IssueStatus.Backlog    => "backlog",
-        IssueStatus.Todo       => "todo",
         IssueStatus.InProgress => "inprogress",
         IssueStatus.InReview   => "inreview",
-        IssueStatus.Done       => "done",
-        _                      => "backlog"
+        _                      => s.ToString().ToLower()
     };
 
-    private static string StatusLabel(IssueStatus s) => s switch
-    {
-        IssueStatus.InProgress => "In Progress",
-        IssueStatus.InReview   => "In Review",
-        _                      => s.ToString()
-    };
-
-    private static string PriorityCssClass(IssuePriority p) => p switch
+    private static string PriorityCss(IssuePriority p) => p switch
     {
         IssuePriority.Urgent => "urgent",
         IssuePriority.High   => "high",
@@ -1192,55 +485,29 @@ else
         _                    => "low"
     };
 
-    /// <summary>Lower = shown first in the list.</summary>
-    private static int PriorityOrder(IssuePriority p) => p switch
+    private static string RoleCss(WorkspaceRole r) => r switch
     {
-        IssuePriority.Urgent => 0,
-        IssuePriority.High   => 1,
-        IssuePriority.Medium => 2,
-        IssuePriority.Low    => 3,
-        _                    => 4
+        WorkspaceRole.Owner => "ws-role role-owner",
+        WorkspaceRole.Admin => "ws-role role-admin",
+        _                   => "ws-role role-member"
     };
 
-    // ── Filtering ────────────────────────────────────────────────────────
-    private void SetFilter(string filter) => _activeFilter = filter;
-
-    private List<DashIssue> GetFilteredIssues() => _activeFilter switch
+    // ── Display helpers ───────────────────────────────────────────────────
+    private void OpenWorkspace(string slug)
     {
-        "In Progress"   => _myIssues.Where(i => i.Status == IssueStatus.InProgress).ToList(),
-        "Overdue"       => _myIssues.Where(i => i.IsOverdue).ToList(),
-        "High priority" => _myIssues.Where(i => i.Priority is IssuePriority.Urgent or IssuePriority.High).ToList(),
-        _               => _myIssues
-    };
-
-    // ── Navigation ───────────────────────────────────────────────────────
-    private void NavigateToIssue(DashIssue issue) =>
-        Nav.NavigateTo($"/w/{issue.WorkspaceSlug}/projects/{issue.ProjectId}/issues/{issue.Id}");
-
-    private void NavigateToWorkspace(DashWorkspace ws) =>
-        Nav.NavigateTo($"/w/{ws.Slug}");
-
-    private void NavigateToProject(DashProject p) =>
-        Nav.NavigateTo($"/w/{p.WorkspaceSlug}/projects/{p.Id}");
-
-    // ── Workspace creation ────────────────────────────────────────────────
-    private void OpenCreateWorkspace() => _createWorkspaceOpen = true;
-    protected void OnOpenChangeWorkspaceDialog (bool show)
-    {
-        _createWorkspaceOpen = show;    
+        Nav.NavigateTo($"/w/{slug}");
     }
 
-    private void OnCompleteWorkspaceCreation(string workspaceSlugPreview)
+    private void OpenProject(string workspaceSlug, Guid projectId )
     {
-        _createWorkspaceOpen = false;
-        Nav.NavigateTo($"/w/{workspaceSlugPreview}");
+        Nav.NavigateTo($"/w/{workspaceSlug}/projects/{projectId}");
     }
-
-    // ── Static helpers ────────────────────────────────────────────────────
 
     private static string FirstName(string displayName)
     {
-        var first = displayName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var first = displayName.Trim()
+                               .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                               .FirstOrDefault();
         return first ?? displayName;
     }
 
@@ -1252,19 +519,12 @@ else
             : name[..Math.Min(2, name.Length)].ToUpper();
     }
 
-    /// <summary>
-    /// Deterministic colour from a workspace GUID so the avatar colour
-    /// is stable across sessions without storing it server-side.
-    /// </summary>
     private static readonly string[] AvatarPalette =
     [
         "#4339CA", "#1A7A52", "#92560F", "#2563EB",
         "#7C3AED", "#0E7490", "#B45309", "#DC2626"
     ];
 
-    private static string PickAvatarColor(Guid id)
-    {
-        var idx = Math.Abs(id.GetHashCode()) % AvatarPalette.Length;
-        return AvatarPalette[idx];
-    }
+    private static string PickAvatarColor(Guid id) =>
+        AvatarPalette[Math.Abs(id.GetHashCode()) % AvatarPalette.Length];
 }
