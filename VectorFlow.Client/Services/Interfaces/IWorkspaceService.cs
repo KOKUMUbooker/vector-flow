@@ -1,24 +1,6 @@
 ﻿using VectorFlow.Shared.DTOs;
 
 namespace VectorFlow.Client.Services.Interfaces;
-// ── Result wrapper ─────────────────────────────────────────────────────────────
-
-// Convenience alias for void-like results
-public class ServiceResult : ServiceResult<bool>
-{
-    public static ServiceResult Ok() =>
-        new() { Succeeded = true, Data = true };
-
-    public new static ServiceResult Failure(string error) =>
-        new() { Error = error };
-
-    public static ServiceResult NotFoundResult() =>
-        new() { NotFound = true, Error = "Workspace not found." };
-
-    public new static ServiceResult ForbiddenResult() =>
-        new() { Forbidden = true, Error = "You don't have permission to perform this action." };
-}
-
 // ── Interface ──────────────────────────────────────────────────────────────────
 
 public interface IWorkspaceService
@@ -35,11 +17,11 @@ public interface IWorkspaceService
     /// <summary>Returns all members of a workspace.</summary>
     Task<ServiceResult<List<WorkspaceMemberDto>>> GetMembersAsync(Guid workspaceId);
 
-    /// <summary>Returns all projects of a workspace.</summary>
-    Task<ServiceResult<List<ProjectDto>>> GetWorkspaceProjects(Guid workspaceId);
+    Task<ServiceResult<MessageRes>> UpdateMemberRoleAsync(Guid workspaceId, string targetUserId, UpdateMemberRoleRequest request);
 
-    /// <summary>Returns all invitations of a workspace.</summary>
-    Task<ServiceResult<List<ProjectDto>>> GetWorkspaceInvitations(Guid workspaceId);
+    Task<ServiceResult> RemoveMemberAsync(Guid workspaceId, string targetUserId);
+
+    Task<ServiceResult> LeaveWorkspaceAsync(Guid workspaceId);
 
     /// <summary>Updates workspace name and description. Owner/Admin only.</summary>
     Task<ServiceResult<WorkspaceDto>> UpdateWorkspaceAsync(Guid workspaceId, UpdateWorkspaceRequest request);

@@ -95,8 +95,8 @@ public class InvitationsController(IInvitationService invitationService) : Contr
     // ── DELETE /api/workspaces/{id}/invitations/{invitationId} ────────────────
     // Cancel a pending invitation. Owner/Admin only.
 
-    [HttpDelete("workspaces/{workspaceId:guid}/invitations/{invitationId:guid}")]
-    public async Task<IActionResult> CancelInvitation(Guid workspaceId, Guid invitationId)
+    [HttpDelete("invitations/{invitationId:guid}")]
+    public async Task<IActionResult> CancelInvitation(Guid invitationId)
     {
         var userId = GetUserId();
         var result = await invitationService.CancelInvitationAsync(invitationId, userId);

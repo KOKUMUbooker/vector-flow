@@ -1238,7 +1238,7 @@ else
 
     private async Task HandleSaveProject()
     {
-        await _projectForm.Validate();
+        await _projectForm.ValidateAsync();
         if (!_projectFormValid) return;
         _projectLoading = true;
 
