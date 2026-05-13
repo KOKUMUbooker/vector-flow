@@ -109,6 +109,90 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
         }
     }
 
+    // ── Remove member from workspace ───────────────────────────────────────────────────
+   
+    public async Task<ServiceResult> RemoveMemberAsync(Guid workspaceId, string targetUserId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/workspaces/{workspaceId}/members/{targetUserId}");
+
+            if (response.IsSuccessStatusCode)
+                return ServiceResult.Ok();
+
+            return response.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Workspace member"),
+                HttpStatusCode.Forbidden => ServiceResult.ForbiddenResult(),
+                _ => ServiceResult.Failure(
+                                                await ErrorUtil.ReadErrorMessageAsync(response))
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode == HttpStatusCode.Unauthorized
+                ? ServiceResult.Failure("Session expired. Please sign in again.")
+                : ServiceResult.Failure("Failed to remove member from workspace.");
+        }
+    }
+
+    // ── Remove member from workspace ───────────────────────────────────────────────────
+
+    public async Task<ServiceResult> LeaveWorkspaceAsync(Guid workspaceId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/workspaces/{workspaceId}/members/me");
+
+            if (response.IsSuccessStatusCode)
+                return ServiceResult.Ok();
+
+            return response.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Your member account"),
+                HttpStatusCode.Forbidden => ServiceResult.ForbiddenResult(),
+                _ => ServiceResult.Failure(
+                                                await ErrorUtil.ReadErrorMessageAsync(response))
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode == HttpStatusCode.Unauthorized
+                ? ServiceResult.Failure("Session expired. Please sign in again.")
+                : ServiceResult.Failure("Failed to remove your account from the workspace.");
+        }
+    }
+
+    // ── Update workspace member role ───────────────────────────────────────────────────
+
+    public async Task<ServiceResult<MessageRes>> UpdateMemberRoleAsync(Guid workspaceId, string targetUserId, UpdateMemberRoleRequest request)
+    {
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/workspaces/{workspaceId}", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var msgRes = await response.Content.ReadFromJsonAsync<MessageRes>();
+                return ServiceResult<MessageRes>.Success(msgRes!);
+            }
+
+            return response.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult<MessageRes>.NotFoundResult("Workspace"),
+                HttpStatusCode.Forbidden => ServiceResult<MessageRes>.ForbiddenResult(),
+                _ => ServiceResult<MessageRes>.Failure(
+                                                await ErrorUtil.ReadErrorMessageAsync(response))
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode == HttpStatusCode.Unauthorized
+                ? ServiceResult<MessageRes>.Failure("Session expired. Please sign in again.")
+                : ServiceResult<MessageRes>.Failure("Failed to update workspace.");
+        }
+    }
+
     // ── Update workspace ───────────────────────────────────────────────────
 
     public async Task<ServiceResult<WorkspaceDto>> UpdateWorkspaceAsync(

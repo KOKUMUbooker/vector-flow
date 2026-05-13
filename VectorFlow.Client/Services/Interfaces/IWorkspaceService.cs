@@ -17,6 +17,12 @@ public interface IWorkspaceService
     /// <summary>Returns all members of a workspace.</summary>
     Task<ServiceResult<List<WorkspaceMemberDto>>> GetMembersAsync(Guid workspaceId);
 
+    Task<ServiceResult<MessageRes>> UpdateMemberRoleAsync(Guid workspaceId, string targetUserId, UpdateMemberRoleRequest request);
+
+    Task<ServiceResult> RemoveMemberAsync(Guid workspaceId, string targetUserId);
+
+    Task<ServiceResult> LeaveWorkspaceAsync(Guid workspaceId);
+
     /// <summary>Updates workspace name and description. Owner/Admin only.</summary>
     Task<ServiceResult<WorkspaceDto>> UpdateWorkspaceAsync(Guid workspaceId, UpdateWorkspaceRequest request);
 
