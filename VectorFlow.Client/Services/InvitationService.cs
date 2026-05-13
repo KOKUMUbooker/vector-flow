@@ -16,7 +16,7 @@ public class InvitationService(IHttpClientFactory httpClientFactory) : IInvitati
         try
         {
             var invitations = await Http.GetFromJsonAsync<List<InvitationDto>>(
-                $"api/workspaces/{workspaceId}/projects");
+                $"/api/workspaces/{workspaceId}/invitations");
 
             return ServiceResult<List<InvitationDto>>.Success(invitations ?? []);
         }
@@ -58,7 +58,7 @@ public class InvitationService(IHttpClientFactory httpClientFactory) : IInvitati
     {
         try
         {
-            var response = await Http.PostAsJsonAsync<SendInvitationRequest>($"api/workspaces/{workspaceId}/projects", request);
+            var response = await Http.PostAsJsonAsync<SendInvitationRequest>($"/api/workspaces/{workspaceId}/invitations", request);
 
             if (response.IsSuccessStatusCode)
             {
