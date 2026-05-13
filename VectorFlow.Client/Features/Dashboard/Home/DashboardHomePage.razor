@@ -164,7 +164,7 @@ else
                     <div class="workspace-list">
                         @foreach (var ws in _workspaces)
                         {
-                            <div class="workspace-card" @onclick="() => OpenWorkspace(ws.Slug)">
+                            <div class="workspace-card" @onclick="() => OpenWorkspace(ws.Slug, ws.Id)">
                                 <div class="ws-icon" style="background:@PickAvatarColor(ws.Id)">
                                     @GetInitials(ws.Name)
                                 </div>
@@ -462,12 +462,6 @@ else
     protected void OnOpenChangeWorkspaceDialog(bool show) =>
         _createWorkspaceOpen = show;
 
-    private void OnCompleteWorkspaceCreation(string slug)
-    {
-        _createWorkspaceOpen = false;
-        Nav.NavigateTo($"/w/{slug}");
-    }
-
     // ── CSS helpers ───────────────────────────────────────────────────────
     private static string StatusCss(IssueStatus s) => s switch
     {
@@ -493,9 +487,9 @@ else
     };
 
     // ── Display helpers ───────────────────────────────────────────────────
-    private void OpenWorkspace(string slug)
+    private void OpenWorkspace(string slug, Guid id)
     {
-        Nav.NavigateTo($"/w/{slug}");
+        Nav.NavigateTo($"/w/{slug}?id={id}");
     }
 
     private void OpenProject(string workspaceSlug, Guid projectId )
