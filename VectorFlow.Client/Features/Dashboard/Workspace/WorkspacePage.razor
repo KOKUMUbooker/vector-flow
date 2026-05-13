@@ -10,9 +10,9 @@
 @inject ISnackbar Snackbar
 @inject IDashboardService DashboardService
 @inject IClientAuthService AuthService 
-@* @inject IWorkspaceService WorkspaceService *@
-@* @inject IProjectService ProjectService *@
-@* @inject IInvitationService InvitationService *@
+@inject IWorkspaceService WorkspaceService 
+@inject IProjectService ProjectService
+@inject IInvitationService InvitationService
 
 <PageTitle>@(_workspace?.Name ?? "Workspace") — VectorFlow</PageTitle>
 
@@ -1153,7 +1153,7 @@ else
                 _projects = workspaceData.Data.Projects;
                 _members = workspaceData.Data.Members;
                 _invitations = workspaceData.Data.Invitations;
-                
+
                 RebuildTabs();
                 return;
             }
@@ -1238,40 +1238,51 @@ else
 
     private async Task HandleSaveProject()
     {
-        await _projectForm.ValidateAsync();
-        if (!_projectFormValid) return;
-        _projectLoading = true;
-
-        await Task.Delay(800); // TODO: call service
-
-        if (_editingProject is null)
+        try
         {
-            // TODO: var created = await ProjectService.CreateAsync(_workspace!.Id, new CreateProjectRequest { ... });
-            _projects.Add(new ProjectDto
+            await _projectForm.ValidateAsync();
+            if (!_projectFormValid) return;
+            _projectLoading = true;
+
+            if (_editingProject is null)
             {
-                Id = Guid.NewGuid(), WorkspaceId = _workspace!.Id,
-                Name = _projectName, KeyPrefix = _projectKey,
-                Description = _projectDescription, IssueCount = 0,
-                LabelCount = 0, CreatedAt = DateTime.UtcNow
-            });
-            Snackbar.Add($"Project \"{_projectName}\" created!", Severity.Success);
-        }
-        else
-        {
-            // TODO: await ProjectService.UpdateAsync(_editingProject.Id, new UpdateProjectRequest { ... });
-            var idx = _projects.IndexOf(_editingProject);
-            @* if (idx >= 0)
-                _projects[idx] = _editingProject with
+                var data = new CreateProjectRequest
                 {
                     Name = _projectName,
-                    Description = _projectDescription
-                }; *@
-            Snackbar.Add("Project updated.", Severity.Success);
-        }
+                    Description = _projectDescription,
+                    KeyPrefix = _projectKey
+                };
+                var result = await ProjectService.CreateProjectAsync(queryStrWorkspaceId, data);
+            
+                if (result.Succeeded)
+                {
+                    Snackbar.Add($"Project \"{_projectName}\" created!", Severity.Success);
+                    _projectDialogOpen = false;
+                    return;
+                }
 
-        RebuildTabs();
-        _projectLoading    = false;
-        _projectDialogOpen = false;
+                Snackbar.Add(result.Error ?? "Workspace creation failed.", Severity.Error);
+            }
+            else
+            {
+                // TODO: await ProjectService.UpdateAsync(_editingProject.Id, new UpdateProjectRequest { ... });
+                var idx = _projects.IndexOf(_editingProject);
+                @* if (idx >= 0)
+                    _projects[idx] = _editingProject with
+                    {
+                        Name = _projectName,
+                        Description = _projectDescription
+                    }; *@
+                _projectDialogOpen = false; // Call only if succesful
+                Snackbar.Add("Project updated.", Severity.Success);
+            }
+
+            RebuildTabs();
+         
+        } finally
+        {
+              _projectLoading    = false;
+        }
     }
 
     // ── Delete project ─────────────────────────────────────────────────
