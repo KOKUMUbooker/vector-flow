@@ -43,8 +43,8 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
             }
 
             return response.StatusCode switch
-            {
-                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult(),
+            {   
+                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult<WorkspaceDto>.ForbiddenResult(),
                 _ => ServiceResult<WorkspaceDto>.Failure(
                                                 await ReadErrorMessageAsync(response))
@@ -54,7 +54,7 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
         {
             return ex.StatusCode switch
             {
-                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult(),
+                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult<WorkspaceDto>.ForbiddenResult(),
                 HttpStatusCode.Unauthorized => ServiceResult<WorkspaceDto>.Failure("Session expired. Please sign in again."),
                 _ => ServiceResult<WorkspaceDto>.Failure("Failed to create workspace.")
@@ -71,14 +71,14 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
             var workspace = await Http.GetFromJsonAsync<WorkspaceDto>($"api/workspaces/{slug}");
 
             return workspace is null
-                ? ServiceResult<WorkspaceDto>.NotFoundResult()
+                ? ServiceResult<WorkspaceDto>.NotFoundResult("Workspace")
                 : ServiceResult<WorkspaceDto>.Success(workspace);
         }
         catch (HttpRequestException ex)
         {
             return ex.StatusCode switch
             {
-                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult(),
+                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult<WorkspaceDto>.ForbiddenResult(),
                 HttpStatusCode.Unauthorized => ServiceResult<WorkspaceDto>.Failure("Session expired. Please sign in again."),
                 _ => ServiceResult<WorkspaceDto>.Failure("Failed to load workspace.")
@@ -101,10 +101,56 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
         {
             return ex.StatusCode switch
             {
-                HttpStatusCode.NotFound => ServiceResult<List<WorkspaceMemberDto>>.NotFoundResult(),
+                HttpStatusCode.NotFound => ServiceResult<List<WorkspaceMemberDto>>.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult<List<WorkspaceMemberDto>>.ForbiddenResult(),
                 HttpStatusCode.Unauthorized => ServiceResult<List<WorkspaceMemberDto>>.Failure("Session expired."),
                 _ => ServiceResult<List<WorkspaceMemberDto>>.Failure("Failed to load members.")
+            };
+        }
+    }
+
+    // ── Get workspace projects  ──────────────────────────────────────────────
+
+    public async Task<ServiceResult<List<ProjectDto>>> GetWorkspaceProjects(Guid workspaceId)
+    {
+        try
+        {
+            var projects = await Http.GetFromJsonAsync<List<ProjectDto>>(
+                $"api/workspaces/{workspaceId}/projects");
+
+            return ServiceResult<List<ProjectDto>>.Success(projects ?? []);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult<List<ProjectDto>>.NotFoundResult("Workspace"),
+                HttpStatusCode.Forbidden => ServiceResult<List<ProjectDto>>.ForbiddenResult(),
+                HttpStatusCode.Unauthorized => ServiceResult<List<ProjectDto>>.Failure("Session expired."),
+                _ => ServiceResult<List<ProjectDto>>.Failure("Failed to load members.")
+            };
+        }
+    }
+
+    // ── Get workspace invitations  ──────────────────────────────────────────────
+
+    public async Task<ServiceResult<List<ProjectDto>>> GetWorkspaceInvitations(Guid workspaceId)
+    {
+        try
+        {
+            var projects = await Http.GetFromJsonAsync<List<ProjectDto>>(
+                $"api/workspaces/{workspaceId}/projects");
+
+            return ServiceResult<List<ProjectDto>>.Success(projects ?? []);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult<List<ProjectDto>>.NotFoundResult("Workspace"),
+                HttpStatusCode.Forbidden => ServiceResult<List<ProjectDto>>.ForbiddenResult(),
+                HttpStatusCode.Unauthorized => ServiceResult<List<ProjectDto>>.Failure("Session expired."),
+                _ => ServiceResult<List<ProjectDto>>.Failure("Failed to load members.")
             };
         }
     }
@@ -126,7 +172,7 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
 
             return response.StatusCode switch
             {
-                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult(),
+                HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult<WorkspaceDto>.ForbiddenResult(),
                 _ => ServiceResult<WorkspaceDto>.Failure(
                                                 await ReadErrorMessageAsync(response))
