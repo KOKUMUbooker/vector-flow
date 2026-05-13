@@ -28,6 +28,17 @@ public class DashboardDto
     public bool IsFirstTimeUser => !Workspaces.Any();
 }
 
+public class WorkspaceDetailsDashboardDto
+{
+    public WorkspaceDto Workspace { get; set; } = default!;
+
+    public List<ProjectDto> Projects { get; set; } = [];
+
+    public List<WorkspaceMemberDto> Members { get; set; } = [];
+
+    public List<InvitationDto> Invitations { get; set; } = [];
+}
+
 public class DashboardStatsDto
 {
     public int AssignedCount   { get; set; }
