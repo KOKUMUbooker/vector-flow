@@ -1053,7 +1053,6 @@ else
     [Parameter] public string Slug { get; set; } = string.Empty;
 
     // ── Page state ─────────────────────────────────────────────────────
-    protected Guid queryStrWorkspaceId;
     private bool _loading = true;
     private WorkspaceDto? _workspace;
     private string _avatarColor = "#4339CA";
@@ -1122,21 +1121,6 @@ else
 
         try
         {
-            var uri = Nav.ToAbsoluteUri(Nav.Uri);
-            var query = QueryHelpers.ParseQuery(uri.Query);
-
-            if (!query.TryGetValue("id", out var idStr))
-            {
-                Snackbar.Add("No workspace id found, please navigate back and try again",Severity.Error);
-                return;
-            }
-
-            if (!Guid.TryParse(idStr,out Guid workspaceId))
-            {
-                Snackbar.Add("Invalid workspace provided.",Severity.Error);
-                return;
-            }
-
             var user = await AuthService.GetCurrentUserAsync();
             if (user is null)
             {
@@ -1145,7 +1129,7 @@ else
             }
 
             _currentUserId = user.Id;
-            var workspaceData = await DashboardService.GetDashboardWorkspaceDetailsAsync(workspaceId);
+            var workspaceData = await DashboardService.GetDashboardWorkspaceDetailsAsync(Slug);
             if (workspaceData.Succeeded)
             {
                 _workspace = workspaceData!.Data!.Workspace;
@@ -1188,30 +1172,37 @@ else
     {
         _inviteEmail = string.Empty;
         _inviteOpen  = true;
-        _activeTab   = "invitations";
     }
 
     private async Task HandleSendInvite()
     {
-        await _inviteForm.ValidateAsync();
-        if (!_inviteValid) return;
-        _inviteLoading = true;
+        try {
+            await _inviteForm.ValidateAsync();
+            if (!_inviteValid) return;
+            if (_workspace is null) {
+                Snackbar.Add("Wokspace details not found, please reload the page",Severity.Error);
+                return;
+            }
+            
+            _inviteLoading = true;
 
-        // TODO: await InvitationService.SendAsync(_workspace!.Id, _inviteEmail);
-        await Task.Delay(800);
+            var result = await InvitationService.SendInvitationAsync(_workspace.Id, new SendInvitationRequest {Email = _inviteEmail});
+            if (result.Succeeded) {
+                _inviteOpen    = false;
+                var invitationsRes = await InvitationService.GetWorkspaceInvitations(_workspace.Id);
+                if (invitationsRes.Succeeded) {
+                    _invitations = invitationsRes.Data!;
+                }
+                RebuildTabs();
+                Snackbar.Add($"Invitation sent to {_inviteEmail}", Severity.Success);
+                return;
+            }
 
-        _invitations.Add(new InvitationDto
-        {
-            Id = Guid.NewGuid(), WorkspaceId = _workspace!.Id,
-            WorkspaceName = _workspace.Name, InvitedEmail = _inviteEmail,
-            InvitedByDisplayName = "You", Status = InvitationStatus.Pending,
-            ExpiresAt = DateTime.UtcNow.AddDays(7), CreatedAt = DateTime.UtcNow
-        });
-
-        RebuildTabs();
-        _inviteLoading = false;
-        _inviteOpen    = false;
-        Snackbar.Add($"Invitation sent to {_inviteEmail}", Severity.Success);
+            Snackbar.Add($"Failed to send invitation to {_inviteEmail}", Severity.Error);
+        }
+        finally {
+            _inviteLoading = false;
+        }
     }
 
     // ── Create / Edit project ──────────────────────────────────────────
@@ -1244,6 +1235,11 @@ else
             if (!_projectFormValid) return;
             _projectLoading = true;
 
+            if (_workspace is null) {
+                Snackbar.Add("Wokspace details not found, please reload the page",Severity.Error);
+                return;
+            }
+
             if (_editingProject is null)
             {
                 var data = new CreateProjectRequest
@@ -1252,29 +1248,45 @@ else
                     Description = _projectDescription,
                     KeyPrefix = _projectKey
                 };
-                var result = await ProjectService.CreateProjectAsync(queryStrWorkspaceId, data);
+                var result = await ProjectService.CreateProjectAsync(_workspace.Id, data);
             
                 if (result.Succeeded)
                 {
                     Snackbar.Add($"Project \"{_projectName}\" created!", Severity.Success);
+                    
+                    // Refetch workspace projects
+                    var projects = await ProjectService.GetWorkspaceProjects(_workspace.Id);
+                    _projects = projects.Data ?? [];
                     _projectDialogOpen = false;
                     return;
                 }
 
-                Snackbar.Add(result.Error ?? "Workspace creation failed.", Severity.Error);
+                Snackbar.Add(result.Error ?? "Project creation failed.", Severity.Error);
             }
             else
             {
-                // TODO: await ProjectService.UpdateAsync(_editingProject.Id, new UpdateProjectRequest { ... });
-                var idx = _projects.IndexOf(_editingProject);
-                @* if (idx >= 0)
-                    _projects[idx] = _editingProject with
-                    {
-                        Name = _projectName,
-                        Description = _projectDescription
-                    }; *@
-                _projectDialogOpen = false; // Call only if succesful
-                Snackbar.Add("Project updated.", Severity.Success);
+                 var data = new UpdateProjectRequest
+                {
+                    Name = _projectName,
+                    Description = _projectDescription,
+                };
+
+                var result = await ProjectService.UpdateProjectAsync(_editingProject.Id, data);
+
+                if (result.Succeeded)
+                {
+                    Snackbar.Add($"Project \"{_projectName}\" updated!", Severity.Success);
+                    
+                     var idx = _projects.IndexOf(_editingProject);
+                     if (result.Data is not null) {
+                        _projects[idx] = result.Data!;
+                     }
+                     _projectDialogOpen = false;
+                     Snackbar.Add("Project updated.", Severity.Success);
+                    return;
+                }
+
+                Snackbar.Add(result.Error ?? "Project update failed.", Severity.Error);
             }
 
             RebuildTabs();
@@ -1293,22 +1305,30 @@ else
             "Delete",
             async () =>
             {
-                // TODO: await ProjectService.DeleteAsync(project.Id);
-                await Task.Delay(600);
-                _projects.Remove(project);
-                RebuildTabs();
-                Snackbar.Add($"\"{project.Name}\" deleted.", Severity.Info);
+                var result = await ProjectService.DeleteProjectAsync(project.WorkspaceId ,project.Id);
+                if (result.Succeeded) {
+                    _projects.Remove(project);
+                    Snackbar.Add($"\"{project.Name}\" deleted.", Severity.Info);
+                    RebuildTabs();
+                    return;
+                }
+
+                Snackbar.Add($"Failed to delete \"{project.Name}\"", Severity.Info);
             });
 
     // ── Member role change ─────────────────────────────────────────────
     private async Task HandleRoleChange(WorkspaceMemberDto member, WorkspaceRole newRole)
     {
         if (member.Role == newRole) return;
-        // TODO: await WorkspaceService.ChangeRoleAsync(_workspace!.Id, member.UserId, newRole);
-        await Task.Delay(400);
-        @* var idx = _members.IndexOf(member); *@
-        @* if (idx >= 0) _members[idx] = member with { Role = newRole }; *@
-        Snackbar.Add($"{member.DisplayName} is now {newRole}.", Severity.Success);
+        var result = await WorkspaceService.UpdateMemberRoleAsync(_workspace!.Id, member.UserId, new UpdateMemberRoleRequest {Role = newRole});
+
+        if (result.Succeeded) {
+            var idx = _members.IndexOf(member); 
+            if (idx >= 0) _members[idx].Role = newRole; 
+            Snackbar.Add($"{member.DisplayName} is now {newRole}.", Severity.Success);
+            return;
+        }
+        Snackbar.Add($"Failed to update role of \"{member.DisplayName}\"", Severity.Error);
     }
 
     // ── Remove member ──────────────────────────────────────────────────
@@ -1319,11 +1339,20 @@ else
             "Remove",
             async () =>
             {
-                // TODO: await WorkspaceService.RemoveMemberAsync(_workspace!.Id, member.UserId);
-                await Task.Delay(500);
-                _members.Remove(member);
-                RebuildTabs();
-                Snackbar.Add($"{member.DisplayName} removed.", Severity.Info);
+                if (_workspace is null) {
+                    Snackbar.Add("Wokspace details not found, please reload the page",Severity.Error);
+                    return;
+                }
+
+                var result = await WorkspaceService.RemoveMemberAsync(_workspace!.Id, member.UserId);
+                if (result.Succeeded) {
+                    _members.Remove(member);
+                    RebuildTabs();
+                    Snackbar.Add($"{member.DisplayName} removed.", Severity.Info);
+                    return;
+                }
+
+                Snackbar.Add($"Failed to remove {member.DisplayName}.", Severity.Error);
             });
 
     // ── Cancel invitation ──────────────────────────────────────────────
@@ -1334,11 +1363,19 @@ else
             "Cancel invitation",
             async () =>
             {
-                // TODO: await InvitationService.CancelAsync(_workspace!.Id, inv.Id);
-                await Task.Delay(400);
-                _invitations.Remove(inv);
-                RebuildTabs();
-                Snackbar.Add("Invitation cancelled.", Severity.Info);
+                if (_workspace is null) {
+                    Snackbar.Add("Wokspace details not found, please reload the page",Severity.Error);
+                    return;
+                }
+
+                var result = await InvitationService.DeleteInvitationAsync(inv.Id);
+                if (result.Succeeded) {
+                    _invitations.Remove(inv);
+                    RebuildTabs();
+                    Snackbar.Add("Invitation cancelled.", Severity.Info);
+                    return;
+                }
+                Snackbar.Add("Failed to cancel invitation.", Severity.Error);
             });
 
     // ── Generic confirm helper ─────────────────────────────────────────
