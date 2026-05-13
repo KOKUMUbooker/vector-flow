@@ -21,11 +21,11 @@ public class DashboardService(IHttpClientFactory httpClientFactory) : IDashboard
         }
     }
 
-    public async Task<ServiceResult<WorkspaceDetailsDashboardDto?>> GetDashboardWorkspaceDetailsAsync(Guid workspaceId)
+    public async Task<ServiceResult<WorkspaceDetailsDashboardDto?>> GetDashboardWorkspaceDetailsAsync(string workspaceSlug)
     {
         try
         {
-            var workspaceData = await Http.GetFromJsonAsync<WorkspaceDetailsDashboardDto?>($"api/dashboard/workspaces/{workspaceId}");
+            var workspaceData = await Http.GetFromJsonAsync<WorkspaceDetailsDashboardDto?>($"api/dashboard/workspaces/{workspaceSlug}");
             return ServiceResult<WorkspaceDetailsDashboardDto?>.Success(workspaceData);
         }
         catch (HttpRequestException ex)
