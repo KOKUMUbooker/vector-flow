@@ -47,7 +47,7 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
                 HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult<WorkspaceDto>.ForbiddenResult(),
                 _ => ServiceResult<WorkspaceDto>.Failure(
-                                                await ReadErrorMessageAsync(response))
+                                                await ErrorUtil.ReadErrorMessageAsync(response))
             };
         }
         catch (HttpRequestException ex)
@@ -109,52 +109,6 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
         }
     }
 
-    // ── Get workspace projects  ──────────────────────────────────────────────
-
-    public async Task<ServiceResult<List<ProjectDto>>> GetWorkspaceProjects(Guid workspaceId)
-    {
-        try
-        {
-            var projects = await Http.GetFromJsonAsync<List<ProjectDto>>(
-                $"api/workspaces/{workspaceId}/projects");
-
-            return ServiceResult<List<ProjectDto>>.Success(projects ?? []);
-        }
-        catch (HttpRequestException ex)
-        {
-            return ex.StatusCode switch
-            {
-                HttpStatusCode.NotFound => ServiceResult<List<ProjectDto>>.NotFoundResult("Workspace"),
-                HttpStatusCode.Forbidden => ServiceResult<List<ProjectDto>>.ForbiddenResult(),
-                HttpStatusCode.Unauthorized => ServiceResult<List<ProjectDto>>.Failure("Session expired."),
-                _ => ServiceResult<List<ProjectDto>>.Failure("Failed to load members.")
-            };
-        }
-    }
-
-    // ── Get workspace invitations  ──────────────────────────────────────────────
-
-    public async Task<ServiceResult<List<ProjectDto>>> GetWorkspaceInvitations(Guid workspaceId)
-    {
-        try
-        {
-            var projects = await Http.GetFromJsonAsync<List<ProjectDto>>(
-                $"api/workspaces/{workspaceId}/projects");
-
-            return ServiceResult<List<ProjectDto>>.Success(projects ?? []);
-        }
-        catch (HttpRequestException ex)
-        {
-            return ex.StatusCode switch
-            {
-                HttpStatusCode.NotFound => ServiceResult<List<ProjectDto>>.NotFoundResult("Workspace"),
-                HttpStatusCode.Forbidden => ServiceResult<List<ProjectDto>>.ForbiddenResult(),
-                HttpStatusCode.Unauthorized => ServiceResult<List<ProjectDto>>.Failure("Session expired."),
-                _ => ServiceResult<List<ProjectDto>>.Failure("Failed to load members.")
-            };
-        }
-    }
-
     // ── Update workspace ───────────────────────────────────────────────────
 
     public async Task<ServiceResult<WorkspaceDto>> UpdateWorkspaceAsync(
@@ -175,7 +129,7 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
                 HttpStatusCode.NotFound => ServiceResult<WorkspaceDto>.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult<WorkspaceDto>.ForbiddenResult(),
                 _ => ServiceResult<WorkspaceDto>.Failure(
-                                                await ReadErrorMessageAsync(response))
+                                                await ErrorUtil.ReadErrorMessageAsync(response))
             };
         }
         catch (HttpRequestException ex)
@@ -199,10 +153,10 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
 
             return response.StatusCode switch
             {
-                HttpStatusCode.NotFound => ServiceResult.NotFoundResult(),
+                HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Workspace"),
                 HttpStatusCode.Forbidden => ServiceResult.ForbiddenResult(),
                 _ => ServiceResult.Failure(
-                                                await ReadErrorMessageAsync(response))
+                                                await ErrorUtil.ReadErrorMessageAsync(response))
             };
         }
         catch (HttpRequestException ex)
@@ -212,25 +166,4 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
                 : ServiceResult.Failure("Failed to delete workspace.");
         }
     }
-
-    // ── Private helpers ────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Tries to read a { "message": "..." } body from an error response.
-    /// Falls back to a generic message if the body can't be parsed.
-    /// </summary>
-    private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage response)
-    {
-        try
-        {
-            var body = await response.Content.ReadFromJsonAsync<ErrorBody>();
-            return body?.Message ?? "An unexpected error occurred.";
-        }
-        catch
-        {
-            return "An unexpected error occurred.";
-        }
-    }
-
-    private record ErrorBody(string? Message);
 }
