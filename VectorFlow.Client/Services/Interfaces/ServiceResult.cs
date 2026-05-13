@@ -68,3 +68,8 @@ public static class ErrorUtil {
 
     public record ErrorBody(string? Message);
 }
+
+public class MessageRes
+{
+     public string Message { get; set; } = string.Empty;
+}

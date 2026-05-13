@@ -16,8 +16,7 @@ public interface IInvitationService
     Task<ServiceResult<InvitationActionRes>> DeclineInvitationAsync(string token);
 }
 
-public class InvitationActionRes
+public class InvitationActionRes : MessageRes
 {
-    public string Message { get; set; } = string.Empty;
     public string? WorkspaceId { get; set; } = string.Empty;
 }
