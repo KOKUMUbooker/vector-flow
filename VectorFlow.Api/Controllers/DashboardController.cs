@@ -193,22 +193,30 @@ public class DashboardController(
     }
 
     
-    [HttpGet("workspaces/{workspaceId:guid}")]
-    public async Task<IActionResult> GetWorkspaceDetails(Guid workspaceId) 
+    [HttpGet("workspaces/{workspaceSlug}")]
+    public async Task<IActionResult> GetWorkspaceDetails(string workspaceSlug) 
     {
+        var workspaceExists = await db.Workspaces
+            .Where(w => w.Slug == workspaceSlug)
+            .Select(w => new {w.Id})
+            .SingleOrDefaultAsync();
+        
+        if (workspaceExists is null) 
+            return NotFound();
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (userId is null) return Unauthorized();
 
         var currentUserRole = await db.WorkspaceMembers
-                .Where(m => m.UserId == userId && m.WorkspaceId == workspaceId)
+                .Where(m => m.UserId == userId && m.WorkspaceId == workspaceExists.Id)
                 .Select(r => new { r.Role })
                 .FirstOrDefaultAsync();
 
         if (currentUserRole is null) return Unauthorized();
 
         var workspaceData = await db.Workspaces
-              .Where(w => w.Id == workspaceId)
+              .Where(w => w.Id == workspaceExists.Id)
               .Include(w => w.Projects)
               .Include(w => w.Members)
               .Include(w => w.Invitations)
