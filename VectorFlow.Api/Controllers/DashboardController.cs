@@ -9,7 +9,7 @@ using VectorFlow.Shared.Enums;
 namespace VectorFlow.Api.Controllers;
 
 [ApiController]
-[Route("api/dashboard")]
+[Route("api/dashboard/")]
 [Authorize]
 public class DashboardController(
     AppDbContext db) : ControllerBase
@@ -189,6 +189,96 @@ public class DashboardController(
             RecentProjects     = recentProjects,
             PendingInvitations = invitations,
             Stats              = stats
+        });
+    }
+
+    
+    [HttpGet("workspaces/{workspaceId:guid}")]
+    public async Task<IActionResult> GetWorkspaceDetails(Guid workspaceId) 
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null) return Unauthorized();
+
+        var currentUserRole = await db.WorkspaceMembers
+                .Where(m => m.UserId == userId && m.WorkspaceId == workspaceId)
+                .Select(r => new { r.Role })
+                .FirstOrDefaultAsync();
+
+        if (currentUserRole is null) return Unauthorized();
+
+        var workspaceData = await db.Workspaces
+              .Where(w => w.Id == workspaceId)
+              .Include(w => w.Projects)
+              .Include(w => w.Members)
+              .Include(w => w.Invitations)
+              .Select(w => new { 
+                Id = w.Id,
+                Name = w.Name,
+                Slug = w.Slug,
+                OwnerId = w.OwnerId,
+                Description = w.Description,
+                Members = w.Members.Select(m => new WorkspaceMemberDto
+                {
+                    Email = m.User.Email ?? "",
+                    AvatarUrl = m.User.AvatarUrl,
+                    DisplayName = m.User.DisplayName,
+                    IsOwner = m.UserId == w.OwnerId,
+                    UserId = m.UserId,
+                    JoinedAt = m.JoinedAt,
+                    Role = m.Role
+                }).ToList(),
+                Projects = w.Projects.Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    KeyPrefix = p.KeyPrefix,
+                    IssueCount = p.Issues.Count,
+                    IssueCounter = p.IssueCounter,
+                    LabelCount = p.Labels.Count,
+                    WorkspaceId = p.WorkspaceId,
+                    CreatedAt = p.CreatedAt,
+                }).ToList(),
+                Invitations = w.Invitations.Select(i => new InvitationDto
+                {
+                    Id = i.Id,
+                    CreatedAt = i.CreatedAt,
+                    ExpiresAt = i.ExpiresAt,
+                    InvitedByDisplayName = i.InvitedBy.DisplayName,
+                    InvitedEmail = i.InvitedEmail,
+                    Status = i.Status,
+                    WorkspaceId = i.WorkspaceId,
+                    WorkspaceName = i.Workspace.Name,
+                    WorkspaceSlug = i.Workspace.Slug,
+                }).ToList(),
+                CurrentUserRole = currentUserRole.Role,
+                MemberCount = w.Members.Count,
+                ProjectCount = w.Projects.Count,
+                CreatedAt = w.CreatedAt,
+              })
+              .FirstOrDefaultAsync();
+
+        if (workspaceData is null) return NotFound();
+
+        var workspace = new WorkspaceDto
+        {
+            Id = workspaceData.Id,
+            Name = workspaceData.Name,
+            CreatedAt = workspaceData.CreatedAt,
+            CurrentUserRole = currentUserRole.Role,
+            Description = workspaceData.Description,
+            MemberCount = workspaceData.MemberCount,
+            OwnerId = workspaceData.OwnerId,
+            ProjectCount = workspaceData.ProjectCount,
+            Slug = workspaceData.Slug,
+        };
+
+        return Ok(new WorkspaceDetailsDashboardDto { 
+            Workspace = workspace,
+            Invitations = workspaceData.Invitations,
+            Members = workspaceData.Members,
+            Projects = workspaceData.Projects,
         });
     }
 }
