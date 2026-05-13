@@ -1,12 +1,18 @@
 @page "/w/{Slug}"
 @layout Features.Layout.MainLayout
+@using System.ComponentModel.DataAnnotations
+@using VectorFlow.Client.Services.Interfaces
+@using VectorFlow.Client.Services
+@using VectorFlow.Shared.DTOs
+@using VectorFlow.Shared.Enums
+@using Microsoft.AspNetCore.WebUtilities
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
-@using System.ComponentModel.DataAnnotations
+@inject IDashboardService DashboardService
+@inject IClientAuthService AuthService 
 @* @inject IWorkspaceService WorkspaceService *@
 @* @inject IProjectService ProjectService *@
 @* @inject IInvitationService InvitationService *@
-@* @inject IAuthService AuthService *@
 
 <PageTitle>@(_workspace?.Name ?? "Workspace") — VectorFlow</PageTitle>
 
@@ -1047,6 +1053,7 @@ else
     [Parameter] public string Slug { get; set; } = string.Empty;
 
     // ── Page state ─────────────────────────────────────────────────────
+    protected Guid queryStrWorkspaceId;
     private bool _loading = true;
     private WorkspaceDto? _workspace;
     private string _avatarColor = "#4339CA";
@@ -1057,7 +1064,7 @@ else
     private string _activeTab = "projects";
 
     private List<ProjectDto>    _projects    = [];
-    private List<MemberDto>     _members     = [];
+    private List<WorkspaceMemberDto>     _members     = [];
     private List<InvitationDto> _invitations = [];
 
     private string _memberSearch = string.Empty;
@@ -1115,60 +1122,43 @@ else
 
         try
         {
-            // ── TODO: replace with real calls ───────────────────────────
-            // _currentUserId = (await AuthService.GetCurrentUserAsync()).Id;
-            //
-            // _workspace = await WorkspaceService.GetBySlugAsync(Slug);
-            // if (_workspace is null) { _loading = false; return; }
-            //
-            // _avatarColor = PickColor(_workspace.Id);
-            //
-            // _projects    = await ProjectService.GetByWorkspaceAsync(_workspace.Id);
-            // _members     = await WorkspaceService.GetMembersAsync(_workspace.Id);
-            // _invitations = await InvitationService.GetByWorkspaceAsync(_workspace.Id);
-            // ────────────────────────────────────────────────────────────
+            var uri = Nav.ToAbsoluteUri(Nav.Uri);
+            var query = QueryHelpers.ParseQuery(uri.Query);
 
-            await Task.Delay(600); // remove — simulates network
-
-            _currentUserId = "user-booker";
-
-            _workspace = new WorkspaceDto
+            if (!query.TryGetValue("id", out var idStr))
             {
-                Id              = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Name            = Slug == "vectorflow" ? "VectorFlow" : "Acme Corp",
-                Slug            = Slug,
-                Description     = "Full-stack issue tracking for the VectorFlow project.",
-                OwnerId         = "user-booker",
-                CreatedAt       = DateTime.UtcNow.AddMonths(-3),
-                CurrentUserRole = WorkspaceRole.Owner,
-                MemberCount     = 4,
-                ProjectCount    = 3
-            };
+                Snackbar.Add("No workspace id found, please navigate back and try again",Severity.Error);
+                return;
+            }
 
-            _avatarColor = PickColor(_workspace.Id);
+            if (!Guid.TryParse(idStr,out Guid workspaceId))
+            {
+                Snackbar.Add("Invalid workspace provided.",Severity.Error);
+                return;
+            }
 
-            _projects =
-            [
-                new ProjectDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, Name = "VectorFlow Backend", KeyPrefix = "VF",  IssueCount = 12, LabelCount = 5, CreatedAt = DateTime.UtcNow.AddMonths(-2), Description = "ASP.NET Core API, SignalR, EF Core, PostgreSQL." },
-                new ProjectDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, Name = "VectorFlow Client",  KeyPrefix = "VFC", IssueCount = 8,  LabelCount = 4, CreatedAt = DateTime.UtcNow.AddMonths(-2), Description = "Blazor WASM frontend and MudBlazor components." },
-                new ProjectDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, Name = "VectorFlow Tests",   KeyPrefix = "VFT", IssueCount = 3,  LabelCount = 2, CreatedAt = DateTime.UtcNow.AddMonths(-1) },
-            ];
+            var user = await AuthService.GetCurrentUserAsync();
+            if (user is null)
+            {
+                Snackbar.Add("User not found, please log in.",Severity.Error);
+                return;
+            }
 
-            _members =
-            [
-                new MemberDto { UserId = "user-booker", DisplayName = "Booker K.",  Email = "booker@vectorflow.dev", Role = WorkspaceRole.Owner,  IsOwner = true,  JoinedAt = DateTime.UtcNow.AddMonths(-3) },
-                new MemberDto { UserId = "user-jana",   DisplayName = "Jana S.",    Email = "jana@vectorflow.dev",   Role = WorkspaceRole.Admin,  IsOwner = false, JoinedAt = DateTime.UtcNow.AddMonths(-2) },
-                new MemberDto { UserId = "user-alex",   DisplayName = "Alex K.",    Email = "alex@vectorflow.dev",   Role = WorkspaceRole.Member, IsOwner = false, JoinedAt = DateTime.UtcNow.AddMonths(-1) },
-                new MemberDto { UserId = "user-ben",    DisplayName = "Ben M.",     Email = "ben@vectorflow.dev",    Role = WorkspaceRole.Member, IsOwner = false, JoinedAt = DateTime.UtcNow.AddDays(-14) },
-            ];
+            _currentUserId = user.Id;
+            var workspaceData = await DashboardService.GetDashboardWorkspaceDetailsAsync(workspaceId);
+            if (workspaceData.Succeeded)
+            {
+                _workspace = workspaceData!.Data!.Workspace;
+                _avatarColor = PickColor(_workspace.Id);
+                _projects = workspaceData.Data.Projects;
+                _members = workspaceData.Data.Members;
+                _invitations = workspaceData.Data.Invitations;
+                
+                RebuildTabs();
+                return;
+            }
 
-            _invitations =
-            [
-                new InvitationDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, WorkspaceName = _workspace.Name, InvitedEmail = "newdev@company.com",  InvitedByDisplayName = "Booker K.", Status = InvitationStatus.Pending,  ExpiresAt = DateTime.UtcNow.AddDays(5),  CreatedAt = DateTime.UtcNow.AddDays(-2) },
-                new InvitationDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, WorkspaceName = _workspace.Name, InvitedEmail = "designer@company.com", InvitedByDisplayName = "Jana S.",   Status = InvitationStatus.Accepted, ExpiresAt = DateTime.UtcNow.AddDays(-1), CreatedAt = DateTime.UtcNow.AddDays(-8) },
-                new InvitationDto { Id = Guid.NewGuid(), WorkspaceId = _workspace.Id, WorkspaceName = _workspace.Name, InvitedEmail = "olddev@company.com",   InvitedByDisplayName = "Booker K.", Status = InvitationStatus.Expired,  ExpiresAt = DateTime.UtcNow.AddDays(-5), CreatedAt = DateTime.UtcNow.AddDays(-12) },
-            ];
-
+            Snackbar.Add(workspaceData.Error ?? "Failed to fetch workspace details",Severity.Error);
             RebuildTabs();
         }
         catch (Exception ex)
@@ -1203,7 +1193,7 @@ else
 
     private async Task HandleSendInvite()
     {
-        await _inviteForm.Validate();
+        await _inviteForm.ValidateAsync();
         if (!_inviteValid) return;
         _inviteLoading = true;
 
@@ -1300,7 +1290,7 @@ else
             });
 
     // ── Member role change ─────────────────────────────────────────────
-    private async Task HandleRoleChange(MemberDto member, WorkspaceRole newRole)
+    private async Task HandleRoleChange(WorkspaceMemberDto member, WorkspaceRole newRole)
     {
         if (member.Role == newRole) return;
         // TODO: await WorkspaceService.ChangeRoleAsync(_workspace!.Id, member.UserId, newRole);
@@ -1311,7 +1301,7 @@ else
     }
 
     // ── Remove member ──────────────────────────────────────────────────
-    private void ConfirmRemoveMember(MemberDto member) =>
+    private void ConfirmRemoveMember(WorkspaceMemberDto member) =>
         ShowConfirm(
             $"Remove {member.DisplayName}?",
             $"{member.DisplayName} will lose access to this workspace and all its projects immediately.",
@@ -1383,61 +1373,4 @@ else
 
     // ── Tab model ─────────────────────────────────────────────────────
     private sealed record TabDef(string Id, string Label, string Icon, int Badge);
-
-    // ── Inline DTO / enum stubs ───────────────────────────────────────
-    // Delete this region once VectorFlow.Shared is referenced.
-    #region Shared stubs
-
-    private enum WorkspaceRole    { Owner, Admin, Member }
-    private enum InvitationStatus { Pending, Accepted, Declined, Expired }
-
-    private sealed class WorkspaceDto
-    {
-        public Guid          Id              { get; set; }
-        public string        Name            { get; set; } = string.Empty;
-        public string        Slug            { get; set; } = string.Empty;
-        public string?       Description     { get; set; }
-        public string        OwnerId         { get; set; } = string.Empty;
-        public DateTime      CreatedAt       { get; set; }
-        public WorkspaceRole CurrentUserRole { get; set; }
-        public int           MemberCount     { get; set; }
-        public int           ProjectCount    { get; set; }
-    }
-
-    private sealed class ProjectDto
-    {
-        public Guid     Id          { get; set; }
-        public Guid     WorkspaceId { get; set; }
-        public string   Name        { get; set; } = string.Empty;
-        public string?  Description { get; set; }
-        public string   KeyPrefix   { get; set; } = string.Empty;
-        public int      IssueCount  { get; set; }
-        public int      LabelCount  { get; set; }
-        public DateTime CreatedAt   { get; set; }
-    }
-
-    private sealed class MemberDto
-    {
-        public string        UserId      { get; set; } = string.Empty;
-        public string        DisplayName { get; set; } = string.Empty;
-        public string        Email       { get; set; } = string.Empty;
-        public string?       AvatarUrl   { get; set; }
-        public WorkspaceRole Role        { get; set; }
-        public bool          IsOwner     { get; set; }
-        public DateTime      JoinedAt    { get; set; }
-    }
-
-    private sealed class InvitationDto
-    {
-        public Guid             Id                    { get; set; }
-        public Guid             WorkspaceId           { get; set; }
-        public string           WorkspaceName         { get; set; } = string.Empty;
-        public string           InvitedEmail          { get; set; } = string.Empty;
-        public string           InvitedByDisplayName  { get; set; } = string.Empty;
-        public InvitationStatus Status                { get; set; }
-        public DateTime         ExpiresAt             { get; set; }
-        public DateTime         CreatedAt             { get; set; }
-    }
-
-    #endregion
 }
