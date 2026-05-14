@@ -34,10 +34,11 @@ public class InvitationResult
 {
     public bool Succeeded { get; set; }
     public string? Error { get; set; }
+    public string WorkspaceSlug { get; set; } = string.Empty;
     public InvitationDto? Invitation { get; set; }
 
-    public static InvitationResult Success(InvitationDto invitation) =>
-        new() { Succeeded = true, Invitation = invitation };
+    public static InvitationResult Success(InvitationDto invitation, string workspaceSlug) =>
+        new() { Succeeded = true, Invitation = invitation, WorkspaceSlug = workspaceSlug };
 
     public static InvitationResult Failure(string error) =>
         new() { Error = error };
