@@ -163,7 +163,7 @@ public class ClientIssueService(IHttpClientFactory httpClientFactory) : IClientI
     {
         try
         {
-            var response = await Http.PutAsJsonAsync<UpdateIssueStatusRequest>(
+            var response = await Http.PatchAsJsonAsync<UpdateIssueStatusRequest>(
                 $"/api/projects/{projectId}/issues/{issueId}/status", request);
 
             if (response.IsSuccessStatusCode)
@@ -191,7 +191,7 @@ public class ClientIssueService(IHttpClientFactory httpClientFactory) : IClientI
     {
         try
         {
-            var response = await Http.PutAsJsonAsync<UpdateIssuePositionRequest>(
+            var response = await Http.PatchAsJsonAsync<UpdateIssuePositionRequest>(
                 $"/api/projects/{projectId}/issues/{issueId}/position", request);
 
             if (response.IsSuccessStatusCode)
