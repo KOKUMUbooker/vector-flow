@@ -46,6 +46,7 @@ public class Program
         builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
         builder.Services.AddScoped<IProjectService, ProjectService>();
         builder.Services.AddScoped<IInvitationService, InvitationService>();
+        builder.Services.AddScoped<IClientIssueService, ClientIssueService>();
         builder.Services.AddScoped<ThemeService>();
         builder.Services.AddScoped<ICustomLocalStorageService,CustomLocalStorageService>();
 

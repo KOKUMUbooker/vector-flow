@@ -37,4 +37,21 @@ public class DashboardService(IHttpClientFactory httpClientFactory) : IDashboard
             };
         }
     }
+
+    public async Task<ServiceResult<DashboardProjectData?>> GetDashboardProjectDataAsync(Guid projectId)
+    {
+        try
+        {
+            var workspaceData = await Http.GetFromJsonAsync<DashboardProjectData?>($"/api/dashboard/projects/{projectId}");
+            return ServiceResult<DashboardProjectData?>.Success(workspaceData);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode switch
+            {
+                HttpStatusCode.Unauthorized => ServiceResult<DashboardProjectData?>.Failure("Session expired. Please sign in again."),
+                _ => ServiceResult<DashboardProjectData?>.Failure("Failed to get project data.")
+            };
+        }
+    }
 }

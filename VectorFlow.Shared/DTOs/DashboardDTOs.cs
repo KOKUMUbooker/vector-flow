@@ -106,3 +106,12 @@ public class DashboardInvitationDto
     public DateTime ExpiresAt          { get; set; }
     public string Token                 { get; set; } = string.Empty;
 }
+
+public class DashboardProjectData
+{
+    public required ProjectDto Project { get; set; }
+    public List<WorkspaceMemberDto> Members { get; set; } = new List<WorkspaceMemberDto>();
+    public List<LabelDto> Labels { get; set; } = new List<LabelDto>();
+    public List<IssueDto> Issues { get; set; } = new List<IssueDto>();
+
+}
