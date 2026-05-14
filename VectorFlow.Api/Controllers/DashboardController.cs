@@ -1,8 +1,9 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using VectorFlow.Api.Data;
+using VectorFlow.Api.Models;
 using VectorFlow.Shared.DTOs;
 using VectorFlow.Shared.Enums;
 
@@ -14,9 +15,9 @@ namespace VectorFlow.Api.Controllers;
 public class DashboardController(
     AppDbContext db) : ControllerBase
 {
-    private const int WorkspaceCap   = 5;
+    private const int WorkspaceCap = 5;
     private const int IssueBucketCap = 5;
-    private const int ProjectCap     = 5;
+    private const int ProjectCap = 5;
 
     /// <summary>
     /// GET /api/dashboard
@@ -32,8 +33,8 @@ public class DashboardController(
     public async Task<IActionResult> GetDashboard()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
-        if (userId is null)  return Unauthorized();
+
+        if (userId is null) return Unauthorized();
 
         // ── 1. Workspaces the user belongs to ────────────────────────────
         var memberships = await db.WorkspaceMembers
@@ -48,12 +49,12 @@ public class DashboardController(
 
         var workspaceDtos = memberships.Select(m => new DashboardWorkspaceDto
         {
-            Id           = m.WorkspaceId,
-            Name         = m.Workspace.Name,
-            Slug         = m.Workspace.Slug,
-            Role         = (WorkspaceRole)(int)m.Role,
+            Id = m.WorkspaceId,
+            Name = m.Workspace.Name,
+            Slug = m.Workspace.Slug,
+            Role = (WorkspaceRole)(int)m.Role,
             ProjectCount = m.Workspace.Projects.Count,
-            MemberCount  = m.Workspace.Members.Count
+            MemberCount = m.Workspace.Members.Count
         }).ToList();
 
         // Short-circuit if first-time user
@@ -77,12 +78,12 @@ public class DashboardController(
             .Take(ProjectCap)
             .Select(p => new DashboardProjectDto
             {
-                Id             = p.Id,
-                WorkspaceId    = p.WorkspaceId,
-                WorkspaceName  = workspaceLookup.TryGetValue(p.WorkspaceId, out var ws) ? ws.Name : string.Empty,
-                WorkspaceSlug  = workspaceLookup.TryGetValue(p.WorkspaceId, out var ws2) ? ws2.Slug : string.Empty,
-                Name           = p.Name,
-                KeyPrefix      = p.KeyPrefix,
+                Id = p.Id,
+                WorkspaceId = p.WorkspaceId,
+                WorkspaceName = workspaceLookup.TryGetValue(p.WorkspaceId, out var ws) ? ws.Name : string.Empty,
+                WorkspaceSlug = workspaceLookup.TryGetValue(p.WorkspaceId, out var ws2) ? ws2.Slug : string.Empty,
+                Name = p.Name,
+                KeyPrefix = p.KeyPrefix,
                 OpenIssueCount = p.Issues.Count
             }).ToList();
 
@@ -111,18 +112,18 @@ public class DashboardController(
 
             return new DashboardIssueDto
             {
-                Id                  = i.Id,
-                ProjectId           = i.ProjectId,
-                Key                 = i.Key,
-                Title               = i.Title,
-                ProjectName         = i.Project.Name,
-                WorkspaceSlug       = slug,
-                Status              = (IssueStatus)(int)i.Status,
-                Priority            = (IssuePriority)(int)i.Priority,
-                Type                = (IssueType)(int)i.Type,
+                Id = i.Id,
+                ProjectId = i.ProjectId,
+                Key = i.Key,
+                Title = i.Title,
+                ProjectName = i.Project.Name,
+                WorkspaceSlug = slug,
+                Status = (IssueStatus)(int)i.Status,
+                Priority = (IssuePriority)(int)i.Priority,
+                Type = (IssueType)(int)i.Type,
                 AssigneeDisplayName = i.Assignee?.DisplayName,
-                DueDate             = i.DueDate,
-                IsOverdue           = isOverdue
+                DueDate = i.DueDate,
+                IsOverdue = isOverdue
             };
         }).ToList();
 
@@ -164,12 +165,12 @@ public class DashboardController(
             .OrderByDescending(i => i.CreatedAt)
             .Select(i => new DashboardInvitationDto
             {
-                Id                   = i.Id,
-                WorkspaceId          = i.WorkspaceId,
-                WorkspaceName        = i.Workspace.Name,
+                Id = i.Id,
+                WorkspaceId = i.WorkspaceId,
+                WorkspaceName = i.Workspace.Name,
                 InvitedByDisplayName = i.InvitedBy.DisplayName,
-                ExpiresAt            = i.ExpiresAt,
-                Token                = i.Token,
+                ExpiresAt = i.ExpiresAt,
+                Token = i.Token,
             })
             .ToListAsync();
 
@@ -177,32 +178,32 @@ public class DashboardController(
         // Compute from the full untruncated list for accuracy
         var stats = new DashboardStatsDto
         {
-            AssignedCount   = issueDtos.Count,
-            OverdueCount    = issueDtos.Count(i => i.IsOverdue),
+            AssignedCount = issueDtos.Count,
+            OverdueCount = issueDtos.Count(i => i.IsOverdue),
             InProgressCount = issueDtos.Count(i => i.Status == IssueStatus.InProgress),
-            WorkspaceCount  = memberships.Count
+            WorkspaceCount = memberships.Count
         };
 
         return Ok(new DashboardDto
         {
-            Workspaces         = workspaceDtos,
-            Issues             = issues,
-            RecentProjects     = recentProjects,
+            Workspaces = workspaceDtos,
+            Issues = issues,
+            RecentProjects = recentProjects,
             PendingInvitations = invitations,
-            Stats              = stats
+            Stats = stats
         });
     }
 
-    
+
     [HttpGet("workspaces/{workspaceSlug}")]
-    public async Task<IActionResult> GetWorkspaceDetails(string workspaceSlug) 
+    public async Task<IActionResult> GetWorkspaceDetails(string workspaceSlug)
     {
         var workspaceExists = await db.Workspaces
             .Where(w => w.Slug == workspaceSlug)
-            .Select(w => new {w.Id})
+            .Select(w => new { w.Id })
             .SingleOrDefaultAsync();
-        
-        if (workspaceExists is null) 
+
+        if (workspaceExists is null)
             return NotFound();
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -221,51 +222,52 @@ public class DashboardController(
               .Include(w => w.Projects)
               .Include(w => w.Members)
               .Include(w => w.Invitations)
-              .Select(w => new { 
-                Id = w.Id,
-                Name = w.Name,
-                Slug = w.Slug,
-                OwnerId = w.OwnerId,
-                Description = w.Description,
-                Members = w.Members.Select(m => new WorkspaceMemberDto
-                {
-                    Email = m.User.Email ?? "",
-                    AvatarUrl = m.User.AvatarUrl,
-                    DisplayName = m.User.DisplayName,
-                    IsOwner = m.UserId == w.OwnerId,
-                    UserId = m.UserId,
-                    JoinedAt = m.JoinedAt,
-                    Role = m.Role
-                }).ToList(),
-                Projects = w.Projects.Select(p => new ProjectDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Description = p.Description,
-                    KeyPrefix = p.KeyPrefix,
-                    IssueCount = p.Issues.Count,
-                    IssueCounter = p.IssueCounter,
-                    LabelCount = p.Labels.Count,
-                    WorkspaceId = p.WorkspaceId,
-                    CreatedAt = p.CreatedAt,
-                }).ToList(),
-                Invitations = w.Invitations.Select(i => new InvitationDto
-                {
-                    Id = i.Id,
-                    CreatedAt = i.CreatedAt,
-                    ExpiresAt = i.ExpiresAt,
-                    InvitedByDisplayName = i.InvitedBy.DisplayName,
-                    InvitedEmail = i.InvitedEmail,
-                    Status = i.Status,
-                    WorkspaceId = i.WorkspaceId,
-                    WorkspaceName = i.Workspace.Name,
-                    WorkspaceSlug = i.Workspace.Slug,
-                    Token = i.Token,
-                }).ToList(),
-                CurrentUserRole = currentUserRole.Role,
-                MemberCount = w.Members.Count,
-                ProjectCount = w.Projects.Count,
-                CreatedAt = w.CreatedAt,
+              .Select(w => new
+              {
+                  Id = w.Id,
+                  Name = w.Name,
+                  Slug = w.Slug,
+                  OwnerId = w.OwnerId,
+                  Description = w.Description,
+                  Members = w.Members.Select(m => new WorkspaceMemberDto
+                  {
+                      Email = m.User.Email ?? "",
+                      AvatarUrl = m.User.AvatarUrl,
+                      DisplayName = m.User.DisplayName,
+                      IsOwner = m.UserId == w.OwnerId,
+                      UserId = m.UserId,
+                      JoinedAt = m.JoinedAt,
+                      Role = m.Role
+                  }).ToList(),
+                  Projects = w.Projects.Select(p => new ProjectDto
+                  {
+                      Id = p.Id,
+                      Name = p.Name,
+                      Description = p.Description,
+                      KeyPrefix = p.KeyPrefix,
+                      IssueCount = p.Issues.Count,
+                      IssueCounter = p.IssueCounter,
+                      LabelCount = p.Labels.Count,
+                      WorkspaceId = p.WorkspaceId,
+                      CreatedAt = p.CreatedAt,
+                  }).ToList(),
+                  Invitations = w.Invitations.Select(i => new InvitationDto
+                  {
+                      Id = i.Id,
+                      CreatedAt = i.CreatedAt,
+                      ExpiresAt = i.ExpiresAt,
+                      InvitedByDisplayName = i.InvitedBy.DisplayName,
+                      InvitedEmail = i.InvitedEmail,
+                      Status = i.Status,
+                      WorkspaceId = i.WorkspaceId,
+                      WorkspaceName = i.Workspace.Name,
+                      WorkspaceSlug = i.Workspace.Slug,
+                      Token = i.Token,
+                  }).ToList(),
+                  CurrentUserRole = currentUserRole.Role,
+                  MemberCount = w.Members.Count,
+                  ProjectCount = w.Projects.Count,
+                  CreatedAt = w.CreatedAt,
               })
               .FirstOrDefaultAsync();
 
@@ -284,11 +286,84 @@ public class DashboardController(
             Slug = workspaceData.Slug,
         };
 
-        return Ok(new WorkspaceDetailsDashboardDto { 
+        return Ok(new WorkspaceDetailsDashboardDto
+        {
             Workspace = workspace,
             Invitations = workspaceData.Invitations,
             Members = workspaceData.Members,
             Projects = workspaceData.Projects,
         });
+    }
+
+
+    
+    [HttpGet("projects/{projectId:guid}")]
+    public async Task<IActionResult> GetDashboardProjectDetails(Guid projectId)
+    {
+        var projectData = await db.Projects
+            .Where(p => p.Id == projectId)
+            .Select(p => new DashboardProjectData
+            {
+                Project = new ProjectDto {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    IssueCount = p.Issues.Count,
+                    KeyPrefix = p.KeyPrefix,
+                    LabelCount = p.Labels.Count,
+                    IssueCounter = p.IssueCounter,
+                    WorkspaceId = p.WorkspaceId,
+                    CreatedAt = p.CreatedAt,
+                },
+                Members = p.Workspace.Members.Select(m => new WorkspaceMemberDto
+                {
+                    DisplayName = m.User.DisplayName,
+                    Email = m.User.Email ?? string.Empty,
+                    UserId = m.UserId,
+                    AvatarUrl = m.User.AvatarUrl,
+                    IsOwner = m.UserId == m.Workspace.OwnerId,
+                    JoinedAt = m.JoinedAt,
+                    Role = m.Role
+                }).ToList(),
+                Labels = p.Labels.Select(label => new LabelDto
+                {
+                    Id = label.Id,
+                    Name = label.Name,
+                    Color = label.Color,
+                }).ToList(),
+                Issues = p.Issues.Select((Issue issue) => new IssueDto
+                {
+                    Id = issue.Id,
+                    ProjectId = issue.ProjectId,
+                    Key = issue.Key,
+                    Title = issue.Title,
+                    Description = issue.Description,
+                    Status = issue.Status,
+                    Priority = issue.Priority,
+                    Type = issue.Type,
+                    AssigneeId = issue.AssigneeId,
+                    AssigneeDisplayName = issue.Assignee != null ? issue.Assignee.DisplayName : string.Empty,
+                    AssigneeAvatarUrl = issue.Assignee != null ? issue.Assignee.AvatarUrl : string.Empty,
+                    ReporterId = issue.ReporterId,
+                    ReporterDisplayName = issue.Reporter != null ? issue.Reporter.DisplayName : string.Empty,
+                    DueDate = issue.DueDate,
+                    Position = issue.Position,
+                    CreatedAt = issue.CreatedAt,
+                    UpdatedAt = issue.UpdatedAt,
+                    CommentCount = issue.Comments.Count,
+                    Labels = issue.IssueLabels
+                   .Select(il => new LabelDto
+                       {
+                           Id = il.Label.Id,
+                           Name = il.Label.Name,
+                           Color = il.Label.Color
+                       }).ToList()
+                }).ToList(),
+            })
+            .FirstOrDefaultAsync();
+
+            if (projectData is null) return NotFound();
+
+            return Ok(projectData);
     }
 }
