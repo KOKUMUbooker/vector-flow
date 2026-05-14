@@ -4,9 +4,11 @@
 @using VectorFlow.Shared.SignalR
 @using VectorFlow.Shared.DTOs
 @using VectorFlow.Shared.Enums
+@using VectorFlow.Client.Services.Interfaces
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject HttpClient Http
+@inject IDashboardService DashboardService
 @implements IAsyncDisposable
 
 <PageTitle>@(_project?.Name ?? "Board") — VectorFlow</PageTitle>
@@ -774,71 +776,18 @@ else
 
         try
         {
-            // ── Real API calls ────────────────────────────────────────────
-            //
-            // 1. Project details
-            //    _project = await Http.GetFromJsonAsync<ProjectDto>(
-            //        $"api/workspaces/.../projects/{ProjectId}");
-            //    if (_project is null) return;
-            //
-            // 2. Workspace members (for assignee filter + card avatars)
-            //    _members = await Http.GetFromJsonAsync<List<WorkspaceMemberDto>>(
-            //        $"api/workspaces/{_project.WorkspaceId}/members") ?? [];
-            //
-            // 3. Labels
-            //    _labels = await Http.GetFromJsonAsync<List<LabelDto>>(
-            //        $"api/projects/{ProjectId}/labels") ?? [];
-            //
-            // 4. Issues
-            //    var issueDtos = await Http.GetFromJsonAsync<List<IssueDto>>(
-            //        $"api/projects/{ProjectId}/issues") ?? [];
-            //    _allIssues = issueDtos.Select(MapToBoardIssue).ToList();
-            //
-            // ApplyFilters();
-            // ─────────────────────────────────────────────────────────────
-
-            // ── MOCK — delete once wired ──────────────────────────────────
-            await Task.Delay(600);
-
-            _project = new ProjectDto
+            var result = await DashboardService.GetDashboardProjectDataAsync(ProjectId);
+            if (result.Succeeded)
             {
-                Id        = ProjectId,
-                Name      = "VectorFlow Backend",
-                KeyPrefix = "VF",
-                IssueCounter = 14
-            };
+                _project = result.Data!.Project;
+                _members = result.Data.Members;
+                _labels = result.Data.Labels;
+                _allIssues = result.Data.Issues.Select(MapToBoardIssue).ToList();
+                ApplyFilters();
+                return;
+            }
 
-            _members =
-            [
-                new WorkspaceMemberDto { UserId = "u1", DisplayName = "Booker M." },
-                new WorkspaceMemberDto { UserId = "u2", DisplayName = "Jana S." },
-                new WorkspaceMemberDto { UserId = "u3", DisplayName = "Alex K." },
-            ];
-
-            _labels =
-            [
-                new LabelDto { Id = Guid.NewGuid(), Name = "bug",      Color = "#DC2626" },
-                new LabelDto { Id = Guid.NewGuid(), Name = "backend",  Color = "#2563EB" },
-                new LabelDto { Id = Guid.NewGuid(), Name = "auth",     Color = "#7C3AED" },
-            ];
-
-            _allIssues =
-            [
-                MakeMock("VF-01", "JWT auth with HttpOnly cookies",       IssueStatus.Done,       IssuePriority.Urgent, IssueType.Feature, "u1", null,                    3),
-                MakeMock("VF-02", "Workspace member role enforcement",     IssueStatus.Done,       IssuePriority.High,   IssueType.Task,    "u3", null,                    1),
-                MakeMock("VF-03", "EF Core entity configurations",         IssueStatus.Done,       IssuePriority.Medium, IssueType.Task,    "u1", null,                    0),
-                MakeMock("VF-04", "Invitation email template",             IssueStatus.InReview,   IssuePriority.Medium, IssueType.Feature, "u2", DateTime.Today.AddDays(1), 2),
-                MakeMock("VF-05", "Wire SignalR hub to issue service",     IssueStatus.InProgress, IssuePriority.High,   IssueType.Feature, "u1", DateTime.Today.AddDays(-1), 4),
-                MakeMock("VF-06", "ProjectHub broadcaster abstraction",    IssueStatus.InProgress, IssuePriority.Medium, IssueType.Task,    "u1", DateTime.Today.AddDays(2), 1),
-                MakeMock("VF-07", "Refresh token rotation on login",       IssueStatus.Todo,       IssuePriority.High,   IssueType.Bug,     "u2", DateTime.Today.AddDays(3), 0),
-                MakeMock("VF-08", "Add label filtering to board",          IssueStatus.Todo,       IssuePriority.Medium, IssueType.Feature, "u3", DateTime.Today.AddDays(5), 1),
-                MakeMock("VF-09", "xUnit tests for WorkspaceService",      IssueStatus.Backlog,    IssuePriority.High,   IssueType.Task,    "u1", DateTime.Today.AddDays(7), 0),
-                MakeMock("VF-10", "Markdown preview in descriptions",      IssueStatus.Backlog,    IssuePriority.Low,    IssueType.Feature, null, null,                    0),
-                MakeMock("VF-11", "Docker Compose setup",                  IssueStatus.Backlog,    IssuePriority.Medium, IssueType.Task,    "u2", null,                    0),
-            ];
-
-            ApplyFilters();
-            // ── END MOCK ──────────────────────────────────────────────────
+            Snackbar.Add($"Failed to load project data ",Severity.Error);
         }
         catch (Exception ex)
         {
@@ -1164,30 +1113,23 @@ else
 
     // ── Mock helper ────────────────────────────────────────────────────────
 
-    private BoardIssue MakeMock(
-        string key, string title, IssueStatus status,
-        IssuePriority priority, IssueType type,
-        string? assigneeId, DateTime? due, int comments)
+    private BoardIssue MapToBoardIssue(IssueDto i)
     {
-        var assigneeName = assigneeId is null
-            ? null
-            : _members.FirstOrDefault(m => m.UserId == assigneeId)?.DisplayName;
-
         return new BoardIssue
         {
             Id                  = Guid.NewGuid(),
             ProjectId           = ProjectId,
-            Key                 = key,
-            Title               = title,
-            Status              = status,
-            Priority            = priority,
-            Type                = type,
-            AssigneeId          = assigneeId,
-            AssigneeDisplayName = assigneeName,
-            DueDate             = due,
-            IsOverdue           = due.HasValue && due.Value.Date < DateTime.Today && status != IssueStatus.Done,
-            Position            = _allIssues.Count(i => i.Status == status) * 1000.0 + 1000,
-          Labels                = type == IssueType.Bug
+            Key                 = i.Key,
+            Title               = i.Title,
+            Status              = i.Status,
+            Priority            = i.Priority,
+            Type                = i.Type,
+            AssigneeId          = i.AssigneeId,
+            AssigneeDisplayName = i.AssigneeDisplayName,
+            DueDate             = i.DueDate,
+            IsOverdue           =  i.DueDate.HasValue &&  i.DueDate.Value.Date < DateTime.Today && i.Status != IssueStatus.Done,
+            Position            = _allIssues.Count(i => i.Status == i.Status) * 1000.0 + 1000,
+            Labels              = i.Type == IssueType.Bug
                                     ? [
                                         new BoardLabel(
                                             _labels[0].Id,
@@ -1197,7 +1139,7 @@ else
                                         )
                                     ]
                                     : [],
-            CommentCount        = comments
+            CommentCount        = i.CommentCount
         };
     }
 
