@@ -169,7 +169,7 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
     {
         try
         {
-            var response = await Http.PutAsJsonAsync($"api/workspaces/{workspaceId}", request);
+            var response = await Http.PutAsJsonAsync($"/api/workspaces/{workspaceId}/members/{targetUserId}/role", request);
 
             if (response.IsSuccessStatusCode)
             {
@@ -179,7 +179,7 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
 
             return response.StatusCode switch
             {
-                HttpStatusCode.NotFound => ServiceResult<MessageRes>.NotFoundResult("Workspace"),
+                HttpStatusCode.NotFound => ServiceResult<MessageRes>.NotFoundResult("Workspace member"),
                 HttpStatusCode.Forbidden => ServiceResult<MessageRes>.ForbiddenResult(),
                 _ => ServiceResult<MessageRes>.Failure(
                                                 await ErrorUtil.ReadErrorMessageAsync(response))
