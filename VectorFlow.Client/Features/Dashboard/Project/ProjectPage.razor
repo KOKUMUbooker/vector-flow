@@ -968,24 +968,30 @@ else
             if (newStatus != oldStatus)
             {
                 // Status changed — use the status endpoint (triggers activity log)
-                await Http.PatchAsJsonAsync(
-                    $"api/projects/{ProjectId}/issues/{drop.Item.Id}/status",
-                    new { Status = newStatus.ToString() });
+                var result = await ClientIssueService.UpdateIssueStatusAsync(ProjectId, drop.Item.Id, 
+                    new UpdateIssueStatusRequest{ Status = newStatus});
+                if (!result.Succeeded) {
+                    throw new Exception (
+                        result.Error ?? $"Failed to updated issue status of \"{drop.Item.Key}\"");
+                }
             }
             else
             {
                 // Same column reorder — use the position endpoint (no activity log)
-                await Http.PatchAsJsonAsync(
-                    $"api/projects/{ProjectId}/issues/{drop.Item.Id}/position",
-                    new { Position = newPosition });
+                var result = await ClientIssueService.UpdateIssuePositionAsync(ProjectId, drop.Item.Id, 
+                    new UpdateIssuePositionRequest{ Position = newPosition });
+                if (!result.Succeeded) {
+                    throw new Exception(
+                        result.Error ?? $"Failed to change issue position of \"{drop.Item.Key}\"");
+                }
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Roll back the optimistic update on failure
             drop.Item.Status   = oldStatus;
             ApplyFilters();
-            Snackbar.Add("Failed to update issue. Please try again.", Severity.Error);
+            Snackbar.Add(ex.Message ?? "Failed to update issue. Please try again.", Severity.Error);
         }
     }
 
@@ -1166,7 +1172,7 @@ else
     {
         return new BoardIssue
         {
-            Id                  = Guid.NewGuid(),
+            Id                  = i.Id,
             ProjectId           = ProjectId,
             Key                 = i.Key,
             Title               = i.Title,
