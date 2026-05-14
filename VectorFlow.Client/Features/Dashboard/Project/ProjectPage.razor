@@ -1063,18 +1063,6 @@ else
         {
             _newIssue.DueDate = _newIssueDueDate;
 
-            // TODO: replace with real API call
-            // var response = await Http.PostAsJsonAsync(
-            //     $"api/projects/{ProjectId}/issues", _newIssue);
-            // if (response.IsSuccessStatusCode)
-            // {
-            //     var created = await response.Content.ReadFromJsonAsync<IssueDto>();
-            //     _allIssues.Add(MapToBoardIssue(created!));
-            //     ApplyFilters();
-            //     _createIssueOpen = false;
-            //     Snackbar.Add($"Issue {created!.Key} created.", Severity.Success);
-            // }
-
             var data = new CreateIssueRequest
             {
                 Title = _newIssue.Title,
