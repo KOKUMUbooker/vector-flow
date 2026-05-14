@@ -142,7 +142,10 @@ public class IssueService(
             Type = request.Type,
             AssigneeId = string.IsNullOrEmpty(request.AssigneeId) ? null : request.AssigneeId,
             ReporterId = reporterId,
-            DueDate = request.DueDate,
+            // Ensure due date sent from server gets converted to UTC
+            DueDate = request.DueDate.HasValue
+                ? DateTime.SpecifyKind(request.DueDate.Value, DateTimeKind.Utc)
+                : null,
             Position = maxPosition + 1000,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
