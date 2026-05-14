@@ -149,7 +149,7 @@ public class WorkspaceService(IHttpClientFactory httpClientFactory) : IWorkspace
 
             return response.StatusCode switch
             {
-                HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Your member account"),
+                HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Member account"),
                 HttpStatusCode.Forbidden => ServiceResult.ForbiddenResult(),
                 _ => ServiceResult.Failure(
                                                 await ErrorUtil.ReadErrorMessageAsync(response))
