@@ -1,8 +1,9 @@
-﻿using System.Security.Claims;
+﻿using DotNetEnv;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using VectorFlow.Shared.DTOs;
+using System.Security.Claims;
 using VectorFlow.Api.Services.Interfaces;
+using VectorFlow.Shared.DTOs;
 
 namespace VectorFlow.Api.Controllers;
 
@@ -56,6 +57,7 @@ public class InvitationsController(IInvitationService invitationService) : Contr
     // Token is passed as a query param since this is opened from an email.
 
     [HttpPost("invitations/accept")]
+    [HttpGet("invitations/accept")]
     public async Task<IActionResult> AcceptInvitation([FromQuery] string token)
     {
         if (string.IsNullOrWhiteSpace(token))
