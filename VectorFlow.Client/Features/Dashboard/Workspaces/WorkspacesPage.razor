@@ -4,7 +4,8 @@
 @inject ISnackbar Snackbar
 @using VectorFlow.Shared.DTOs
 @using VectorFlow.Shared.Enums
-@* @inject IWorkspaceService WorkspaceService *@
+@using VectorFlow.Client.Services.Interfaces
+@inject IWorkspaceService WorkspaceService
 
 <PageTitle>Workspaces — VectorFlow</PageTitle>
 
@@ -667,41 +668,23 @@
     // ── Lifecycle ──────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        _loading = true;
+        try
+        {
+            _loading = true;
 
-        // TODO: _workspaces = await WorkspaceService.GetUserWorkspacesAsync();
-
-        await Task.Delay(600); // remove — simulates network
-
-        _workspaces =
-        [
-            new WorkspaceDto
+            var result = await WorkspaceService.GetWorkspacesAsync();
+            if (result.Succeeded)
             {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Name = "VectorFlow", Slug = "vectorflow",
-                Description = "Full-stack issue tracking built with ASP.NET Core and Blazor WASM.",
-                OwnerId = "user-booker", CreatedAt = DateTime.UtcNow.AddMonths(-3),
-                CurrentUserRole = WorkspaceRole.Owner, MemberCount = 4, ProjectCount = 3
-            },
-            new WorkspaceDto
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000002"),
-                Name = "Acme Corp", Slug = "acme-corp",
-                Description = "Internal tooling and platform work.",
-                OwnerId = "user-alice", CreatedAt = DateTime.UtcNow.AddMonths(-1),
-                CurrentUserRole = WorkspaceRole.Admin, MemberCount = 8, ProjectCount = 2
-            },
-            new WorkspaceDto
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000003"),
-                Name = "Side Project", Slug = "side-project",
-                Description = null,
-                OwnerId = "user-booker", CreatedAt = DateTime.UtcNow.AddDays(-14),
-                CurrentUserRole = WorkspaceRole.Owner, MemberCount = 1, ProjectCount = 1
-            },
-        ];
+                _workspaces = result.Data!;
+                return;
+            }
 
-        _loading = false;
+            Snackbar.Add("Failed to load workspaces",Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     // ── Navigation ─────────────────────────────────────────────────────
@@ -733,40 +716,48 @@
 
     private async Task HandleSave()
     {
-        await _form.Validate();
+        await _form.ValidateAsync();
         if (!_formValid) return;
         _saving = true;
 
-        await Task.Delay(800); // TODO: call service
-
-        if (_editingWorkspace is null)
+        try
         {
-            // TODO: var created = await WorkspaceService.CreateAsync(new CreateWorkspaceRequest { Name = _draftName, Description = _draftDescription });
-            var newWs = new WorkspaceDto
+            if (_editingWorkspace is null)
             {
-                Id = Guid.NewGuid(), Name = _draftName, Slug = _slugPreview,
-                Description = _draftDescription.Length > 0 ? _draftDescription : null,
-                OwnerId = "user-booker", CreatedAt = DateTime.UtcNow,
-                CurrentUserRole = WorkspaceRole.Owner, MemberCount = 1, ProjectCount = 0
-            };
-            _workspaces.Insert(0, newWs);
-            Snackbar.Add($"Workspace \"{_draftName}\" created!", Severity.Success);
-        }
-        else
-        {
-            // TODO: await WorkspaceService.UpdateAsync(_editingWorkspace.Id, new UpdateWorkspaceRequest { Name = _draftName, Description = _draftDescription });
-            var idx = _workspaces.IndexOf(_editingWorkspace);
-            @* if (idx >= 0) *@
-                @* _workspaces[idx] = _editingWorkspace with
-                {
-                    Name = _draftName,
-                    Description = _draftDescription.Length > 0 ? _draftDescription : null
-                }; *@
-            Snackbar.Add("Workspace updated.", Severity.Success);
-        }
+                var data = new CreateWorkspaceRequest { Name = _draftName, Description = _draftDescription };
+                var result = await WorkspaceService.CreateWorkspaceAsync(data);
 
-        _saving     = false;
-        _dialogOpen = false;
+                if (result.Succeeded)
+                {
+                    Snackbar.Add("Workspace created successfully!", Severity.Success);
+                    _workspaces.Insert(0, result.Data!);
+                    _dialogOpen = false;
+                    return;
+                }
+
+                Snackbar.Add(result.Error ?? "Workspace creation failed.", Severity.Error);
+            }
+            else
+            {
+                var data = new UpdateWorkspaceRequest { Name = _draftName, Description = _draftDescription };
+                var result = await WorkspaceService.UpdateWorkspaceAsync(_editingWorkspace.Id,data);
+
+                if (result.Succeeded)
+                {
+                    Snackbar.Add("Workspace updated successfully!", Severity.Success);
+                    var idx = _workspaces.IndexOf(_editingWorkspace);
+                    if (idx >= 0) _workspaces[idx] = result.Data!;
+                    _dialogOpen = false;
+                    return;
+                }
+
+                Snackbar.Add(result.Error ?? "Workspace update failed.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     // ── Confirm: delete workspace ──────────────────────────────────────
@@ -777,10 +768,15 @@
             "Delete",
             async () =>
             {
-                // TODO: await WorkspaceService.DeleteAsync(ws.Id);
-                await Task.Delay(700);
-                _workspaces.Remove(ws);
-                Snackbar.Add($"\"{ws.Name}\" deleted.", Severity.Info);
+                var result = await WorkspaceService.DeleteWorkspaceAsync(ws.Id);
+                if (result.Succeeded)
+                {
+                    Snackbar.Add($"\"{ws.Name}\" deleted.", Severity.Info);
+                    _workspaces.Remove(ws);
+                    return;
+                }
+
+                Snackbar.Add(result.Error ?? "Workspace deletion failed.", Severity.Error);
             });
 
     // ── Confirm: leave workspace ───────────────────────────────────────
@@ -791,10 +787,15 @@
             "Leave",
             async () =>
             {
-                // TODO: await WorkspaceService.LeaveAsync(ws.Id);
-                await Task.Delay(500);
-                _workspaces.Remove(ws);
-                Snackbar.Add($"You left \"{ws.Name}\".", Severity.Info);
+                var result = await WorkspaceService.LeaveWorkspaceAsync(ws.Id);
+                if (result.Succeeded)
+                {
+                    Snackbar.Add($"You left \"{ws.Name}\".", Severity.Info);
+                    _workspaces.Remove(ws);
+                    return;
+                }
+
+                Snackbar.Add(result.Error ?? $"Failed to leave  \"{ws.Name}\".", Severity.Error);
             });
 
     private void ShowConfirm(string title, string body, string action, Func<Task> task)
