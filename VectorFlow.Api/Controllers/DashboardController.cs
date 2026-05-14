@@ -168,7 +168,8 @@ public class DashboardController(
                 WorkspaceId          = i.WorkspaceId,
                 WorkspaceName        = i.Workspace.Name,
                 InvitedByDisplayName = i.InvitedBy.DisplayName,
-                ExpiresAt            = i.ExpiresAt
+                ExpiresAt            = i.ExpiresAt,
+                Token                = i.Token,
             })
             .ToListAsync();
 
@@ -259,6 +260,7 @@ public class DashboardController(
                     WorkspaceId = i.WorkspaceId,
                     WorkspaceName = i.Workspace.Name,
                     WorkspaceSlug = i.Workspace.Slug,
+                    Token = i.Token,
                 }).ToList(),
                 CurrentUserRole = currentUserRole.Role,
                 MemberCount = w.Members.Count,

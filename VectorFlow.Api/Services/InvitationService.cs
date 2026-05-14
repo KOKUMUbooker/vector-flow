@@ -291,6 +291,7 @@ public class InvitationService(
             InvitedByDisplayName = invitation.InvitedBy?.DisplayName ?? "A workspace admin",
             Status = invitation.Status,
             ExpiresAt = invitation.ExpiresAt,
-            CreatedAt = invitation.CreatedAt
+            CreatedAt = invitation.CreatedAt,
+            Token = invitation.Token,
         };
 }

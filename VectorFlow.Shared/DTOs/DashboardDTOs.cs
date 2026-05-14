@@ -104,4 +104,5 @@ public class DashboardInvitationDto
     public string WorkspaceName        { get; set; } = string.Empty;
     public string InvitedByDisplayName { get; set; } = string.Empty;
     public DateTime ExpiresAt          { get; set; }
+    public string Token                 { get; set; } = string.Empty;
 }
