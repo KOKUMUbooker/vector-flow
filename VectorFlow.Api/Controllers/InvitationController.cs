@@ -69,6 +69,12 @@ public class InvitationsController(IInvitationService invitationService) : Contr
         if (!result.Succeeded)
             return ToErrorResponse(result.Error!);
 
+        // If request was made via GET request - ie user clicked email link
+        if (HttpMethods.IsGet(Request.Method))
+        {
+            return Ok($"You have joined {result.Invitation!.WorkspaceName}. please proceed to the app");
+        }
+
         return Ok(new
         {
             Message = $"You have joined {result.Invitation!.WorkspaceName}.",
