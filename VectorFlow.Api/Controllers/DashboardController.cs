@@ -194,7 +194,7 @@ public class DashboardController(
         });
     }
 
-
+    // GET /api/dashboard/workspaces/{workspaceSlug}
     [HttpGet("workspaces/{workspaceSlug}")]
     public async Task<IActionResult> GetWorkspaceDetails(string workspaceSlug)
     {
@@ -295,8 +295,7 @@ public class DashboardController(
         });
     }
 
-
-    
+    // GET /api/dashboard/projects/{projectId}
     [HttpGet("projects/{projectId:guid}")]
     public async Task<IActionResult> GetDashboardProjectDetails(Guid projectId)
     {
