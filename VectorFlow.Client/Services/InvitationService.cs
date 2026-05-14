@@ -62,8 +62,8 @@ public class InvitationService(IHttpClientFactory httpClientFactory) : IInvitati
 
             if (response.IsSuccessStatusCode)
             {
-                var createdProject = await response.Content.ReadFromJsonAsync<InvitationDto>();
-                return ServiceResult<InvitationDto>.Success(createdProject!);
+                var createdInvitation = await response.Content.ReadFromJsonAsync<InvitationDto>();
+                return ServiceResult<InvitationDto>.Success(createdInvitation!);
             }
 
             return response.StatusCode switch
