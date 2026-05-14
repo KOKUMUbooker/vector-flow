@@ -108,10 +108,10 @@ public class ProjectService(IHttpClientFactory httpClientFactory) : IProjectServ
 
     // ── Update project ─────────────────────────────────────────────────
 
-    public async Task<ServiceResult<ProjectDto>> UpdateProjectAsync(Guid projectId, UpdateProjectRequest request) {
+    public async Task<ServiceResult<ProjectDto>> UpdateProjectAsync(Guid workspaceId, Guid projectId, UpdateProjectRequest request) {
         try
         {
-            var response = await Http.PutAsJsonAsync<UpdateProjectRequest>($"api/workspaces/{projectId}", request);
+            var response = await Http.PutAsJsonAsync<UpdateProjectRequest>($"api/workspaces/{workspaceId}/projects/{projectId}", request);
 
             if (response.IsSuccessStatusCode)
             {

@@ -14,5 +14,5 @@ public interface IProjectService
     Task<ServiceResult<ProjectDto>> GetProjectAsync(Guid workspaceId, Guid projectId);
 
     Task<ServiceResult> DeleteProjectAsync(Guid workspaceId, Guid projectId);
-    Task<ServiceResult<ProjectDto>> UpdateProjectAsync(Guid projectId, UpdateProjectRequest request);
+    Task<ServiceResult<ProjectDto>> UpdateProjectAsync(Guid workspaceId, Guid projectId, UpdateProjectRequest request);
 }

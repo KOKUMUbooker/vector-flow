@@ -1271,18 +1271,17 @@ else
                     Description = _projectDescription,
                 };
 
-                var result = await ProjectService.UpdateProjectAsync(_editingProject.Id, data);
+                var result = await ProjectService.UpdateProjectAsync(_workspace.Id,_editingProject.Id, data);
 
                 if (result.Succeeded)
                 {
-                    Snackbar.Add($"Project \"{_projectName}\" updated!", Severity.Success);
-                    
                      var idx = _projects.IndexOf(_editingProject);
                      if (result.Data is not null) {
                         _projects[idx] = result.Data!;
                      }
+
+                    Snackbar.Add($"Project \"{_projectName}\" updated!", Severity.Success);
                      _projectDialogOpen = false;
-                     Snackbar.Add("Project updated.", Severity.Success);
                     return;
                 }
 
