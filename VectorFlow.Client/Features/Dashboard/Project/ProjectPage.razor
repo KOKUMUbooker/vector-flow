@@ -9,6 +9,7 @@
 @inject ISnackbar Snackbar
 @inject HttpClient Http
 @inject IDashboardService DashboardService
+@inject IClientIssueService ClientIssueService
 @implements IAsyncDisposable
 
 <PageTitle>@(_project?.Name ?? "Board") — VectorFlow</PageTitle>
@@ -370,6 +371,15 @@ else
                           MaxLength="500"
                           Class="mb-3" />
 
+            <MudTextField @bind-Value="_newIssue.Description"
+                Label="Description"
+                Placeholder=""
+                Variant="Variant.Outlined"
+                Margin="Margin.Dense"
+                Lines="3"
+                MaxLength="500"
+                Class="mb-3" />
+
             <div class="create-issue-row">
                 <MudSelect @bind-Value="_newIssue.Status"
                            Label="Status"
@@ -424,7 +434,8 @@ else
                 DateFormat="yyyy-MM-dd"
                 Class="mb-3" />
 
-            
+
+
             <MudSelect T="Guid"
                 @bind-SelectedValues="@_newIssue.LabelIds"
                 Label="Labels"
@@ -723,6 +734,7 @@ else
     // Supporting data
     private List<WorkspaceMemberDto> _members = [];
     private List<LabelDto>  _labels  = [];
+    private Dictionary<Guid,string> LabelDict = new();
 
     // Active filters
     private string?       _filterAssigneeId;
@@ -746,6 +758,17 @@ else
     {
         MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true
     };
+
+    List<string> GetSelectedLabel(Guid labelId)
+    {
+        List<string> res = new();
+        foreach (var id in _newIssue.LabelIds)
+        {
+            if (LabelDict.ContainsKey(id)) res.Add(LabelDict.GetValueOrDefault(id)!);
+        }
+
+        return res;
+    }
 
     // SignalR
     private HubConnection? _hub;
@@ -783,6 +806,12 @@ else
                 _members = result.Data.Members;
                 _labels = result.Data.Labels;
                 _allIssues = result.Data.Issues.Select(MapToBoardIssue).ToList();
+
+                // Populate for name lookup in create issue form
+                foreach (var label in _labels)
+                {
+                    LabelDict.Add(label.Id, label.Name);
+                }
                 ApplyFilters();
                 return;
             }
@@ -1040,9 +1069,29 @@ else
             //     Snackbar.Add($"Issue {created!.Key} created.", Severity.Success);
             // }
 
-            await Task.Delay(600);
-            _createIssueOpen = false;
-            Snackbar.Add("Issue created.", Severity.Success);
+            var data = new CreateIssueRequest
+            {
+                Title = _newIssue.Title,
+                Status = _newIssue.Status,
+                Type = _newIssue.Type,
+                AssigneeId = _newIssue.AssigneeId,
+                Description = _newIssue.Description,
+                DueDate = _newIssue.DueDate,
+                Priority = _newIssue.Priority,
+                LabelIds = _newIssue.LabelIds.ToList(),
+            };
+            var result = await ClientIssueService.CreateIssueAsync(ProjectId,data);
+            if (result.Succeeded)
+            {
+                _allIssues.Add(MapToBoardIssue(result.Data!));
+                ApplyFilters();
+                _createIssueOpen = false;
+                Snackbar.Add($"Issue {result.Data!.Key} created.", Severity.Success);
+                _createIssueOpen = false;
+                return;
+            }
+
+            Snackbar.Add(result.Error ?? "Failed to create issue.", Severity.Error);
         }
         catch (Exception ex)
         {
@@ -1177,6 +1226,7 @@ else
         public IssuePriority Priority   { get; set; } = IssuePriority.None;
         public IssueType     Type       { get; set; } = IssueType.Task;
         public string?       AssigneeId { get; set; }
+        public string?       Description { get; set; }
         public DateTime?     DueDate    { get; set; }
         public IReadOnlyCollection<Guid> LabelIds { get; set; } = [];
     }
