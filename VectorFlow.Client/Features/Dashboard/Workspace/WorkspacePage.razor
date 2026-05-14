@@ -1198,7 +1198,7 @@ else
                 return;
             }
 
-            Snackbar.Add($"Failed to send invitation to {_inviteEmail}", Severity.Error);
+            Snackbar.Add(result.Error ?? $"Failed to send invitation to {_inviteEmail}", Severity.Error);
         }
         finally {
             _inviteLoading = false;
@@ -1271,18 +1271,17 @@ else
                     Description = _projectDescription,
                 };
 
-                var result = await ProjectService.UpdateProjectAsync(_editingProject.Id, data);
+                var result = await ProjectService.UpdateProjectAsync(_workspace.Id,_editingProject.Id, data);
 
                 if (result.Succeeded)
                 {
-                    Snackbar.Add($"Project \"{_projectName}\" updated!", Severity.Success);
-                    
                      var idx = _projects.IndexOf(_editingProject);
                      if (result.Data is not null) {
                         _projects[idx] = result.Data!;
                      }
+
+                    Snackbar.Add($"Project \"{_projectName}\" updated!", Severity.Success);
                      _projectDialogOpen = false;
-                     Snackbar.Add("Project updated.", Severity.Success);
                     return;
                 }
 
@@ -1313,7 +1312,7 @@ else
                     return;
                 }
 
-                Snackbar.Add($"Failed to delete \"{project.Name}\"", Severity.Info);
+                Snackbar.Add(result.Error ?? $"Failed to delete \"{project.Name}\"", Severity.Info);
             });
 
     // ── Member role change ─────────────────────────────────────────────
@@ -1328,7 +1327,7 @@ else
             Snackbar.Add($"{member.DisplayName} is now {newRole}.", Severity.Success);
             return;
         }
-        Snackbar.Add($"Failed to update role of \"{member.DisplayName}\"", Severity.Error);
+        Snackbar.Add(result.Error ?? $"Failed to update role of \"{member.DisplayName}\"", Severity.Error);
     }
 
     // ── Remove member ──────────────────────────────────────────────────
@@ -1352,7 +1351,7 @@ else
                     return;
                 }
 
-                Snackbar.Add($"Failed to remove {member.DisplayName}.", Severity.Error);
+                Snackbar.Add(result.Error ?? $"Failed to remove {member.DisplayName}.", Severity.Error);
             });
 
     // ── Cancel invitation ──────────────────────────────────────────────
@@ -1375,7 +1374,7 @@ else
                     Snackbar.Add("Invitation cancelled.", Severity.Info);
                     return;
                 }
-                Snackbar.Add("Failed to cancel invitation.", Severity.Error);
+                Snackbar.Add(result.Error ?? "Failed to cancel invitation.", Severity.Error);
             });
 
     // ── Generic confirm helper ─────────────────────────────────────────
