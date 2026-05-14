@@ -81,23 +81,35 @@ public class InvitationService(IHttpClientFactory httpClientFactory) : IInvitati
                 HttpStatusCode.NotFound => ServiceResult<InvitationDto>.NotFoundResult("Invitation"),
                 HttpStatusCode.Forbidden => ServiceResult<InvitationDto>.ForbiddenResult(),
                 HttpStatusCode.Unauthorized => ServiceResult<InvitationDto>.Failure("Session expired. Please sign in again."),
-                _ => ServiceResult<InvitationDto>.Failure("Failed to create project.")
+                _ => ServiceResult<InvitationDto>.Failure("Failed to create invitation.")
             };
         }
     }
 
     public async Task<ServiceResult> DeleteInvitationAsync( Guid invitationId) {
-        var response = await Http.DeleteAsync($"/api/invitations/{invitationId}");
-
-        if (response.IsSuccessStatusCode)
-            return ServiceResult.Ok();
-
-        return response.StatusCode switch
+        try
         {
-            HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Invitation"),
-            HttpStatusCode.Forbidden => ServiceResult.ForbiddenResult(),
-            _ => ServiceResult.Failure(await ErrorUtil.ReadErrorMessageAsync(response))
-        };
+            var response = await Http.DeleteAsync($"/api/invitations/{invitationId}");
+
+            if (response.IsSuccessStatusCode)
+                return ServiceResult.Ok();
+
+            return response.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Invitation"),
+                HttpStatusCode.Forbidden => ServiceResult.ForbiddenResult(),
+                _ => ServiceResult.Failure(await ErrorUtil.ReadErrorMessageAsync(response))
+            };
+        }
+        catch (HttpRequestException ex) {
+            return ex.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult.NotFoundResult("Invitation"),
+                HttpStatusCode.Forbidden => ServiceResult.ForbiddenResult(),
+                HttpStatusCode.Unauthorized => ServiceResult.Failure("Session expired. Please sign in again."),
+                _ => ServiceResult.Failure("Failed to delete invitation.")
+            };
+        }
     }
 
     public async Task<ServiceResult<InvitationActionRes>> AcceptInvitationAsync(string token) {
