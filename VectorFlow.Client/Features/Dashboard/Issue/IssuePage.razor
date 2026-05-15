@@ -1,11 +1,16 @@
 @page "/w/{Slug}/projects/{ProjectId:guid}/issues/{IssueId:guid}"
 @layout Features.Layout.MainLayout
+@using VectorFlow.Shared.DTOs
+@using VectorFlow.Shared.Enums
+@using VectorFlow.Client.Services
+@using VectorFlow.Client.Services.Interfaces
+@using System.Security.Claims;
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
-@* @inject IIssueService IssueService *@
-@* @inject ICommentService CommentService *@
+@inject IClientIssueService IssueService
+@inject IDashboardService DashboardService
+@inject IClientCommentService CommentService
 @* @inject IWorkspaceService WorkspaceService *@
-@* @inject IAuthService AuthService *@
 
 <PageTitle>@(_issue?.Key ?? "Issue") — VectorFlow</PageTitle>
 
@@ -82,13 +87,31 @@ else
 
                 <!-- Type + status row -->
                 <div class="issue-tags-row">
-                    <div class="issue-type-badge type-@_issue.Type.ToString().ToLower()">
-                        <MudIcon Icon="@TypeIcon(_issue.Type)" Style="font-size:12px" />
-                        @_issue.Type
-                    </div>
                     <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
                         <ActivatorContent>
-                            <div class="status-chip status-@StatusCss(_issue.Status)" style="cursor:pointer">
+                            <div  class="issue-type-badge type-@_issue.Type.ToString().ToLower()" onclick="@context.ToggleAsync" style="cursor:pointer">
+                                @* <div class="status-dot"></div> *@
+                                <MudIcon Icon="@TypeIcon(_issue.Type)" Style="font-size:12px" />
+                                @(_issue.Type)
+                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:12px; margin-left:2px" />
+                            </div>
+                        </ActivatorContent>
+                        <ChildContent>
+                            @foreach (IssueType t in Enum.GetValues<IssueType>())
+                            {
+                                <MudMenuItem OnClick="() => ChangeType(t)"
+                                             Class="@(t == _issue.Type ? "menu-item-active" : "")">
+                                    <div class="status-menu-item">
+                                        <div class="status-dot-sm"></div>
+                                        @t.ToString()
+                                    </div>
+                                </MudMenuItem>
+                            }
+                        </ChildContent>
+                    </MudMenu>
+                    <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                        <ActivatorContent>
+                            <div  class="status-chip status-@StatusCss(_issue.Status)" onclick="@context.ToggleAsync" style="cursor:pointer">
                                 <div class="status-dot"></div>
                                 @StatusLabel(_issue.Status)
                                 <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:12px; margin-left:2px" />
@@ -222,14 +245,14 @@ else
                                             {
                                                 <div class="comment-actions">
                                                     <MudIconButton Icon="@Icons.Material.Outlined.Edit"
-                                                                   Size="Size.Small"
-                                                                   OnClick="() => StartEditComment(comment)"
-                                                                   Class="comment-action-btn" />
+                                                        Size="Size.Small"
+                                                        OnClick="() => StartEditComment(comment)"
+                                                        Class="comment-action-btn" />
                                                     <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
-                                                                   Size="Size.Small"
-                                                                   Color="Color.Error"
-                                                                   OnClick="() => ConfirmDeleteComment(comment)"
-                                                                   Class="comment-action-btn" />
+                                                        Size="Size.Small"
+                                                        Color="Color.Error"
+                                                        OnClick="() => ConfirmDeleteComment(comment)"
+                                                        Class="comment-action-btn" />
                                                 </div>
                                             }
                                         </div>
@@ -237,20 +260,20 @@ else
                                         @if (_editingCommentId == comment.Id)
                                         {
                                             <MudTextField @bind-Value="_commentEditDraft"
-                                                          Variant="Variant.Outlined"
-                                                          Lines="3"
-                                                          Margin="Margin.Dense"
-                                                          Class="comment-edit-field" />
+                                                Variant="Variant.Outlined"
+                                                Lines="3"
+                                                Margin="Margin.Dense"
+                                                Class="comment-edit-field" />
                                             <div class="comment-edit-actions">
                                                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                                           Size="Size.Small"
-                                                           OnClick="() => SaveEditComment(comment)"
-                                                           Disabled="_savingComment">
+                                                    Size="Size.Small"
+                                                    OnClick="() => SaveEditComment(comment)"
+                                                    Disabled="_savingComment">
                                                     @(_savingComment ? "Saving…" : "Save")
                                                 </MudButton>
                                                 <MudButton Variant="Variant.Text" Color="Color.Default"
-                                                           Size="Size.Small"
-                                                           OnClick="CancelEditComment">
+                                                    Size="Size.Small"
+                                                    OnClick="CancelEditComment">
                                                     Cancel
                                                 </MudButton>
                                             </div>
@@ -272,21 +295,23 @@ else
                         </div>
                         <div class="composer-input-wrap">
                             <MudTextField @bind-Value="_newCommentBody"
-                                          Placeholder="Leave a comment…"
-                                          Variant="Variant.Outlined"
-                                          Lines="3"
-                                          Margin="Margin.Dense"
-                                          Class="composer-field" />
+                                Placeholder="Leave a comment…"
+                                Variant="Variant.Outlined"
+                                Lines="3"
+                                Margin="Margin.Dense"
+                                Class="composer-field" />
                             <div class="composer-footer">
-                                <MudText Typo="Typo.caption" Class="mud-text-disabled">
-                                    Markdown supported
-                                </MudText>
+                                <div>
+                                    @* <MudText Typo="Typo.caption" Class="mud-text-disabled">
+                                        Markdown supported
+                                    </MudText> *@
+                                </div>
                                 <MudButton Variant="Variant.Filled"
-                                           Color="Color.Primary"
-                                           Size="Size.Small"
-                                           OnClick="SubmitComment"
-                                           Disabled="@(string.IsNullOrWhiteSpace(_newCommentBody) || _savingComment)"
-                                           Class="submit-comment-btn">
+                                    Color="Color.Primary"
+                                    Size="Size.Small"
+                                    OnClick="SubmitComment"
+                                    Disabled="@(string.IsNullOrWhiteSpace(_newCommentBody) || _savingComment)"
+                                    Class="submit-comment-btn">
                                     @(_savingComment ? "Posting…" : "Comment")
                                 </MudButton>
                             </div>
@@ -303,12 +328,13 @@ else
                 <div class="sidebar-field">
                     <div class="sidebar-label">Priority</div>
                     <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
-                        <ActivatorContent>
-                            <div class="sidebar-value sidebar-clickable">
+                        <ActivatorContent >
+                            <MudButton Variant="Variant.Outlined" EndIcon="@Icons.Material.Outlined.ExpandMore" class="sidebar-value sidebar-clickable" OnClick="@context.ToggleAsync">
                                 <div class="pri-dot pri-@PriorityCss(_issue.Priority)"></div>
-                                @_issue.Priority.ToString()
-                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:13px; margin-left:auto" />
-                            </div>
+                                <span style="margin-left:5px">
+                                    @_issue.Priority.ToString()
+                                </span>
+                            </MudButton>
                         </ActivatorContent>
                         <ChildContent>
                             @foreach (IssuePriority p in Enum.GetValues<IssuePriority>())
@@ -324,24 +350,24 @@ else
                     </MudMenu>
                 </div>
 
+
                 <!-- Assignee -->
                 <div class="sidebar-field">
                     <div class="sidebar-label">Assignee</div>
                     <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
                         <ActivatorContent>
-                            <div class="sidebar-value sidebar-clickable">
+                            <MudButton EndIcon="Icons.Material.Outlined.ExpandMore" class="sidebar-value sidebar-clickable" OnClick="@context.ToggleAsync">
                                 @if (!string.IsNullOrEmpty(_issue.AssigneeDisplayName))
                                 {
                                     <div class="assignee-avatar-sm">@GetInitials(_issue.AssigneeDisplayName)</div>
-                                    <span>@_issue.AssigneeDisplayName</span>
+                                    <span style="margin-left:5px">@_issue.AssigneeDisplayName</span>
                                 }
                                 else
                                 {
                                     <MudIcon Icon="@Icons.Material.Outlined.PersonAdd" Style="font-size:15px; color:var(--mud-palette-text-disabled)" />
-                                    <span class="sidebar-unset">Unassigned</span>
+                                    <span style="margin-left:5px" class="sidebar-unset">Unassigned</span>
                                 }
-                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:13px; margin-left:auto" />
-                            </div>
+                            </MudButton>
                         </ActivatorContent>
                         <ChildContent>
                             <MudMenuItem OnClick="() => ChangeAssignee(null, null)">
@@ -368,12 +394,12 @@ else
                 <div class="sidebar-field">
                     <div class="sidebar-label">Due date</div>
                     <MudDatePicker Date="_issue.DueDate"
-                                   DateChanged="ChangeDueDate"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense"
-                                   Clearable="true"
-                                   Placeholder="No due date"
-                                   Class="sidebar-datepicker" />
+                        DateChanged="ChangeDueDate"
+                        Variant="Variant.Outlined"
+                        Margin="Margin.Dense"
+                        Clearable="true"
+                        Placeholder="No due date"
+                        Class="sidebar-datepicker" />
                 </div>
 
                 <!-- Labels -->
@@ -394,9 +420,9 @@ else
                             <span class="sidebar-unset">None</span>
                         }
                         <MudIconButton Icon="@Icons.Material.Outlined.Add"
-                                       Size="Size.Small"
-                                       Title="Add label"
-                                       Class="label-add-btn" />
+                            Size="Size.Small"
+                            Title="Add label"
+                            Class="label-add-btn" />
                     </div>
                 </div>
 
@@ -428,12 +454,12 @@ else
                 {
                     <div class="sidebar-field">
                         <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Error"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Outlined.DeleteOutline"
-                                   FullWidth="true"
-                                   OnClick="ConfirmDeleteIssue"
-                                   Class="delete-issue-btn">
+                            Color="Color.Error"
+                            Size="Size.Small"
+                            StartIcon="@Icons.Material.Outlined.DeleteOutline"
+                            FullWidth="true"
+                            OnClick="ConfirmDeleteIssue"
+                            Class="delete-issue-btn">
                             Delete issue
                         </MudButton>
                     </div>
@@ -1022,6 +1048,7 @@ else
     [Parameter] public string Slug       { get; set; } = string.Empty;
     [Parameter] public Guid   ProjectId  { get; set; }
     [Parameter] public Guid   IssueId    { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
 
     // ── Page state ─────────────────────────────────────────────────────
     private bool     _loading = true;
@@ -1034,7 +1061,7 @@ else
 
     private List<CommentDto>  _comments = [];
     private List<ActivityRow> _activity = [];
-    private List<MemberDto>   _members  = [];
+    private List<WorkspaceMemberDto>   _members  = [];
 
     // Editing flags
     private bool   _editingTitle;
@@ -1078,92 +1105,27 @@ else
 
         try
         {
-            // ── TODO: real calls ────────────────────────────────────────
-            // var me           = await AuthService.GetCurrentUserAsync();
-            // _currentUserId   = me.Id;
-            // _currentUserName = me.DisplayName;
-            //
-            // var workspace    = await WorkspaceService.GetBySlugAsync(Slug);
-            // _workspaceName   = workspace.Name;
-            // _canManage       = workspace.CurrentUserRole is WorkspaceRole.Owner or WorkspaceRole.Admin;
-            //
-            // var project      = await ProjectService.GetAsync(workspace.Id, ProjectId);
-            // _projectName     = project.Name;
-            //
-            // _issue           = await IssueService.GetAsync(ProjectId, IssueId);
-            // _comments        = await CommentService.GetByIssueAsync(IssueId);
-            // _activity        = (await IssueService.GetActivityAsync(ProjectId, IssueId))
-            //                        .Select(MapActivity).ToList();
-            // _members         = await WorkspaceService.GetMembersAsync(workspace.Id);
-            // ────────────────────────────────────────────────────────────
-
-            await Task.Delay(500);
-
-            _currentUserId   = "user-booker";
-            _currentUserName = "Booker K.";
-            _workspaceName   = "VectorFlow";
-            _projectName     = "VectorFlow Backend";
-            _canManage       = true;
-
-            _members =
-            [
-                new MemberDto { UserId = "user-booker", DisplayName = "Booker K.",  Email = "booker@vectorflow.dev", Role = WorkspaceRole.Owner,  IsOwner = true  },
-                new MemberDto { UserId = "user-jana",   DisplayName = "Jana S.",    Email = "jana@vectorflow.dev",   Role = WorkspaceRole.Admin,  IsOwner = false },
-                new MemberDto { UserId = "user-alex",   DisplayName = "Alex K.",    Email = "alex@vectorflow.dev",   Role = WorkspaceRole.Member, IsOwner = false },
-            ];
-
-            _issue = new IssueDto
+            if (AuthenticationState is null)
             {
-                Id                  = IssueId,
-                ProjectId           = ProjectId,
-                Key                 = "VF-05",
-                Title               = "Wire SignalR hub to issue service",
-                Description         = "The SignalR hub needs to be connected to the issue domain service so that all CRUD operations broadcast real-time events to connected clients.\n\nAcceptance criteria:\n- IssueCreated, IssueUpdated, IssueDeleted events fire correctly\n- Only members of the project receive events\n- Existing unit tests remain green",
-                Status              = IssueStatus.InProgress,
-                Priority            = IssuePriority.High,
-                Type                = IssueType.Feature,
-                AssigneeId          = "user-booker",
-                AssigneeDisplayName = "Booker K.",
-                ReporterId          = "user-jana",
-                ReporterDisplayName = "Jana S.",
-                DueDate             = DateTime.Today.AddDays(4),
-                Position            = 1024,
-                CreatedAt           = DateTime.UtcNow.AddDays(-5),
-                UpdatedAt           = DateTime.UtcNow.AddHours(-2),
-                CommentCount        = 2,
-                Labels              =
-                [
-                    new LabelDto { Id = Guid.NewGuid(), Name = "backend",  Color = "#4339CA" },
-                    new LabelDto { Id = Guid.NewGuid(), Name = "realtime", Color = "#1A7A52" }
-                ]
-            };
+                Snackbar.Add("User not found, please log in", Severity.Error);
+                return;
+            }
 
-            _activity =
-            [
-                new ActivityRow("Jana S.",   "created this issue",           "",         "",          DateTime.UtcNow.AddDays(-5)),
-                new ActivityRow("Booker K.", "changed status",               "Backlog",  "In Progress", DateTime.UtcNow.AddDays(-3)),
-                new ActivityRow("Booker K.", "changed priority",             "Medium",   "High",      DateTime.UtcNow.AddDays(-2)),
-                new ActivityRow("Jana S.",   "assigned this issue to",       "",         "Booker K.", DateTime.UtcNow.AddDays(-1)),
-                new ActivityRow("Booker K.", "set due date to",              "",         "May 12, 2025", DateTime.UtcNow.AddHours(-6)),
-            ];
+            var result = await DashboardService.GetDashboardIssueDataAsync(ProjectId,IssueId);
+            if (result.Succeeded)
+            {
+                var user = (await AuthenticationState).User;
+                _currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+                _currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
 
-            _comments =
-            [
-                new CommentDto
-                {
-                    Id = Guid.NewGuid(), IssueId = IssueId,
-                    AuthorId = "user-jana", AuthorDisplayName = "Jana S.",
-                    Body = "Can we also make sure the hub group name is deterministic from the project ID? Something like `project-{projectId}` so it's easy to join from the client.",
-                    IsEdited = false, CreatedAt = DateTime.UtcNow.AddDays(-3), UpdatedAt = DateTime.UtcNow.AddDays(-3)
-                },
-                new CommentDto
-                {
-                    Id = Guid.NewGuid(), IssueId = IssueId,
-                    AuthorId = "user-booker", AuthorDisplayName = "Booker K.",
-                    Body = "Good call — I'll use `project-{projectId}`. Also planning to inject `IProjectHubBroadcaster` into the service layer so it stays testable.",
-                    IsEdited = true, CreatedAt = DateTime.UtcNow.AddDays(-2), UpdatedAt = DateTime.UtcNow.AddDays(-1)
-                },
-            ];
+                _workspaceName = result.Data!.WorkspaceName;
+                _canManage = result.Data.UserWorkspaceRole is WorkspaceRole.Owner or WorkspaceRole.Admin;
+                _projectName = result.Data.ProjectName;
+                _issue = result.Data.Issue;
+                _comments = result.Data.Comments;
+                _activity = result.Data.ActivityLogs.Select(MapActivity).ToList();
+                _members = result.Data.Members;
+            }
         }
         catch (Exception ex)
         {
@@ -1185,13 +1147,25 @@ else
     private async Task SaveTitle()
     {
         if (_issue is null || string.IsNullOrWhiteSpace(_titleDraft)) return;
-        _savingTitle = true;
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Title = _titleDraft });
-        await Task.Delay(400);
-        @* _issue       = _issue with { Title = _titleDraft, UpdatedAt = DateTime.UtcNow }; *@
-        _savingTitle  = false;
-        _editingTitle = false;
-        AddOptimisticActivity("changed title", _issue.Title, _titleDraft);
+        try
+        {
+            _savingTitle = true;    
+            var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+               new UpdateIssueRequest { Title = _titleDraft });
+            if (result.Succeeded)
+            {
+                _editingTitle = false;
+                _issue = result.Data!;
+                Snackbar.Add("Issue title updated successfully",Severity.Success);
+                return;
+            }
+
+            Snackbar.Add("Failed to update issue title",Severity.Error);
+        }
+        finally
+        {
+            _savingTitle  = false;  
+        }
     }
 
     // ── Description editing ────────────────────────────────────────────
@@ -1203,24 +1177,63 @@ else
 
     private async Task SaveDescription()
     {
-        if (_issue is null) return;
-        _savingDescription = true;
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Description = _descriptionDraft });
-        await Task.Delay(400);
-        @* _issue              = _issue with { Description = _descriptionDraft, UpdatedAt = DateTime.UtcNow }; *@
-        _savingDescription  = false;
-        _editingDescription = false;
+        try
+        {
+            if (_issue is null || string.IsNullOrEmpty(_descriptionDraft)) return;
+            _savingDescription = true;
+            var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+                new UpdateIssueRequest { Description = _descriptionDraft });
+            if (result.Succeeded)
+            {
+                _editingDescription = false;
+                _issue = result.Data!;
+                Snackbar.Add("Issue Description updated successfully",Severity.Success);
+                return;
+            }
+
+            Snackbar.Add("Failed to update issue description",Severity.Error);
+        }
+        finally
+        {
+            _savingDescription  = false;
+        }
     }
+
+    // ── Issue type change ──────────────────────────────────────────────────
+    private async Task ChangeType(IssueType newType)
+    {
+        if (_issue is null || newType == _issue.Type) return;
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { Type = newType });
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue type updated successfully",Severity.Success);
+            return;
+        }
+
+        Snackbar.Add("Failed to update issue type",Severity.Error);
+    }
+
 
     // ── Status change ──────────────────────────────────────────────────
     private async Task ChangeStatus(IssueStatus newStatus)
     {
         if (_issue is null || newStatus == _issue.Status) return;
         var old = _issue.Status;
-        @* _issue = _issue with { Status = newStatus, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.ChangeStatusAsync(ProjectId, IssueId, new IssueStatusRequest { Status = newStatus });
-        await Task.Delay(300);
-        AddOptimisticActivity("changed status", StatusLabel(old), StatusLabel(newStatus));
+        var result = await IssueService.UpdateIssueStatusAsync(ProjectId, IssueId, 
+            new UpdateIssueStatusRequest { Status = newStatus });
+        var log = new ActivityRow(_currentUserName, ActivityAction.StatusChanged, StatusLabel(old), StatusLabel(newStatus), DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue status updated successfully",Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to update issue status",Severity.Error);
     }
 
     // ── Priority change ────────────────────────────────────────────────
@@ -1228,29 +1241,61 @@ else
     {
         if (_issue is null || newPriority == _issue.Priority) return;
         var old = _issue.Priority;
-        @* _issue = _issue with { Priority = newPriority, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Priority = newPriority });
-        await Task.Delay(300);
-        AddOptimisticActivity("changed priority", old.ToString(), newPriority.ToString());
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { Priority = newPriority });
+        var log = new ActivityRow(_currentUserName, ActivityAction.StatusChanged, old.ToString(), newPriority.ToString(), DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue priority updated successfully",Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to update issue priority",Severity.Error);
     }
 
     // ── Assignee change ────────────────────────────────────────────────
     private async Task ChangeAssignee(string? userId, string? displayName)
     {
         if (_issue is null) return;
-        @* _issue = _issue with { AssigneeId = userId, AssigneeDisplayName = displayName, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { AssigneeId = userId });
-        await Task.Delay(300);
-        AddOptimisticActivity("changed assignee", "", displayName ?? "Unassigned");
+        var old = _issue.AssigneeDisplayName;
+        var result = await IssueService.UpdateIssueAssigneeAsync(ProjectId, IssueId, 
+            new UpdateIssueAssigneeRequest { AssigneeId = userId });
+        var log = new ActivityRow(_currentUserName, ActivityAction.AssigneeChanged, old ?? "Unassigned", displayName ?? "Unassigned", DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            var action = !string.IsNullOrEmpty(userId) ? "set" : "removed";
+            Snackbar.Add($"Issue assignee {action} successfully",Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to change assignee",Severity.Error);
     }
 
     // ── Due date change ────────────────────────────────────────────────
     private async Task ChangeDueDate(DateTime? newDate)
     {
         if (_issue is null) return;
-        @* _issue = _issue with { DueDate = newDate, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { DueDate = newDate });
-        await Task.Delay(300);
+        var old = _issue.DueDate;
+        var result = await IssueService.UpdateIssueDueDateAsync(ProjectId, IssueId, 
+            new UpdateIssueDueDateRequest { DueDate = newDate });
+        var log = new ActivityRow(_currentUserName, ActivityAction.DueDateChanged, old?.ToString("yyyy-MM-dd") ?? "Unscheduled", newDate?.ToString("yyyy-MM-dd") ?? "Unscheduled", DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            var action = newDate != null ? "updated" : "removed";
+            Snackbar.Add($"Issue DueDate {action} successfully", Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to update issue DueDate",Severity.Error);
     }
 
     // ── Comments ───────────────────────────────────────────────────────
@@ -1258,20 +1303,24 @@ else
     {
         if (string.IsNullOrWhiteSpace(_newCommentBody)) return;
         _savingComment = true;
-
-        // TODO: var created = await CommentService.AddAsync(IssueId, new AddCommentRequest { Body = _newCommentBody });
-        await Task.Delay(500);
-
-        _comments.Add(new CommentDto
+        try 
         {
-            Id = Guid.NewGuid(), IssueId = IssueId,
-            AuthorId = _currentUserId, AuthorDisplayName = _currentUserName,
-            Body = _newCommentBody, IsEdited = false,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-        });
+            var result = await CommentService.CreateCommentAsync(IssueId,
+                new CreateCommentRequest {Body = _newCommentBody});
+            
+            if (result.Succeeded) 
+            {
+                _comments.Add(result.Data!);
+                _newCommentBody = string.Empty;
+                return;
+            }
 
-        _newCommentBody = string.Empty;
-        _savingComment  = false;
+            Snackbar.Add(result.Error ?? "Failed to create comment",Severity.Error);
+        }
+        finally
+        {
+            _savingComment  = false;
+        }
     }
 
     private void StartEditComment(CommentDto comment)
@@ -1290,16 +1339,26 @@ else
     {
         if (string.IsNullOrWhiteSpace(_commentEditDraft)) return;
         _savingComment = true;
-        // TODO: await CommentService.UpdateAsync(comment.Id, new UpdateCommentRequest { Body = _commentEditDraft });
-        await Task.Delay(400);
-        var idx = _comments.IndexOf(comment);
-        @* if (idx >= 0)
-            _comments[idx] = comment with
+        try 
+        {
+           var result = await CommentService.UpdateCommentAsync(comment.Id,
+                 new UpdateCommentRequest { Body = _commentEditDraft });
+
+            if (result.Succeeded) 
             {
-                Body = _commentEditDraft, IsEdited = true, UpdatedAt = DateTime.UtcNow
-            }; *@
-        _savingComment    = false;
-        _editingCommentId = null;
+                var idx = _comments.IndexOf(comment);
+                if (idx >= 0) _comments[idx] = result.Data!;
+                _editingCommentId = null;
+                Snackbar.Add("Comment updated successfully", Severity.Success);
+                return;
+            }
+
+            Snackbar.Add(result.Error ?? "Failed to update comment",Severity.Error);
+        }
+        finally
+        {
+            _savingComment    = false;
+        }
     }
 
     private void ConfirmDeleteComment(CommentDto comment) =>
@@ -1307,9 +1366,13 @@ else
             "Delete",
             async () =>
             {
-                // TODO: await CommentService.DeleteAsync(comment.Id);
-                await Task.Delay(400);
-                _comments.Remove(comment);
+                var result = await CommentService.DeleteCommentAsync(comment.Id);
+                if (result.Succeeded) {
+                    _comments.Remove(comment);
+                    Snackbar.Add("Comment deleted successfully",Severity.Info);
+                    return;
+                }
+                Snackbar.Add(result.Error ?? "Failed to delete comment",Severity.Error);
             });
 
     // ── Delete issue ───────────────────────────────────────────────────
@@ -1319,9 +1382,13 @@ else
             "Delete issue",
             async () =>
             {
-                // TODO: await IssueService.DeleteAsync(ProjectId, IssueId);
-                await Task.Delay(600);
-                Nav.NavigateTo($"/w/{Slug}/projects/{ProjectId}");
+                var result = await IssueService.DeleteIssueAsync(ProjectId,IssueId);
+                if (result.Succeeded) {
+                    Snackbar.Add("Issue deleted successfully",Severity.Info);
+                    Nav.NavigateTo($"/w/{Slug}/projects/{ProjectId}");
+                    return;
+                }
+                Snackbar.Add(result.Error ?? "Failed to delete issue",Severity.Error);
             });
 
     // ── Confirm helper ─────────────────────────────────────────────────
@@ -1343,9 +1410,10 @@ else
     }
 
     // ── Optimistic activity push ───────────────────────────────────────
-    private void AddOptimisticActivity(string verb, string from, string to) =>
-        _activity.Insert(0, new ActivityRow(_currentUserName, verb, from, to, DateTime.UtcNow));
+    private void AddOptimisticActivity(ActivityRow log) => _activity.Insert(0, log);
 
+    private void UndoOptimisticActivity(ActivityRow log) => _activity.Remove(log);
+       
     // ── Display helpers ────────────────────────────────────────────────
     private static string StatusCss(IssueStatus s) => s switch
     {
@@ -1391,73 +1459,19 @@ else
     // ── Activity row model ─────────────────────────────────────────────
     private sealed record ActivityRow(
         string   ActorName,
-        string   Verb,
+        ActivityAction   Verb,
         string   From,
         string   To,
         DateTime OccurredAt
     );
 
-    // ── Inline stubs — delete once VectorFlow.Shared is referenced ─────
-    #region Shared stubs
-
-    private enum WorkspaceRole { Owner, Admin, Member }
-    private enum IssueStatus   { Backlog, Todo, InProgress, InReview, Done }
-    private enum IssuePriority { None, Low, Medium, High, Urgent }
-    private enum IssueType     { Task, Bug, Feature }
-
-    private sealed class IssueDto
+    private ActivityRow MapActivity(ActivityLogDto log)
     {
-        public Guid          Id                  { get; set; }
-        public Guid          ProjectId           { get; set; }
-        public string        Key                 { get; set; } = string.Empty;
-        public string        Title               { get; set; } = string.Empty;
-        public string?       Description         { get; set; }
-        public IssueStatus   Status              { get; set; }
-        public IssuePriority Priority            { get; set; }
-        public IssueType     Type                { get; set; }
-        public string?       AssigneeId          { get; set; }
-        public string?       AssigneeDisplayName { get; set; }
-        public string?       AssigneeAvatarUrl   { get; set; }
-        public string        ReporterId          { get; set; } = string.Empty;
-        public string        ReporterDisplayName { get; set; } = string.Empty;
-        public DateTime?     DueDate             { get; set; }
-        public double        Position            { get; set; }
-        public DateTime      CreatedAt           { get; set; }
-        public DateTime      UpdatedAt           { get; set; }
-        public int           CommentCount        { get; set; }
-        public List<LabelDto> Labels             { get; set; } = [];
+        return new ActivityRow(
+            log.ActorDisplayName, 
+            log.Action, 
+            log.FromValue ?? "", 
+            log.ToValue ?? "", 
+            log.CreatedAt);
     }
-
-    private sealed class LabelDto
-    {
-        public Guid   Id    { get; set; }
-        public string Name  { get; set; } = string.Empty;
-        public string Color { get; set; } = "#4339CA";
-    }
-
-    private sealed class CommentDto
-    {
-        public Guid     Id                 { get; set; }
-        public Guid     IssueId            { get; set; }
-        public string   AuthorId           { get; set; } = string.Empty;
-        public string   AuthorDisplayName  { get; set; } = string.Empty;
-        public string?  AuthorAvatarUrl    { get; set; }
-        public string   Body               { get; set; } = string.Empty;
-        public bool     IsEdited           { get; set; }
-        public DateTime CreatedAt          { get; set; }
-        public DateTime UpdatedAt          { get; set; }
-    }
-
-    private sealed class MemberDto
-    {
-        public string        UserId      { get; set; } = string.Empty;
-        public string        DisplayName { get; set; } = string.Empty;
-        public string        Email       { get; set; } = string.Empty;
-        public string?       AvatarUrl   { get; set; }
-        public WorkspaceRole Role        { get; set; }
-        public bool          IsOwner     { get; set; }
-        public DateTime      JoinedAt    { get; set; }
-    }
-
-    #endregion
 }

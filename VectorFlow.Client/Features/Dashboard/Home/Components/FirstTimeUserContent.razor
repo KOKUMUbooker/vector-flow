@@ -27,7 +27,7 @@
             <MudButton Variant="Variant.Filled"
                 Color="Color.Primary"
                 Size="Size.Large"
-                OnClick="@OpenCreateWorkspace"
+                OnClick="@OnCreateWorkspaceClick"
                 EndIcon="@Icons.Material.Filled.ArrowForward"
                 Class="cta-btn">
                 Create your workspace
@@ -265,6 +265,11 @@
 
     [Parameter, EditorRequired]
     public EventCallback OpenCreateWorkspace { get; set; }
+
+    private async Task OnCreateWorkspaceClick()
+    {
+        await OpenCreateWorkspace.InvokeAsync();    
+    }
 
     // ── Static / constant data ───────────────────────────────────────────
 

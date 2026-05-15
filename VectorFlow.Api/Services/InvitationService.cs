@@ -83,7 +83,7 @@ public class InvitationService(
         await db.SaveChangesAsync();
 
         // Send invitation email
-        var inviteUrl = $"{baseUrl}/invitations/accept?token={invitation.Token}";
+        var inviteUrl = $"{baseUrl}/api/invitations/accept?token={invitation.Token}";
         var html = await templateService.GenerateInvitationEmail(
             "VectorFlow",
             invitedUser.DisplayName,
@@ -93,7 +93,7 @@ public class InvitationService(
 
         await emailService.SendEmailAsync(email, $"You've been invited to {workspace.Name}", html);
 
-        return InvitationResult.Success(MapToDto(invitation, workspace));
+        return InvitationResult.Success(MapToDto(invitation, workspace), workspace.Slug);
     }
 
     // ── Get workspace invitations ─────────────────────────────────────────────
@@ -209,7 +209,7 @@ public class InvitationService(
         await db.WorkspaceMembers.AddAsync(membership);
         await db.SaveChangesAsync();
 
-        return InvitationResult.Success(MapToDto(invitation, invitation.Workspace));
+        return InvitationResult.Success(MapToDto(invitation, invitation.Workspace), invitation.Workspace.Slug);
     }
 
     // ── Decline invitation ────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ public class InvitationService(
         invitation.Status = InvitationStatus.Declined;
         await db.SaveChangesAsync();
 
-        return InvitationResult.Success(MapToDto(invitation, invitation.Workspace));
+        return InvitationResult.Success(MapToDto(invitation, invitation.Workspace), invitation.Workspace.Slug);
     }
 
     // ── Cancel invitation ─────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ public class InvitationService(
         invitation.Status = InvitationStatus.Expired;
         await db.SaveChangesAsync();
 
-        return InvitationResult.Success(MapToDto(invitation, invitation.Workspace));
+        return InvitationResult.Success(MapToDto(invitation, invitation.Workspace), invitation.Workspace.Slug);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -291,6 +291,7 @@ public class InvitationService(
             InvitedByDisplayName = invitation.InvitedBy?.DisplayName ?? "A workspace admin",
             Status = invitation.Status,
             ExpiresAt = invitation.ExpiresAt,
-            CreatedAt = invitation.CreatedAt
+            CreatedAt = invitation.CreatedAt,
+            Token = invitation.Token,
         };
 }

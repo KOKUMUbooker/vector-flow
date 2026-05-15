@@ -42,6 +42,13 @@ public class Program
 
         builder.Services.AddMudServices();
         builder.Services.AddScoped<IClientAuthService, ClientAuthService>();
+        builder.Services.AddScoped<IDashboardService, DashboardService>();
+        builder.Services.AddScoped<IWorkspaceService, WorkspaceService>();
+        builder.Services.AddScoped<IProjectService, ProjectService>();
+        builder.Services.AddScoped<IInvitationService, InvitationService>();
+        builder.Services.AddScoped<IClientIssueService, ClientIssueService>();
+        builder.Services.AddScoped<IClientCommentService, ClientCommentService>();
+        builder.Services.AddScoped<IClientLabelService, ClientLabelService>();
         builder.Services.AddScoped<ThemeService>();
         builder.Services.AddScoped<ICustomLocalStorageService,CustomLocalStorageService>();
 

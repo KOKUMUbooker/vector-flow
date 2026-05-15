@@ -1,6 +1,12 @@
-﻿@inject ISnackbar Snackbar
+﻿@using VectorFlow.Client.Services.Interfaces
+@using VectorFlow.Shared.DTOs
 
-<MudDialog @bind-Visible="_createWorkspaceOpen" Options="_dialogOptions">
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IWorkspaceService WorkspaceService
+
+<MudDialog Visible="Open"
+           VisibleChanged="OnVisibleChanged" Options="_dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">Create a workspace</MudText>
     </TitleContent>
@@ -49,7 +55,7 @@
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="() => _createWorkspaceOpen = false"
+        <MudButton OnClick="@CloseDialog"
                    Variant="Variant.Text" Color="Color.Default">
             Cancel
         </MudButton>
@@ -71,11 +77,19 @@
 </MudDialog>
 
 @code {
-    [Parameter, EditorRequired]
-    public bool _createWorkspaceOpen { get; set; }
+    [Parameter,EditorRequired]
+    public bool Open { get; set; }
 
     [Parameter]
-    public Action<string>? OnCompleteAction { get; set; }
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    [Parameter,EditorRequired]
+    public EventCallback<bool> OnOpenChangeWorkspaceDialog { get; set; }
+
+    private async Task OnVisibleChanged(bool value)
+    {
+        await OpenChanged.InvokeAsync(value);
+    }
 
     private bool _wsLoading;
     private bool _wsFormValid;
@@ -91,6 +105,11 @@
         CloseOnEscapeKey = true
     };
 
+    private async Task CloseDialog()
+    {
+        await OnOpenChangeWorkspaceDialog.InvokeAsync(false);
+    }
+
     private void OnWorkspaceNameChanged()
     {
         _workspaceSlugPreview = _newWorkspaceName
@@ -101,18 +120,35 @@
 
     private async Task HandleCreateWorkspace()
     {
-        await _wsForm.ValidateAsync();
-        if (!_wsFormValid) return;
+        try
+        {
+            await _wsForm.ValidateAsync();
+            if (!_wsFormValid) return;
 
-        _wsLoading = true;
+            _wsLoading = true;
 
-        // TODO: WorkspaceDto created = await WorkspaceService.CreateAsync(
-        //           new CreateWorkspaceRequest { Name = _newWorkspaceName });
-        // Nav.NavigateTo($"/w/{created.Slug}");
-        await Task.Delay(1000);
+            var data = new CreateWorkspaceRequest
+            {
+                Name = _newWorkspaceName,
+                Description = _WorkspaceDescription
+            };
 
-        _wsLoading = false;
-        Snackbar.Add($"Workspace \"{_newWorkspaceName}\" created!", Severity.Success);
-        if (OnCompleteAction is not null) OnCompleteAction(_workspaceSlugPreview);
+            var result = await WorkspaceService.CreateWorkspaceAsync(data);
+            
+            if (result.Succeeded)
+            {
+                Snackbar.Add("Workspace created successfully!", Severity.Success);
+                Nav.NavigateTo($"/w/{result!.Data!.Slug}?id={result.Data.Id}");
+                return;
+            }
+
+            Snackbar.Add(result.Error ?? "Workspace creation failed.", Severity.Error);
+
+            await OnOpenChangeWorkspaceDialog.InvokeAsync(false);
+        }
+        finally
+        {
+            _wsLoading = false;
+        }
     }
 }

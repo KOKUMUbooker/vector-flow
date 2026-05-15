@@ -8,7 +8,7 @@ VectorFlow is a full-stack project management tool built with **ASP.NET Core 10*
 
 ## Screenshots
 
-> _Coming soon — Kanban board, issue detail, and workspace dashboard_
+<img src="./Docs/project-page.png" alt="Sample project page">
 
 ---
 

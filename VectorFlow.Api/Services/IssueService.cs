@@ -142,7 +142,10 @@ public class IssueService(
             Type = request.Type,
             AssigneeId = string.IsNullOrEmpty(request.AssigneeId) ? null : request.AssigneeId,
             ReporterId = reporterId,
-            DueDate = request.DueDate,
+            // Ensure due date sent from server gets converted to UTC
+            DueDate = request.DueDate.HasValue
+                ? DateTime.SpecifyKind(request.DueDate.Value, DateTimeKind.Utc)
+                : null,
             Position = maxPosition + 1000,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -189,43 +192,30 @@ public class IssueService(
 
         var activityLogs = new List<ActivityLog>();
 
+        if (!string.IsNullOrEmpty(request.Description) && request.Description != issue.Description)
+        {
+            issue.Description = request.Description;
+        }
+
         // Track and log each changed field individually
-        if (issue.Title != request.Title.Trim())
+        if (!string.IsNullOrEmpty(request.Title) && issue.Title != request.Title.Trim())
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.TitleChanged,
                 issue.Title, request.Title.Trim()));
             issue.Title = request.Title.Trim();
         }
 
-        if (issue.Priority != request.Priority)
+        if (request.Priority != null && issue.Priority != request.Priority)
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.PriorityChanged,
                 issue.Priority.ToString(), request.Priority.ToString()));
-            issue.Priority = request.Priority;
+            issue.Priority = (IssuePriority)request.Priority;
         }
 
-        if (issue.Type != request.Type)
+        if (request.Type != null && issue.Type != request.Type)
         { 
-            issue.Type = request.Type;
+            issue.Type = (IssueType)request.Type;
             // Type changes are functional but not surfaced in the activity log
-        }
-
-        if (issue.AssigneeId != request.AssigneeId)
-        {
-            var newAssigneeName = request.AssigneeId is null
-                ? "Unassigned"
-                : (await db.Users.FindAsync(request.AssigneeId))?.DisplayName ?? request.AssigneeId;
-
-            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.AssigneeChanged,
-                issue.Assignee?.DisplayName ?? "Unassigned", newAssigneeName));
-            issue.AssigneeId = request.AssigneeId;
-        }
-
-        if (issue.DueDate != request.DueDate)
-        {
-            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
-                issue.DueDate?.ToString("yyyy-MM-dd"), request.DueDate?.ToString("yyyy-MM-dd")));
-            issue.DueDate = request.DueDate;
         }
 
         // Sync labels — diff the current set against the requested set
@@ -306,6 +296,69 @@ public class IssueService(
         await broadcaster.BroadcastIssueStatusChangedAsync(
             issue.ProjectId, issueId, oldStatus, request.Status.ToString(),
             issue.Position, requestingUserId, actor?.DisplayName ?? string.Empty);
+
+        return IssueResult.Success(MapToDto(issue));
+    }
+
+    // ── Update Assignee ───────────────────────────────────────────────────────
+
+    public async Task<IssueResult> UpdateIssueAssigneeAsync(
+        Guid issueId, UpdateIssueAssigneeRequest request, string requestingUserId)
+    {
+        var issue = await db.Issues
+            .Include(i => i.Assignee)
+            .Include(i => i.Reporter)
+            .Include(i => i.IssueLabels).ThenInclude(il => il.Label)
+            .Include(i => i.Comments)
+            .FirstOrDefaultAsync(i => i.Id == issueId);
+
+        if (issue is null) return IssueResult.Failure("Issue not found.");
+
+        if (!await IsMemberOfProjectWorkspaceAsync(issue.ProjectId, requestingUserId))
+            return IssueResult.Failure("You are not a member of this workspace.");
+
+        issue.AssigneeId = !string.IsNullOrEmpty(request.AssigneeId) ? request.AssigneeId : null;
+        issue.UpdatedAt = DateTime.UtcNow;
+
+        var newAssigneeName = (await db.Users.FindAsync(request.AssigneeId))?.DisplayName ?? "Unassigned";
+        var log = BuildLog(issueId, requestingUserId, ActivityAction.AssigneeChanged,
+            issue.Assignee?.DisplayName ?? "Unassigned", newAssigneeName);
+
+        await db.ActivityLogs.AddAsync(log);
+        await db.SaveChangesAsync();
+
+        return IssueResult.Success(MapToDto(issue));
+    }
+
+    // ── Update Assignee ───────────────────────────────────────────────────────
+
+    public async Task<IssueResult> UpdateIssueDueDateAsync(
+        Guid issueId, UpdateIssueDueDateRequest request, string requestingUserId)
+    {
+        var issue = await db.Issues
+            .Include(i => i.Assignee)
+            .Include(i => i.Reporter)
+            .Include(i => i.IssueLabels).ThenInclude(il => il.Label)
+            .Include(i => i.Comments)
+            .FirstOrDefaultAsync(i => i.Id == issueId);
+
+        if (issue is null) return IssueResult.Failure("Issue not found.");
+
+        if (!await IsMemberOfProjectWorkspaceAsync(issue.ProjectId, requestingUserId))
+            return IssueResult.Failure("You are not a member of this workspace.");
+
+        
+        issue.DueDate = request.DueDate.HasValue
+                ? DateTime.SpecifyKind(request.DueDate.Value, DateTimeKind.Utc)
+                : null;
+        issue.UpdatedAt = DateTime.UtcNow;
+
+        var log = BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
+            issue.DueDate.HasValue ? issue.DueDate?.ToString("yyyy-MM-dd") : "Unscheduled",
+            request.DueDate.HasValue ? request.DueDate?.ToString("yyyy-MM-dd") : "Unscheduled");
+
+        await db.ActivityLogs.AddAsync(log);
+        await db.SaveChangesAsync();
 
         return IssueResult.Success(MapToDto(issue));
     }

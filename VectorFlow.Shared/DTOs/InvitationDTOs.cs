@@ -22,6 +22,7 @@ public class InvitationDto
     public string WorkspaceSlug { get; set; } = string.Empty;
     public string InvitedEmail { get; set; } = string.Empty;
     public string InvitedByDisplayName { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
     public InvitationStatus Status { get; set; }
     public DateTime ExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -33,10 +34,11 @@ public class InvitationResult
 {
     public bool Succeeded { get; set; }
     public string? Error { get; set; }
+    public string WorkspaceSlug { get; set; } = string.Empty;
     public InvitationDto? Invitation { get; set; }
 
-    public static InvitationResult Success(InvitationDto invitation) =>
-        new() { Succeeded = true, Invitation = invitation };
+    public static InvitationResult Success(InvitationDto invitation, string workspaceSlug) =>
+        new() { Succeeded = true, Invitation = invitation, WorkspaceSlug = workspaceSlug };
 
     public static InvitationResult Failure(string error) =>
         new() { Error = error };

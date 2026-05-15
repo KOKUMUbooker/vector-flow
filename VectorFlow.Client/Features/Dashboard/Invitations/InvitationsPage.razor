@@ -4,7 +4,8 @@
 @inject ISnackbar Snackbar
 @using VectorFlow.Shared.DTOs
 @using VectorFlow.Shared.Enums
-@* @inject IInvitationService InvitationService *@
+@using VectorFlow.Client.Services.Interfaces
+@inject IInvitationService InvitationService
 
 <PageTitle>Invitations — VectorFlow</PageTitle>
 
@@ -48,7 +49,7 @@
             <MudButton Href="/workspaces"
                        Variant="Variant.Filled"
                        Color="Color.Primary"
-                       StartIcon="@Icons.Material.Outlined.Add">
+                       StartIcon="@Icons.Material.Outlined.ArrowRight">
                 Go to my workspaces
             </MudButton>
         </div>
@@ -550,116 +551,73 @@
     // ── Lifecycle ──────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        _loading = true;
+        try
+        {
+            _loading = true;    
+            var result = await InvitationService.GetMyInvitations();
+            if (result.Succeeded)
+            {
+                _invitations = result.Data!;
+                return;
+            }
 
-        // TODO: _invitations = await InvitationService.GetMyInvitationsAsync();
-        //       // GET /api/invitations/mine  →  List<InvitationDto>
-
-        await Task.Delay(600);
-
-        _invitations =
-        [
-            new InvitationDto
-            {
-                Id = Guid.NewGuid(),
-                WorkspaceId = Guid.Parse("00000000-0000-0000-0000-000000000010"),
-                WorkspaceName = "Horizon Labs",
-                WorkspaceSlug = "horizon-labs",
-                InvitedEmail = "booker@vectorflow.dev",
-                InvitedByDisplayName = "Sarah Chen",
-                Status = InvitationStatus.Pending,
-                ExpiresAt = DateTime.UtcNow.AddDays(2),   // expiring soon
-                CreatedAt = DateTime.UtcNow.AddDays(-5)
-            },
-            new InvitationDto
-            {
-                Id = Guid.NewGuid(),
-                WorkspaceId = Guid.Parse("00000000-0000-0000-0000-000000000011"),
-                WorkspaceName = "Pulse Analytics",
-                WorkspaceSlug = "pulse-analytics",
-                InvitedEmail = "booker@vectorflow.dev",
-                InvitedByDisplayName = "Mike Torres",
-                Status = InvitationStatus.Pending,
-                ExpiresAt = DateTime.UtcNow.AddDays(6),
-                CreatedAt = DateTime.UtcNow.AddDays(-1)
-            },
-            new InvitationDto
-            {
-                Id = Guid.NewGuid(),
-                WorkspaceId = Guid.Parse("00000000-0000-0000-0000-000000000002"),
-                WorkspaceName = "Acme Corp",
-                WorkspaceSlug = "acme-corp",
-                InvitedEmail = "booker@vectorflow.dev",
-                InvitedByDisplayName = "Alice Johnson",
-                Status = InvitationStatus.Accepted,
-                ExpiresAt = DateTime.UtcNow.AddDays(-10),
-                CreatedAt = DateTime.UtcNow.AddMonths(-1)
-            },
-            new InvitationDto
-            {
-                Id = Guid.NewGuid(),
-                WorkspaceId = Guid.Parse("00000000-0000-0000-0000-000000000012"),
-                WorkspaceName = "Old Startup",
-                WorkspaceSlug = "old-startup",
-                InvitedEmail = "booker@vectorflow.dev",
-                InvitedByDisplayName = "Dan Park",
-                Status = InvitationStatus.Declined,
-                ExpiresAt = DateTime.UtcNow.AddDays(-20),
-                CreatedAt = DateTime.UtcNow.AddMonths(-2)
-            },
-            new InvitationDto
-            {
-                Id = Guid.NewGuid(),
-                WorkspaceId = Guid.Parse("00000000-0000-0000-0000-000000000013"),
-                WorkspaceName = "Ghost Project",
-                WorkspaceSlug = "ghost-project",
-                InvitedEmail = "booker@vectorflow.dev",
-                InvitedByDisplayName = "Unknown",
-                Status = InvitationStatus.Expired,
-                ExpiresAt = DateTime.UtcNow.AddDays(-30),
-                CreatedAt = DateTime.UtcNow.AddMonths(-2).AddDays(-7)
-            },
-        ];
-
-        _loading = false;
+            Snackbar.Add(result.Error ?? "Failed to fetch invitaions",Severity.Error);
+        } 
+        finally
+        {
+            _loading = false;   
+        }
     }
 
     // ── Accept ─────────────────────────────────────────────────────────
     private async Task HandleAccept(InvitationDto inv)
     {
-        _actingOn     = inv.Id;
-        _actingAccept = true;
+        try
+        {
+            _actingOn     = inv.Id;
+            _actingAccept = true;
 
-        // TODO: await InvitationService.AcceptAsync(inv.Token);
-        //       // POST /api/invitations/accept?token={token}
-        await Task.Delay(900);
+            var result = await InvitationService.AcceptInvitationAsync(inv.Token);
+            if (result.Succeeded)
+            {
+                var idx = _invitations.IndexOf(inv);
+                if (idx >= 0) _invitations[idx].Status = InvitationStatus.Accepted;
+                Snackbar.Add($"You've joined \"{inv.WorkspaceName}\"!", Severity.Success);
+                Nav.NavigateTo($"/w/{inv.WorkspaceSlug}");
+                return;
+            }
 
-        var idx = _invitations.IndexOf(inv);
-        @* if (idx >= 0) _invitations[idx] = inv with { Status = InvitationStatus.Accepted }; *@
-
-        _actingOn = null;
-        Snackbar.Add($"You've joined \"{inv.WorkspaceName}\"!", Severity.Success);
-
-        // Navigate to the workspace after a short delay
-        await Task.Delay(400);
-        Nav.NavigateTo($"/w/{inv.WorkspaceSlug}");
+            Snackbar.Add(result.Error ?? "Failed to accept invitation", Severity.Error);
+        }
+        finally
+        {
+           _actingOn = null;
+        }
     }
 
     // ── Decline ────────────────────────────────────────────────────────
     private async Task HandleDecline(InvitationDto inv)
     {
-        _actingOn     = inv.Id;
-        _actingAccept = false;
+        try
+        {
+            _actingOn     = inv.Id;
+            _actingAccept = false;
 
-        // TODO: await InvitationService.DeclineAsync(inv.Token);
-        //       // POST /api/invitations/decline?token={token}
-        await Task.Delay(700);
+            var result = await InvitationService.DeclineInvitationAsync(inv.Token);
+            if (result.Succeeded)
+            {
+                var idx = _invitations.IndexOf(inv);
+                if (idx >= 0) _invitations[idx].Status = InvitationStatus.Declined;
+                Snackbar.Add($"Invitation to \"{inv.WorkspaceName}\" declined.", Severity.Info);
+                return;
+            }
 
-        var idx = _invitations.IndexOf(inv);
-        @* if (idx >= 0) _invitations[idx] = inv with { Status = InvitationStatus.Declined }; *@
-
-        _actingOn = null;
-        Snackbar.Add($"Invitation to \"{inv.WorkspaceName}\" declined.", Severity.Info);
+             Snackbar.Add(result.Error ?? "Failed to decline invitation", Severity.Error);
+        } 
+        finally
+        {
+            _actingOn = null; 
+        }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────

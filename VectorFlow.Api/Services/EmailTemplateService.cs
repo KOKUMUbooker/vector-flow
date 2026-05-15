@@ -65,10 +65,10 @@ public class EmailTemplateService : IEmailTemplateService
 
         return template
            .Replace("{{AppName}}", appName)
-           .Replace("{{recipientName}}", recipientName)
-           .Replace("{{inviterName}}", inviterName)
-           .Replace("{{workspaceName}}", workspaceName)
-           .Replace("{{inviteUrl}}", inviteUrl)
+           .Replace("{{RecipientName}}", recipientName)
+           .Replace("{{InviterName}}", inviterName)
+           .Replace("{{WorkspaceName}}", workspaceName)
+           .Replace("{{InviteUrl}}", inviteUrl)
            .Replace("{{CurrentYear}}", DateTime.Now.Year.ToString());
     }
 
