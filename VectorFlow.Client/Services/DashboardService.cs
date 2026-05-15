@@ -32,7 +32,7 @@ public class DashboardService(IHttpClientFactory httpClientFactory) : IDashboard
         {
             return ex.StatusCode switch
             {
-                HttpStatusCode.Unauthorized => ServiceResult<WorkspaceDetailsDashboardDto?>.Failure("Session expired. Please sign in again."),
+                HttpStatusCode.Unauthorized => ServiceResult<WorkspaceDetailsDashboardDto?>.Failure("Unauthorized."),
                 _ => ServiceResult<WorkspaceDetailsDashboardDto?>.Failure("Failed to get workspace data.")
             };
         }
@@ -49,8 +49,25 @@ public class DashboardService(IHttpClientFactory httpClientFactory) : IDashboard
         {
             return ex.StatusCode switch
             {
-                HttpStatusCode.Unauthorized => ServiceResult<DashboardProjectData?>.Failure("Session expired. Please sign in again."),
+                HttpStatusCode.Unauthorized => ServiceResult<DashboardProjectData?>.Failure("Unauthorized."),
                 _ => ServiceResult<DashboardProjectData?>.Failure("Failed to get project data.")
+            };
+        }
+    }
+
+    public async Task<ServiceResult<DashboardIssueData?>> GetDashboardIssueDataAsync(Guid projectId ,Guid issueId)
+    {
+        try
+        {
+            var workspaceData = await Http.GetFromJsonAsync<DashboardIssueData?>($"/api/dashboard/projects/{projectId}/issues/{issueId}");
+            return ServiceResult<DashboardIssueData?>.Success(workspaceData);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode switch
+            {
+                HttpStatusCode.Unauthorized => ServiceResult<DashboardIssueData?>.Failure("Unauthorized."),
+                _ => ServiceResult<DashboardIssueData?>.Failure("Failed to get issue data.")
             };
         }
     }

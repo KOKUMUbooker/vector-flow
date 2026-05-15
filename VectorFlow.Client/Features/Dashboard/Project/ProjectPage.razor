@@ -103,15 +103,15 @@ else
         <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
                  Class="filter-menu">
             <ActivatorContent>
-                <button class="filter-btn @(_filterAssigneeId != null ? "filter-btn-active" : "")">
-                    <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:14px;" />
+                <MudButton EndIcon="@Icons.Material.Outlined.ExpandMore" Variant="Variant.Outlined" OnClick="@context.ToggleAsync" Class=@("filter-btn" + _filterAssigneeId != null ?"filter-btn-active" :"")>
+                    <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:14px; margin-right:4px" />
                     <span>@(_filterAssigneeId != null ? (_members.FirstOrDefault(m => m.UserId == _filterAssigneeId)?.DisplayName ?? "Assignee") : "Assignee")</span>
                     @if (_filterAssigneeId != null)
                     {
-                        <span class="filter-clear" @onclick:stopPropagation="true"
+                        <span style="margin-left:4px" class="filter-clear" @onclick:stopPropagation="true"
                               @onclick="() => { _filterAssigneeId = null; ApplyFilters(); }">×</span>
                     }
-                </button>
+                </MudButton>
             </ActivatorContent>
             <ChildContent>
                 <MudMenuItem OnClick="() => { _filterAssigneeId = null; ApplyFilters(); }">
@@ -139,15 +139,15 @@ else
         <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
                  Class="filter-menu">
             <ActivatorContent>
-                <button class="filter-btn @(_filterPriority != null ? "filter-btn-active" : "")">
-                    <MudIcon Icon="@Icons.Material.Outlined.Flag" Style="font-size:14px;" />
+                <MudButton EndIcon="@Icons.Material.Outlined.ExpandMore" Variant="Variant.Outlined" OnClick="@context.ToggleAsync" Class=@("filter-btn" + _filterAssigneeId != null ?"filter-btn-active" :"")>
+                    <MudIcon Icon="@Icons.Material.Outlined.Flag" Style="font-size:14px; margin-right:4px" />
                     <span>@(_filterPriority?.ToString() ?? "Priority")</span>
                     @if (_filterPriority != null)
                     {
-                        <span class="filter-clear" @onclick:stopPropagation="true"
+                        <span style="margin-left:4px" class="filter-clear" @onclick:stopPropagation="true"
                               @onclick="() => { _filterPriority = null; ApplyFilters(); }">×</span>
                     }
-                </button>
+                </MudButton>
             </ActivatorContent>
             <ChildContent>
                 <MudMenuItem OnClick="() => { _filterPriority = null; ApplyFilters(); }">All priorities</MudMenuItem>
@@ -168,15 +168,15 @@ else
         <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
                  Class="filter-menu">
             <ActivatorContent>
-                <button class="filter-btn @(_filterType != null ? "filter-btn-active" : "")">
-                    <MudIcon Icon="@Icons.Material.Outlined.Category" Style="font-size:14px;" />
+                <MudButton EndIcon="@Icons.Material.Outlined.ExpandMore" Variant="Variant.Outlined" OnClick="@context.ToggleAsync" Class=@("filter-btn" + _filterAssigneeId != null ?"filter-btn-active" :"")>
+                    <MudIcon Icon="@Icons.Material.Outlined.Category" Style="font-size:14px; margin-right: 4px" />
                     <span>@(_filterType?.ToString() ?? "Type")</span>
                     @if (_filterType != null)
                     {
-                        <span class="filter-clear" @onclick:stopPropagation="true"
+                        <span style="margin-left:4px" class="filter-clear" @onclick:stopPropagation="true"
                               @onclick="() => { _filterType = null; ApplyFilters(); }">×</span>
                     }
-                </button>
+                </MudButton>
             </ActivatorContent>
             <ChildContent>
                 <MudMenuItem OnClick="() => { _filterType = null; ApplyFilters(); }">All types</MudMenuItem>
@@ -197,15 +197,15 @@ else
         <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
                  Class="filter-menu">
             <ActivatorContent>
-                <button class="filter-btn @(_filterLabelId != null ? "filter-btn-active" : "")">
-                    <MudIcon Icon="@Icons.Material.Outlined.Label" Style="font-size:14px;" />
+                <MudButton EndIcon="@Icons.Material.Outlined.ExpandMore" Variant="Variant.Outlined" OnClick="@context.ToggleAsync" Class=@("filter-btn" + _filterAssigneeId != null ?"filter-btn-active" :"")>
+                    <MudIcon Icon="@Icons.Material.Outlined.Label" Style="font-size:14px; margin-right: 4px" />
                     <span>@(_filterLabelId != null ? (_labels.FirstOrDefault(l => l.Id == _filterLabelId)?.Name ?? "Label") : "Label")</span>
                     @if (_filterLabelId != null)
                     {
-                        <span class="filter-clear" @onclick:stopPropagation="true"
+                        <span style="margin-left:4px" class="filter-clear" @onclick:stopPropagation="true"
                               @onclick="() => { _filterLabelId = null; ApplyFilters(); }">×</span>
                     }
-                </button>
+                </MudButton>
             </ActivatorContent>
             <ChildContent>
                 <MudMenuItem OnClick="() => { _filterLabelId = null; ApplyFilters(); }">All labels</MudMenuItem>
@@ -552,13 +552,12 @@ else
         font-size: 12px; font-weight: 500;
         padding: 6px 12px; border-radius: 8px;
         border: 1px solid var(--mud-palette-divider);
-        background: var(--mud-palette-surface);
         color: var(--mud-palette-text-secondary);
         cursor: pointer; transition: all 0.15s;
         white-space: nowrap;
     }
-    .filter-btn:hover { border-color: var(--mud-palette-primary); color: var(--mud-palette-primary); }
-    .filter-btn-active { border-color: var(--mud-palette-primary); color: var(--mud-palette-primary); background: var(--mud-palette-primary-lighten); }
+    .filter-btn:hover { border-color: var(--mud-palette-primary); }
+    .filter-btn-active { border-color: var(--mud-palette-primary);  }
     .filter-clear {
         font-size: 14px; line-height: 1; margin-left: 2px;
         opacity: 0.6; transition: opacity 0.15s; cursor: pointer;
@@ -1062,18 +1061,6 @@ else
         try
         {
             _newIssue.DueDate = _newIssueDueDate;
-
-            // TODO: replace with real API call
-            // var response = await Http.PostAsJsonAsync(
-            //     $"api/projects/{ProjectId}/issues", _newIssue);
-            // if (response.IsSuccessStatusCode)
-            // {
-            //     var created = await response.Content.ReadFromJsonAsync<IssueDto>();
-            //     _allIssues.Add(MapToBoardIssue(created!));
-            //     ApplyFilters();
-            //     _createIssueOpen = false;
-            //     Snackbar.Add($"Issue {created!.Key} created.", Severity.Success);
-            // }
 
             var data = new CreateIssueRequest
             {

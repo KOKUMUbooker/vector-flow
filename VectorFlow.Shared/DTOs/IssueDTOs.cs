@@ -24,15 +24,11 @@ public class CreateIssueRequest
 
 public class UpdateIssueRequest
 {
-    [Required]
-    [MaxLength(500)]
-    public string Title { get; set; } = string.Empty;
+    public string? Title { get; set; } = string.Empty;
 
     public string? Description { get; set; }
-    public IssuePriority Priority { get; set; }
-    public IssueType Type { get; set; }
-    public string? AssigneeId { get; set; }
-    public DateTime? DueDate { get; set; }
+    public IssuePriority? Priority { get; set; } 
+    public IssueType? Type { get; set; }
     public List<Guid> LabelIds { get; set; } = [];
 }
 
@@ -47,6 +43,14 @@ public class UpdateIssueStatusRequest
 }
 
 /// <summary>
+/// Separate request for assignee changes — allows for assigning and unassigning an issue to users
+/// </summary>
+public class UpdateIssueAssigneeRequest
+{
+    public string? AssigneeId { get; set; }
+}
+
+/// <summary>
 /// Separate request for position updates within a Kanban column.
 /// Called when a card is reordered within the same column.
 /// </summary>
@@ -54,6 +58,14 @@ public class UpdateIssuePositionRequest
 {
     [Required]
     public double Position { get; set; }
+}
+
+/// <summary>
+/// For assigning or unassigning a date to an issue
+/// </summary>
+public class UpdateIssueDueDateRequest
+{
+    public DateTime? DueDate { get; set; }
 }
 
 // ── Responses ─────────────────────────────────────────────────────────────────

@@ -54,6 +54,17 @@ public interface IIssueService
     /// Position changes are not logged in the activity log.
     /// </summary>
     Task<IssueResult> UpdateIssuePositionAsync(Guid issueId, UpdateIssuePositionRequest request, string requestingUserId);
+    
+    /// <summary>
+    /// Assigns an issue to a user or unsassigns it
+    /// </summary>
+    Task<IssueResult> UpdateIssueAssigneeAsync(Guid issueId, UpdateIssueAssigneeRequest request, string requestingUserId);
+
+
+    /// <summary>
+    /// Assigns a DueDate to an issue or unassigns it
+    /// </summary>
+    Task<IssueResult> UpdateIssueDueDateAsync(Guid issueId, UpdateIssueDueDateRequest request, string requestingUserId);
 
     /// <summary>
     /// Deletes an issue. Reporter, Owner, and Admin only.

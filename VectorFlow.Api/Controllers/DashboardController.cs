@@ -45,6 +45,7 @@ public class DashboardController(
                 .ThenInclude(w => w.Projects)
             .OrderByDescending(m => m.JoinedAt)
             .Take(WorkspaceCap)
+            .AsNoTracking()
             .ToListAsync();
 
         var workspaceDtos = memberships.Select(m => new DashboardWorkspaceDto
@@ -71,6 +72,7 @@ public class DashboardController(
         var projects = await db.Projects
             .Where(p => workspaceIds.Contains(p.WorkspaceId))
             .Include(p => p.Issues.Where(i => i.Status != IssueStatus.Done))
+            .AsNoTracking()
             .ToListAsync();
 
         var recentProjects = projects
@@ -100,6 +102,7 @@ public class DashboardController(
             .OrderBy(i => i.DueDate == null ? 1 : 0) // nulls last
             .ThenBy(i => i.DueDate)
             .ThenByDescending(i => (int)i.Priority)
+            .AsNoTracking()
             .ToListAsync();
 
         // Map to shared DTO once, then build buckets from the in-memory list
@@ -172,6 +175,7 @@ public class DashboardController(
                 ExpiresAt = i.ExpiresAt,
                 Token = i.Token,
             })
+            .AsNoTracking()
             .ToListAsync();
 
         // ── 5. Stats ──────────────────────────────────────────────────────
@@ -201,6 +205,7 @@ public class DashboardController(
         var workspaceExists = await db.Workspaces
             .Where(w => w.Slug == workspaceSlug)
             .Select(w => new { w.Id })
+            .AsNoTracking()
             .SingleOrDefaultAsync();
 
         if (workspaceExists is null)
@@ -213,6 +218,7 @@ public class DashboardController(
         var currentUserRole = await db.WorkspaceMembers
                 .Where(m => m.UserId == userId && m.WorkspaceId == workspaceExists.Id)
                 .Select(r => new { r.Role })
+                .AsNoTracking()
                 .FirstOrDefaultAsync();
 
         if (currentUserRole is null) return Unauthorized();
@@ -269,6 +275,7 @@ public class DashboardController(
                   ProjectCount = w.Projects.Count,
                   CreatedAt = w.CreatedAt,
               })
+              .AsNoTracking()
               .FirstOrDefaultAsync();
 
         if (workspaceData is null) return NotFound();
@@ -303,7 +310,8 @@ public class DashboardController(
             .Where(p => p.Id == projectId)
             .Select(p => new DashboardProjectData
             {
-                Project = new ProjectDto {
+                Project = new ProjectDto
+                {
                     Id = p.Id,
                     Name = p.Name,
                     Description = p.Description,
@@ -352,17 +360,108 @@ public class DashboardController(
                     CommentCount = issue.Comments.Count,
                     Labels = issue.IssueLabels
                    .Select(il => new LabelDto
+                   {
+                       Id = il.Label.Id,
+                       Name = il.Label.Name,
+                       Color = il.Label.Color
+                   }).ToList()
+                }).ToList(),
+            })
+            .AsNoTracking()
+            .FirstOrDefaultAsync();
+
+        if (projectData is null) return NotFound();
+
+        return Ok(projectData);
+    }
+
+    // GET /api/dashboard/projects/{projectId}/issues/{issueId}
+    [HttpGet("projects/{projectId:guid}/issues/{issueId:guid}")]
+    public async Task<IActionResult> GetDashboardIssueDetails(Guid projectId, Guid issueId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null) return Unauthorized();
+
+        var issueData = await db.Issues
+               .Where(i => i.Id == issueId)
+               .Select(i => new DashboardFetchedIssueData
+               {
+                   Issue = new IssueDto
+                   {
+                       Id = i.Id,
+                       ProjectId = i.ProjectId,
+                       Key = i.Key,
+                       Title = i.Title,
+                       Description = i.Description,
+                       Status = i.Status,
+                       Priority = i.Priority,
+                       Type = i.Type,
+                       AssigneeId = i.AssigneeId,
+                       AssigneeDisplayName = i.Assignee != null ? i.Assignee.DisplayName : string.Empty,
+                       AssigneeAvatarUrl = i.Assignee != null ? i.Assignee.AvatarUrl : string.Empty,
+                       ReporterId = i.ReporterId,
+                       ReporterDisplayName = i.Reporter != null ? i.Reporter.DisplayName : string.Empty,
+                       DueDate = i.DueDate,
+                       Position = i.Position,
+                       CreatedAt = i.CreatedAt,
+                       UpdatedAt = i.UpdatedAt,
+                       CommentCount = i.Comments.Count,
+                       Labels = i.IssueLabels
+                       .Select(il => new LabelDto
                        {
                            Id = il.Label.Id,
                            Name = il.Label.Name,
                            Color = il.Label.Color
                        }).ToList()
-                }).ToList(),
-            })
-            .FirstOrDefaultAsync();
+                   },
+                   Comments = i.Comments.Take(10).Select(c => new CommentDto
+                   {
+                       Id = c.Id,
+                       AuthorAvatarUrl = c.Author.AvatarUrl,
+                       AuthorDisplayName = c.Author.DisplayName,
+                       AuthorId = c.AuthorId,
+                       Body = c.Body,
+                       CreatedAt = c.CreatedAt,
+                       IsEdited = c.IsEdited,
+                       IssueId = c.IssueId,
+                       UpdatedAt = c.UpdatedAt,
+                   }).ToList(),
+                   ActivityLogs = i.ActivityLogs.Take(5).Select(log => new ActivityLogDto
+                   {
+                       Id = log.Id,
+                       Action = log.Action,
+                       ActorAvatarUrl = log.Actor.AvatarUrl,
+                       ActorDisplayName = log.Actor.DisplayName,
+                       ActorId = log.ActorId,
+                       CreatedAt = log.CreatedAt,
+                       FromValue = log.FromValue,
+                       ToValue = log.ToValue,
+                   }).ToList(),
+                   WorkspaceName = i.Project.Workspace.Name,
+                   ProjectName = i.Project.Name,
+                   Members = i.Project.Workspace.Members.Select(m => new WorkspaceMemberDto
+                   {
+                       DisplayName = m.User.DisplayName,
+                       Email = m.User.Email ?? string.Empty,
+                       UserId = m.UserId,
+                       AvatarUrl = m.User.AvatarUrl,
+                       IsOwner = m.UserId == m.Workspace.OwnerId,
+                       JoinedAt = m.JoinedAt,
+                       Role = m.Role
+                   }).ToList(),
+                   UserWorkspaceRole = i.Project.Workspace.Members
+                    .Where(m => m.UserId == userId)
+                    .Select(m => (WorkspaceRole?)m.Role)
+                    .FirstOrDefault()
+               })
+               .AsNoTracking()
+               .FirstOrDefaultAsync();
 
-            if (projectData is null) return NotFound();
+        if (issueData is null) return NotFound();
 
-            return Ok(projectData);
+        if (issueData.UserWorkspaceRole is null) return Unauthorized();
+
+        return Ok(issueData);
     }
 }
