@@ -218,13 +218,6 @@ public class IssueService(
             // Type changes are functional but not surfaced in the activity log
         }
 
-        if (request.DueDate != null && issue.DueDate != request.DueDate)
-        {
-            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
-                issue.DueDate?.ToString("yyyy-MM-dd"), request.DueDate?.ToString("yyyy-MM-dd")));
-                issue.DueDate = DateTime.SpecifyKind(request.DueDate!.Value, DateTimeKind.Utc);
-        }
-
         // Sync labels — diff the current set against the requested set
         var currentLabelIds = issue.IssueLabels.Select(il => il.LabelId).ToHashSet();
         var requestedLabelIds = request.LabelIds.ToHashSet();
@@ -330,6 +323,39 @@ public class IssueService(
         var newAssigneeName = (await db.Users.FindAsync(request.AssigneeId))?.DisplayName ?? "Unassigned";
         var log = BuildLog(issueId, requestingUserId, ActivityAction.AssigneeChanged,
             issue.Assignee?.DisplayName ?? "Unassigned", newAssigneeName);
+
+        await db.ActivityLogs.AddAsync(log);
+        await db.SaveChangesAsync();
+
+        return IssueResult.Success(MapToDto(issue));
+    }
+
+    // ── Update Assignee ───────────────────────────────────────────────────────
+
+    public async Task<IssueResult> UpdateIssueDueDateAsync(
+        Guid issueId, UpdateIssueDueDateRequest request, string requestingUserId)
+    {
+        var issue = await db.Issues
+            .Include(i => i.Assignee)
+            .Include(i => i.Reporter)
+            .Include(i => i.IssueLabels).ThenInclude(il => il.Label)
+            .Include(i => i.Comments)
+            .FirstOrDefaultAsync(i => i.Id == issueId);
+
+        if (issue is null) return IssueResult.Failure("Issue not found.");
+
+        if (!await IsMemberOfProjectWorkspaceAsync(issue.ProjectId, requestingUserId))
+            return IssueResult.Failure("You are not a member of this workspace.");
+
+        
+        issue.DueDate = request.DueDate.HasValue
+                ? DateTime.SpecifyKind(request.DueDate.Value, DateTimeKind.Utc)
+                : null;
+        issue.UpdatedAt = DateTime.UtcNow;
+
+        var log = BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
+            issue.DueDate.HasValue ? issue.DueDate?.ToString("yyyy-MM-dd") : "Unscheduled",
+            request.DueDate.HasValue ? request.DueDate?.ToString("yyyy-MM-dd") : "Unscheduled");
 
         await db.ActivityLogs.AddAsync(log);
         await db.SaveChangesAsync();
