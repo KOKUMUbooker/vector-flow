@@ -29,7 +29,6 @@ public class UpdateIssueRequest
     public string? Description { get; set; }
     public IssuePriority? Priority { get; set; } 
     public IssueType? Type { get; set; }
-    public DateTime? DueDate { get; set; }
     public List<Guid> LabelIds { get; set; } = [];
 }
 
@@ -59,6 +58,14 @@ public class UpdateIssuePositionRequest
 {
     [Required]
     public double Position { get; set; }
+}
+
+/// <summary>
+/// For assigning or unassigning a date to an issue
+/// </summary>
+public class UpdateIssueDueDateRequest
+{
+    public DateTime? DueDate { get; set; }
 }
 
 // ── Responses ─────────────────────────────────────────────────────────────────
