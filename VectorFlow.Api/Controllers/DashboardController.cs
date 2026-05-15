@@ -360,18 +360,108 @@ public class DashboardController(
                     CommentCount = issue.Comments.Count,
                     Labels = issue.IssueLabels
                    .Select(il => new LabelDto
-                       {
-                           Id = il.Label.Id,
-                           Name = il.Label.Name,
-                           Color = il.Label.Color
-                       }).ToList()
+                   {
+                       Id = il.Label.Id,
+                       Name = il.Label.Name,
+                       Color = il.Label.Color
+                   }).ToList()
                 }).ToList(),
             })
             .AsNoTracking()
             .FirstOrDefaultAsync();
 
-            if (projectData is null) return NotFound();
+        if (projectData is null) return NotFound();
 
-            return Ok(projectData);
+        return Ok(projectData);
+    }
+
+    // GET /api/dashboard/projects/{projectId}/issues/{issueId}
+    [HttpGet("projects/{projectId:guid}/issues/{issueId:guid}")]
+    public async Task<IActionResult> GetDashboardIssueDetails(Guid projectId, Guid issueId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null) return Unauthorized();
+
+        var issueData = await db.Issues
+               .Where(i => i.Id == issueId)
+               .Select(i => new DashboardFetchedIssueData
+               {
+                   Issue = new IssueDto
+                   {
+                       Id = i.Id,
+                       ProjectId = i.ProjectId,
+                       Key = i.Key,
+                       Title = i.Title,
+                       Description = i.Description,
+                       Status = i.Status,
+                       Priority = i.Priority,
+                       Type = i.Type,
+                       AssigneeId = i.AssigneeId,
+                       AssigneeDisplayName = i.Assignee != null ? i.Assignee.DisplayName : string.Empty,
+                       AssigneeAvatarUrl = i.Assignee != null ? i.Assignee.AvatarUrl : string.Empty,
+                       ReporterId = i.ReporterId,
+                       ReporterDisplayName = i.Reporter != null ? i.Reporter.DisplayName : string.Empty,
+                       DueDate = i.DueDate,
+                       Position = i.Position,
+                       CreatedAt = i.CreatedAt,
+                       UpdatedAt = i.UpdatedAt,
+                       CommentCount = i.Comments.Count,
+                       Labels = i.IssueLabels
+                       .Select(il => new LabelDto
+                       {
+                           Id = il.Label.Id,
+                           Name = il.Label.Name,
+                           Color = il.Label.Color
+                       }).ToList()
+                   },
+                   Comments = i.Comments.Take(10).Select(c => new CommentDto
+                   {
+                       Id = c.Id,
+                       AuthorAvatarUrl = c.Author.AvatarUrl,
+                       AuthorDisplayName = c.Author.DisplayName,
+                       AuthorId = c.AuthorId,
+                       Body = c.Body,
+                       CreatedAt = c.CreatedAt,
+                       IsEdited = c.IsEdited,
+                       IssueId = c.IssueId,
+                       UpdatedAt = c.UpdatedAt,
+                   }).ToList(),
+                   ActivityLogs = i.ActivityLogs.Take(5).Select(log => new ActivityLogDto
+                   {
+                       Id = log.Id,
+                       Action = log.Action,
+                       ActorAvatarUrl = log.Actor.AvatarUrl,
+                       ActorDisplayName = log.Actor.DisplayName,
+                       ActorId = log.ActorId,
+                       CreatedAt = log.CreatedAt,
+                       FromValue = log.FromValue,
+                       ToValue = log.ToValue,
+                   }).ToList(),
+                   WorkspaceName = i.Project.Workspace.Name,
+                   ProjectName = i.Project.Name,
+                   Members = i.Project.Workspace.Members.Select(m => new WorkspaceMemberDto
+                   {
+                       DisplayName = m.User.DisplayName,
+                       Email = m.User.Email ?? string.Empty,
+                       UserId = m.UserId,
+                       AvatarUrl = m.User.AvatarUrl,
+                       IsOwner = m.UserId == m.Workspace.OwnerId,
+                       JoinedAt = m.JoinedAt,
+                       Role = m.Role
+                   }).ToList(),
+                   UserWorkspaceRole = i.Project.Workspace.Members
+                    .Where(m => m.UserId == userId)
+                    .Select(m => (WorkspaceRole?)m.Role)
+                    .FirstOrDefault()
+               })
+               .AsNoTracking()
+               .FirstOrDefaultAsync();
+
+        if (issueData is null) return NotFound();
+
+        if (issueData.UserWorkspaceRole is null) return Unauthorized();
+
+        return Ok(issueData);
     }
 }
