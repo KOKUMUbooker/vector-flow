@@ -71,7 +71,7 @@ public class ClientCommentService(IHttpClientFactory httpClientFactory) : IClien
     public async Task<ServiceResult<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentRequest request )
     {
         try {
-            var response = await Http.PostAsJsonAsync<UpdateCommentRequest>(
+            var response = await Http.PutAsJsonAsync<UpdateCommentRequest>(
                 $"/api/comments/{commentId}", request);
 
             if (response.IsSuccessStatusCode)

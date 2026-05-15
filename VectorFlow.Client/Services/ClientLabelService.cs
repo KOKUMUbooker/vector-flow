@@ -71,7 +71,7 @@ public class ClientLabelService(IHttpClientFactory httpClientFactory) : IClientL
     public async Task<ServiceResult<LabelDto>> UpdateLabelAsync(Guid labelId, UpdateLabelRequest request)
     {
         try {
-            var response = await Http.PostAsJsonAsync<UpdateLabelRequest>(
+            var response = await Http.PutAsJsonAsync<UpdateLabelRequest>(
                 $"/api/labels/{labelId}", request);
 
             if (response.IsSuccessStatusCode)
