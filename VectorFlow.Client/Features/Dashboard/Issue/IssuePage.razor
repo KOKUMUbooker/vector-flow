@@ -1132,8 +1132,8 @@ else
         try
         {
             _savingTitle = true;    
-             var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
-                new UpdateIssueRequest { Title = _titleDraft });
+            var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+               new UpdateIssueRequest { Title = _titleDraft });
             if (result.Succeeded)
             {
                 _editingTitle = false;
@@ -1232,7 +1232,8 @@ else
         if (result.Succeeded)
         {
             _issue = result.Data!;
-            Snackbar.Add("Issue assignee changed successfully",Severity.Success);
+            var action = !string.IsNullOrEmpty(userId) ? "set" : "removed";
+            Snackbar.Add($"Issue assignee {action} successfully",Severity.Success);
             AddOptimisticActivity(log);
             return;
         }
@@ -1246,9 +1247,9 @@ else
     {
         if (_issue is null) return;
         var old = _issue.DueDate;
-        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
-            new UpdateIssueRequest { DueDate = newDate });
-        var log = new ActivityRow(_currentUserName, ActivityAction.DueDateChanged, old.ToString() ?? "Unassigned", newDate.ToString() ?? "Unassigned", DateTime.UtcNow);
+        var result = await IssueService.UpdateIssueDueDateAsync(ProjectId, IssueId, 
+            new UpdateIssueDueDateRequest { DueDate = newDate });
+        var log = new ActivityRow(_currentUserName, ActivityAction.DueDateChanged, old?.ToString("yyyy-MM-dd") ?? "Unscheduled", newDate?.ToString("yyyy-MM-dd") ?? "Unscheduled", DateTime.UtcNow);
         if (result.Succeeded)
         {
             _issue = result.Data!;
