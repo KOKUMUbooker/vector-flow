@@ -1331,9 +1331,13 @@ else
             "Delete",
             async () =>
             {
-                // TODO: await CommentService.DeleteAsync(comment.Id);
-                await Task.Delay(400);
-                _comments.Remove(comment);
+                var result = await CommentService.DeleteCommentAsync(comment.Id);
+                if (result.Succeeded) {
+                    _comments.Remove(comment);
+                    Snackbar.Add("Comment deleted successfully",Severity.Info);
+                    return;
+                }
+                Snackbar.Add(result.Error ?? "Failed to delete comment",Severity.Error);
             });
 
     // ── Delete issue ───────────────────────────────────────────────────
