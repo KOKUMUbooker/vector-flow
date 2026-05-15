@@ -155,7 +155,7 @@ public class ClientIssueService(IHttpClientFactory httpClientFactory) : IClientI
         {
             return ex.StatusCode == HttpStatusCode.Unauthorized
                 ? ServiceResult<IssueDto>.Failure("Unauthorized.")
-                : ServiceResult<IssueDto>.Failure("Failed to update project.");
+                : ServiceResult<IssueDto>.Failure("Failed to update issue.");
         }
     }
 
@@ -183,7 +183,35 @@ public class ClientIssueService(IHttpClientFactory httpClientFactory) : IClientI
         {
             return ex.StatusCode == HttpStatusCode.Unauthorized
                 ? ServiceResult<IssueDto>.Failure("Unauthorized.")
-                : ServiceResult<IssueDto>.Failure("Failed to update project.");
+                : ServiceResult<IssueDto>.Failure("Failed to update issue.");
+        }
+    }
+
+    public async Task<ServiceResult<IssueDto>> UpdateIssueAssigneeAsync(Guid projectId, Guid issueId, UpdateIssueAssigneeRequest request)
+    {
+        try
+        {
+            var response = await Http.PatchAsJsonAsync<UpdateIssueAssigneeRequest>(
+                $"/api/projects/{projectId}/issues/{issueId}/assignee", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var updated = await response.Content.ReadFromJsonAsync<IssueDto>();
+                return ServiceResult<IssueDto>.Success(updated!);
+            }
+
+            return response.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult<IssueDto>.NotFoundResult("Issue"),
+                HttpStatusCode.Forbidden => ServiceResult<IssueDto>.ForbiddenResult(),
+                _ => ServiceResult<IssueDto>.Failure(await ErrorUtil.ReadErrorMessageAsync(response))
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode == HttpStatusCode.Unauthorized
+                ? ServiceResult<IssueDto>.Failure("Unauthorized.")
+                : ServiceResult<IssueDto>.Failure("Failed to update issue assignee.");
         }
     }
 
@@ -211,7 +239,7 @@ public class ClientIssueService(IHttpClientFactory httpClientFactory) : IClientI
         {
             return ex.StatusCode == HttpStatusCode.Unauthorized
                 ? ServiceResult<IssueDto>.Failure("Unauthorized.")
-                : ServiceResult<IssueDto>.Failure("Failed to update project.");
+                : ServiceResult<IssueDto>.Failure("Failed to update issue.");
         }
     }
 
