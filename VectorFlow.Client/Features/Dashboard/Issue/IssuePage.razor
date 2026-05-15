@@ -87,10 +87,28 @@ else
 
                 <!-- Type + status row -->
                 <div class="issue-tags-row">
-                    <div class="issue-type-badge type-@_issue.Type.ToString().ToLower()">
-                        <MudIcon Icon="@TypeIcon(_issue.Type)" Style="font-size:12px" />
-                        @_issue.Type
-                    </div>
+                    <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                        <ActivatorContent>
+                            <div  class="issue-type-badge type-@_issue.Type.ToString().ToLower()" onclick="@context.ToggleAsync" style="cursor:pointer">
+                                @* <div class="status-dot"></div> *@
+                                <MudIcon Icon="@TypeIcon(_issue.Type)" Style="font-size:12px" />
+                                @(_issue.Type)
+                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:12px; margin-left:2px" />
+                            </div>
+                        </ActivatorContent>
+                        <ChildContent>
+                            @foreach (IssueType t in Enum.GetValues<IssueType>())
+                            {
+                                <MudMenuItem OnClick="() => ChangeType(t)"
+                                             Class="@(t == _issue.Type ? "menu-item-active" : "")">
+                                    <div class="status-menu-item">
+                                        <div class="status-dot-sm"></div>
+                                        @t.ToString()
+                                    </div>
+                                </MudMenuItem>
+                            }
+                        </ChildContent>
+                    </MudMenu>
                     <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
                         <ActivatorContent>
                             <div  class="status-chip status-@StatusCss(_issue.Status)" onclick="@context.ToggleAsync" style="cursor:pointer">
