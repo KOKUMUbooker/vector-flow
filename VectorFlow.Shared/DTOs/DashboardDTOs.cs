@@ -115,3 +115,19 @@ public class DashboardProjectData
     public List<IssueDto> Issues { get; set; } = new List<IssueDto>();
 
 }
+
+public class DashboardFetchedIssueData
+{
+    public IssueDto Issue { get; set; } = new();
+    public List<WorkspaceMemberDto> Members { get; set; } = new();
+    public List<ActivityLogDto> ActivityLogs { get; set; } = new();
+    public List<CommentDto> Comments { get; set; } = new();
+    public string WorkspaceName { get; set; } = string.Empty;
+    public string ProjectName { get; set; } = string.Empty;
+    public virtual WorkspaceRole? UserWorkspaceRole { get; set; }
+}
+
+public class DashboardIssueData : DashboardFetchedIssueData
+{
+    public override required WorkspaceRole? UserWorkspaceRole { get; set; }
+}
