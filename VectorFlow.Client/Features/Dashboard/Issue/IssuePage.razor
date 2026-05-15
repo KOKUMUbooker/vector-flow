@@ -9,7 +9,7 @@
 @inject ISnackbar Snackbar
 @inject IClientIssueService IssueService
 @inject IDashboardService DashboardService
-@* @inject ICommentService CommentService *@
+@inject IClientCommentService CommentService
 @* @inject IWorkspaceService WorkspaceService *@
 
 <PageTitle>@(_issue?.Key ?? "Issue") — VectorFlow</PageTitle>
@@ -1268,20 +1268,24 @@ else
     {
         if (string.IsNullOrWhiteSpace(_newCommentBody)) return;
         _savingComment = true;
-
-        // TODO: var created = await CommentService.AddAsync(IssueId, new AddCommentRequest { Body = _newCommentBody });
-        await Task.Delay(500);
-
-        _comments.Add(new CommentDto
+        try 
         {
-            Id = Guid.NewGuid(), IssueId = IssueId,
-            AuthorId = _currentUserId, AuthorDisplayName = _currentUserName,
-            Body = _newCommentBody, IsEdited = false,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-        });
+            var result = await CommentService.CreateCommentAsync(IssueId,
+                new CreateCommentRequest {Body = _newCommentBody});
+            
+            if (result.Succeeded) 
+            {
+                _comments.Add(result.Data!);
+                _newCommentBody = string.Empty;
+                return;
+            }
 
-        _newCommentBody = string.Empty;
-        _savingComment  = false;
+            Snackbar.Add(result.Error ?? "Failed to create comment",Severity.Error);
+        }
+        finally
+        {
+            _savingComment  = false;
+        }
     }
 
     private void StartEditComment(CommentDto comment)
