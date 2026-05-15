@@ -9,7 +9,7 @@
 @inject ISnackbar Snackbar
 @inject IClientIssueService IssueService
 @inject IDashboardService DashboardService
-@* @inject ICommentService CommentService *@
+@inject IClientCommentService CommentService
 @* @inject IWorkspaceService WorkspaceService *@
 
 <PageTitle>@(_issue?.Key ?? "Issue") — VectorFlow</PageTitle>
@@ -87,10 +87,28 @@ else
 
                 <!-- Type + status row -->
                 <div class="issue-tags-row">
-                    <div class="issue-type-badge type-@_issue.Type.ToString().ToLower()">
-                        <MudIcon Icon="@TypeIcon(_issue.Type)" Style="font-size:12px" />
-                        @_issue.Type
-                    </div>
+                    <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                        <ActivatorContent>
+                            <div  class="issue-type-badge type-@_issue.Type.ToString().ToLower()" onclick="@context.ToggleAsync" style="cursor:pointer">
+                                @* <div class="status-dot"></div> *@
+                                <MudIcon Icon="@TypeIcon(_issue.Type)" Style="font-size:12px" />
+                                @(_issue.Type)
+                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:12px; margin-left:2px" />
+                            </div>
+                        </ActivatorContent>
+                        <ChildContent>
+                            @foreach (IssueType t in Enum.GetValues<IssueType>())
+                            {
+                                <MudMenuItem OnClick="() => ChangeType(t)"
+                                             Class="@(t == _issue.Type ? "menu-item-active" : "")">
+                                    <div class="status-menu-item">
+                                        <div class="status-dot-sm"></div>
+                                        @t.ToString()
+                                    </div>
+                                </MudMenuItem>
+                            }
+                        </ChildContent>
+                    </MudMenu>
                     <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
                         <ActivatorContent>
                             <div  class="status-chip status-@StatusCss(_issue.Status)" onclick="@context.ToggleAsync" style="cursor:pointer">
@@ -1181,6 +1199,23 @@ else
         }
     }
 
+    // ── Issue type change ──────────────────────────────────────────────────
+    private async Task ChangeType(IssueType newType)
+    {
+        if (_issue is null || newType == _issue.Type) return;
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { Type = newType });
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue type updated successfully",Severity.Success);
+            return;
+        }
+
+        Snackbar.Add("Failed to update issue type",Severity.Error);
+    }
+
+
     // ── Status change ──────────────────────────────────────────────────
     private async Task ChangeStatus(IssueStatus newStatus)
     {
@@ -1268,20 +1303,24 @@ else
     {
         if (string.IsNullOrWhiteSpace(_newCommentBody)) return;
         _savingComment = true;
-
-        // TODO: var created = await CommentService.AddAsync(IssueId, new AddCommentRequest { Body = _newCommentBody });
-        await Task.Delay(500);
-
-        _comments.Add(new CommentDto
+        try 
         {
-            Id = Guid.NewGuid(), IssueId = IssueId,
-            AuthorId = _currentUserId, AuthorDisplayName = _currentUserName,
-            Body = _newCommentBody, IsEdited = false,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
-        });
+            var result = await CommentService.CreateCommentAsync(IssueId,
+                new CreateCommentRequest {Body = _newCommentBody});
+            
+            if (result.Succeeded) 
+            {
+                _comments.Add(result.Data!);
+                _newCommentBody = string.Empty;
+                return;
+            }
 
-        _newCommentBody = string.Empty;
-        _savingComment  = false;
+            Snackbar.Add(result.Error ?? "Failed to create comment",Severity.Error);
+        }
+        finally
+        {
+            _savingComment  = false;
+        }
     }
 
     private void StartEditComment(CommentDto comment)
@@ -1300,16 +1339,26 @@ else
     {
         if (string.IsNullOrWhiteSpace(_commentEditDraft)) return;
         _savingComment = true;
-        // TODO: await CommentService.UpdateAsync(comment.Id, new UpdateCommentRequest { Body = _commentEditDraft });
-        await Task.Delay(400);
-        var idx = _comments.IndexOf(comment);
-        @* if (idx >= 0)
-            _comments[idx] = comment with
+        try 
+        {
+           var result = await CommentService.UpdateCommentAsync(comment.Id,
+                 new UpdateCommentRequest { Body = _commentEditDraft });
+
+            if (result.Succeeded) 
             {
-                Body = _commentEditDraft, IsEdited = true, UpdatedAt = DateTime.UtcNow
-            }; *@
-        _savingComment    = false;
-        _editingCommentId = null;
+                var idx = _comments.IndexOf(comment);
+                if (idx >= 0) _comments[idx] = result.Data!;
+                _editingCommentId = null;
+                Snackbar.Add("Comment updated successfully", Severity.Success);
+                return;
+            }
+
+            Snackbar.Add(result.Error ?? "Failed to update comment",Severity.Error);
+        }
+        finally
+        {
+            _savingComment    = false;
+        }
     }
 
     private void ConfirmDeleteComment(CommentDto comment) =>
@@ -1317,9 +1366,13 @@ else
             "Delete",
             async () =>
             {
-                // TODO: await CommentService.DeleteAsync(comment.Id);
-                await Task.Delay(400);
-                _comments.Remove(comment);
+                var result = await CommentService.DeleteCommentAsync(comment.Id);
+                if (result.Succeeded) {
+                    _comments.Remove(comment);
+                    Snackbar.Add("Comment deleted successfully",Severity.Info);
+                    return;
+                }
+                Snackbar.Add(result.Error ?? "Failed to delete comment",Severity.Error);
             });
 
     // ── Delete issue ───────────────────────────────────────────────────
@@ -1329,9 +1382,13 @@ else
             "Delete issue",
             async () =>
             {
-                // TODO: await IssueService.DeleteAsync(ProjectId, IssueId);
-                await Task.Delay(600);
-                Nav.NavigateTo($"/w/{Slug}/projects/{ProjectId}");
+                var result = await IssueService.DeleteIssueAsync(ProjectId,IssueId);
+                if (result.Succeeded) {
+                    Snackbar.Add("Issue deleted successfully",Severity.Info);
+                    Nav.NavigateTo($"/w/{Slug}/projects/{ProjectId}");
+                    return;
+                }
+                Snackbar.Add(result.Error ?? "Failed to delete issue",Severity.Error);
             });
 
     // ── Confirm helper ─────────────────────────────────────────────────
