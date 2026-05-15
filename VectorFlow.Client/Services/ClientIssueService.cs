@@ -215,6 +215,34 @@ public class ClientIssueService(IHttpClientFactory httpClientFactory) : IClientI
         }
     }
 
+    public async Task<ServiceResult<IssueDto>> UpdateIssueDueDateAsync(Guid projectId, Guid issueId, UpdateIssueDueDateRequest request)
+    {
+        try
+        {
+            var response = await Http.PatchAsJsonAsync<UpdateIssueDueDateRequest>(
+                $"/api/projects/{projectId}/issues/{issueId}/dueDate", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var updated = await response.Content.ReadFromJsonAsync<IssueDto>();
+                return ServiceResult<IssueDto>.Success(updated!);
+            }
+
+            return response.StatusCode switch
+            {
+                HttpStatusCode.NotFound => ServiceResult<IssueDto>.NotFoundResult("Issue"),
+                HttpStatusCode.Forbidden => ServiceResult<IssueDto>.ForbiddenResult(),
+                _ => ServiceResult<IssueDto>.Failure(await ErrorUtil.ReadErrorMessageAsync(response))
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode == HttpStatusCode.Unauthorized
+                ? ServiceResult<IssueDto>.Failure("Unauthorized.")
+                : ServiceResult<IssueDto>.Failure("Failed to update issue assignee.");
+        }
+    }
+
     public async Task<ServiceResult<IssueDto>> UpdateIssuePositionAsync(Guid projectId, Guid issueId, UpdateIssuePositionRequest request)
     {
         try
