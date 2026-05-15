@@ -1199,6 +1199,23 @@ else
         }
     }
 
+    // ── Issue type change ──────────────────────────────────────────────────
+    private async Task ChangeType(IssueType newType)
+    {
+        if (_issue is null || newType == _issue.Type) return;
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { Type = newType });
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue type updated successfully",Severity.Success);
+            return;
+        }
+
+        Snackbar.Add("Failed to update issue type",Severity.Error);
+    }
+
+
     // ── Status change ──────────────────────────────────────────────────
     private async Task ChangeStatus(IssueStatus newStatus)
     {
