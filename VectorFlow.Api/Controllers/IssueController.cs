@@ -103,6 +103,21 @@ public class IssuesController(IIssueService issueService) : ControllerBase
         return Ok(result.Issue);
     }
 
+    // ── PATCH /api/projects/{projectId}/issues/{issueId}/assignee ──────────────
+    // Updates assignee only
+    [HttpPatch("{issueId:guid}/assignee")]
+    public async Task<IActionResult> UpdateIssueAssignee(
+        Guid projectId, Guid issueId, UpdateIssueAssigneeRequest request)
+    {
+        var userId = GetUserId();
+        var result = await issueService.UpdateIssueAssigneeAsync(issueId, request, userId);
+
+        if (!result.Succeeded)
+            return ToErrorResponse(result.Error!);
+
+        return Ok(result.Issue);
+    }
+
     // ── PATCH /api/projects/{projectId}/issues/{issueId}/position ─────────────
     // Updates position within a column. Used by Kanban card reordering.
     // Any workspace member can reorder.
