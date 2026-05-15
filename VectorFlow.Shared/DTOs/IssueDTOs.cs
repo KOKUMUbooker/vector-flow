@@ -24,9 +24,7 @@ public class CreateIssueRequest
 
 public class UpdateIssueRequest
 {
-    [Required]
-    [MaxLength(500)]
-    public string Title { get; set; } = string.Empty;
+    public string? Title { get; set; } = string.Empty;
 
     public string? Description { get; set; }
     public IssuePriority Priority { get; set; }
@@ -34,6 +32,7 @@ public class UpdateIssueRequest
     public string? AssigneeId { get; set; }
     public DateTime? DueDate { get; set; }
     public List<Guid> LabelIds { get; set; } = [];
+    public IssueStatus? Status { get; set; }
 }
 
 /// <summary>
