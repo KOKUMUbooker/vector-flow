@@ -1,0 +1,727 @@
+@using VectorFlow.Client.Services.Interfaces
+@using VectorFlow.Shared.DTOs
+@inject IClientLabelService LabelService
+@inject ISnackbar Snackbar
+
+<MudDrawer Open="@Open"
+           OpenChanged="@OnVisibleChanged"
+           Anchor="Anchor.End"
+           Elevation="1"
+           Variant="DrawerVariant.Temporary"
+           Width="380px"
+           Class="label-drawer">
+
+    <div class="drawer-inner">
+
+        <!-- ── HEADER ─────────────────────────────────────────── -->
+        <div class="drawer-header">
+            <div class="drawer-header-left">
+                <div class="drawer-icon">
+                    <MudIcon Icon="@Icons.Material.Outlined.Label"
+                             Style="font-size:16px;" />
+                </div>
+                <div>
+                    <div class="drawer-title">Project Labels</div>
+                    <div class="drawer-subtitle">@Labels.Count label@(Labels.Count != 1 ? "s" : "")</div>
+                </div>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                           Size="Size.Small"
+                           Color="Color.Default"
+                           OnClick="@CloseDrawer" />
+        </div>
+
+        <!-- ── CREATE FORM ────────────────────────────────────── -->
+        <div class="create-section">
+            <div class="create-section-label">
+                @(_editingLabel is null ? "New label" : "Edit label")
+            </div>
+
+            <MudForm @ref="_form" @bind-IsValid="_formValid">
+                <div class="form-row">
+                    <!-- Color picker -->
+                    <div class="color-field">
+                        <div class="color-preview"
+                             style="background:@_formColor"
+                             @onclick="ToggleColorPicker">
+                        </div>
+                        @if (_showColorPicker)
+                        {
+                            <div class="color-picker-popup" @onclick:stopPropagation="true">
+                                <div class="color-swatches">
+                                    @foreach (var swatch in _swatches)
+                                    {
+                                        <div class="swatch @(_formColor == swatch ? "swatch-active" : "")"
+                                             style="background:@swatch"
+                                             @onclick="() => PickSwatch(swatch)"
+                                             title="@swatch">
+                                        </div>
+                                    }
+                                </div>
+                                <div class="color-hex-row">
+                                    <span class="hex-hash">#</span>
+                                    <input class="hex-input"
+                                           value="@_formColor.TrimStart('#')"
+                                           @oninput="OnHexInput"
+                                           maxlength="6"
+                                           placeholder="E11D48" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Name field -->
+                    <MudTextField @bind-Value="_formName"
+                                  Placeholder="Label name"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  RequiredError="Name is required"
+                                  MaxLength="50"
+                                  Class="label-name-field"
+                                  Adornment="@(_formName.Length > 0 ? Adornment.End : Adornment.None)"
+                                  AdornmentIcon="@Icons.Material.Outlined.Close"
+                                  OnAdornmentClick="ClearForm" />
+                </div>
+
+                <!-- Preview chip -->
+                @if (!string.IsNullOrWhiteSpace(_formName))
+                {
+                    <div class="label-preview">
+                        <span class="label-chip"
+                              style="background:@(_formColor + "20"); color:@_formColor; border-color:@(_formColor + "40")">
+                            @_formName
+                        </span>
+                        <span class="preview-hint">Preview</span>
+                    </div>
+                }
+
+                <div class="form-actions">
+                    @if (_editingLabel is not null)
+                    {
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Default"
+                                   Size="Size.Small"
+                                   OnClick="CancelEdit">
+                            Cancel
+                        </MudButton>
+                    }
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               Disabled="@(_saving || !_formValid || string.IsNullOrWhiteSpace(_formName))"
+                               OnClick="HandleSave"
+                               Class="save-btn">
+                        @if (_saving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                        }
+                        @(_editingLabel is null ? "Create label" : "Save changes")
+                    </MudButton>
+                </div>
+            </MudForm>
+        </div>
+
+        <MudDivider />
+
+        <!-- ── LABEL LIST ──────────────────────────────────────── -->
+        <div class="label-list-section">
+            @if (_loading)
+            {
+                <div class="label-list-loading">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <div class="label-skel"></div>
+                    }
+                </div>
+            }
+            else if (!Labels.Any())
+            {
+                <div class="label-empty">
+                    <MudIcon Icon="@Icons.Material.Outlined.Style"
+                             Style="font-size:32px; opacity:0.25;" />
+                    <span class="label-empty-text">No labels yet</span>
+                    <span class="label-empty-hint">Create one above to get started</span>
+                </div>
+            }
+            else
+            {
+                <div class="label-list">
+                    @foreach (var label in Labels)
+                    {
+                        <div class="label-row @(_editingLabel?.Id == label.Id ? "label-row-editing" : "")">
+                            <div class="label-dot" style="background:@label.Color"></div>
+                            <span class="label-chip label-chip-sm"
+                                  style="background:@(label.Color + "20"); color:@label.Color; border-color:@(label.Color + "40")">
+                                @label.Name
+                            </span>
+                            <div class="label-row-actions">
+                                <MudTooltip Text="Edit">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Edit"
+                                                   Size="Size.Small"
+                                                   Color="Color.Default"
+                                                   OnClick="() => BeginEdit(label)"
+                                                   Class="label-action-btn" />
+                                </MudTooltip>
+                                <MudTooltip Text="Delete">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                                                   Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   OnClick="() => ConfirmDelete(label)"
+                                                   Class="label-action-btn"
+                                                   Disabled="@(_deletingId == label.Id)" />
+                                </MudTooltip>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+    </div>
+</MudDrawer>
+
+<!-- Delete confirmation dialog -->
+<MudDialog @bind-Visible="_deleteDialogOpen"
+           Options="@(new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Delete label</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2">
+            Delete <strong>@_pendingDelete?.Name</strong>? This will silently remove it from all issues.
+            This cannot be undone.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _deleteDialogOpen = false)"
+                   Variant="Variant.Text" Color="Color.Default">
+            Cancel
+        </MudButton>
+        <MudButton OnClick="HandleDelete"
+                   Variant="Variant.Filled"
+                   Color="Color.Error"
+                   Disabled="@_deleting">
+            @if (_deleting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+            }
+            Delete label
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    /* ── Drawer shell ───────────────────────────────────────────── */
+    .label-drawer .mud-drawer-content {
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .drawer-inner {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 20px 16px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        flex-shrink: 0;
+    }
+
+    .drawer-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .drawer-icon {
+        width: 32px; height: 32px;
+        border-radius: 8px;
+        background: var(--mud-palette-primary-lighten);
+        color: var(--mud-palette-primary);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .drawer-title {
+        font-family: 'DM Sans', system-ui, sans-serif;
+        font-size: 14px; font-weight: 600;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .drawer-subtitle {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    /* ── Create / edit form ─────────────────────────────────────── */
+    .create-section {
+        padding: 16px 20px;
+        flex-shrink: 0;
+        background: var(--mud-palette-background-gray);
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+
+    .create-section-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px; font-weight: 500;
+        text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--mud-palette-text-disabled);
+        margin-bottom: 12px;
+    }
+
+    .form-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    /* Color picker */
+    .color-field {
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .color-preview {
+        width: 40px; height: 40px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 2px solid var(--mud-palette-divider);
+        transition: transform 0.15s, border-color 0.15s;
+        flex-shrink: 0;
+    }
+
+    .color-preview:hover {
+        transform: scale(1.05);
+        border-color: var(--mud-palette-primary);
+    }
+
+    .color-picker-popup {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        z-index: 1000;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        width: 220px;
+    }
+
+    .color-swatches {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        margin-bottom: 10px;
+    }
+
+    .swatch {
+        width: 24px; height: 24px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: transform 0.1s;
+        border: 2px solid transparent;
+    }
+
+    .swatch:hover { transform: scale(1.2); }
+
+    .swatch-active {
+        border-color: var(--mud-palette-surface);
+        box-shadow: 0 0 0 2px currentColor;
+        transform: scale(1.1);
+    }
+
+    .color-hex-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--mud-palette-background);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 6px;
+        padding: 4px 8px;
+    }
+
+    .hex-hash {
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .hex-input {
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--mud-palette-text-primary);
+        width: 100%;
+        text-transform: uppercase;
+    }
+
+    .label-name-field { flex: 1; }
+
+    /* Preview */
+    .label-preview {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .preview-hint {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    /* Form actions */
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-top: 4px;
+    }
+
+    .save-btn {
+        border-radius: 8px !important;
+        font-size: 13px !important;
+        text-transform: none !important;
+    }
+
+    /* ── Label chips ─────────────────────────────────────────────── */
+    .label-chip {
+        display: inline-flex;
+        align-items: center;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px; font-weight: 500;
+        padding: 3px 8px;
+        border-radius: 4px;
+        border: 1px solid;
+        white-space: nowrap;
+    }
+
+    .label-chip-sm { font-size: 10px; }
+
+    /* ── Label list ──────────────────────────────────────────────── */
+    .label-list-section {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 20px;
+    }
+
+    .label-list-loading {
+        display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .label-skel {
+        height: 40px; border-radius: 8px;
+        background: var(--mud-palette-lines-default);
+        animation: skel-pulse 1.5s ease-in-out infinite;
+    }
+
+    @@keyframes skel-pulse {
+        0%, 100% { opacity: 0.4; }
+        50%       { opacity: 0.8; }
+    }
+
+    .label-empty {
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 6px; padding: 48px 0; text-align: center;
+    }
+
+    .label-empty-text {
+        font-size: 13px; font-weight: 500;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .label-empty-hint {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .label-list {
+        display: flex; flex-direction: column; gap: 4px;
+    }
+
+    .label-row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        transition: background 0.12s, border-color 0.12s;
+    }
+
+    .label-row:hover {
+        background: var(--mud-palette-background-gray);
+    }
+
+    .label-row-editing {
+        background: var(--mud-palette-primary-lighten) !important;
+        border-color: var(--mud-palette-primary) !important;
+    }
+
+    .label-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%; flex-shrink: 0;
+    }
+
+    .label-row-actions {
+        display: flex; align-items: center; gap: 2px;
+        margin-left: auto;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    .label-row:hover .label-row-actions { opacity: 1; }
+
+    .label-action-btn {
+        width: 28px !important; height: 28px !important;
+    }
+</style>
+
+@code {
+    // ── Parameters ─────────────────────────────────────────────────────────
+
+    /// <summary>Controls drawer visibility — use @@bind-Open from parent.</summary>
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>The project whose labels are being managed.</summary>
+    [Parameter] public Guid ProjectId { get; set; }
+
+    /// <summary>
+    /// The parent's label list passed in as a parameter.
+    /// The drawer reads this for display and uses callbacks to mutate it.
+    /// </summary>
+    [Parameter] public List<LabelDto> Labels { get; set; } = [];
+
+    /// <summary>Called after a label is successfully created. Parent appends it to _labels.</summary>
+    [Parameter] public EventCallback<LabelDto> OnLabelCreated { get; set; }
+
+    /// <summary>Called after a label is successfully updated. Parent replaces the old entry.</summary>
+    [Parameter] public EventCallback<LabelDto> OnLabelUpdated { get; set; }
+
+    /// <summary>Called after a label is successfully deleted. Parent removes it by ID.</summary>
+    [Parameter] public EventCallback<Guid> OnLabelDeleted { get; set; }
+
+    // ── State ───────────────────────────────────────────────────────────────
+
+    private MudForm  _form       = null!;
+    private bool     _formValid;
+    private bool     _loading;
+    private bool     _saving;
+    private bool     _deleting;
+    private bool     _showColorPicker;
+
+    private string   _formName   = string.Empty;
+    private string   _formColor  = "#6B7280";
+
+    private LabelDto? _editingLabel;
+    private LabelDto? _pendingDelete;
+    private Guid      _deletingId;
+    private bool      _deleteDialogOpen;
+    private async Task OnVisibleChanged(bool value)
+    {
+        await OpenChanged.InvokeAsync(value);
+    }
+
+    private async Task CloseDrawer()
+    {
+        await OpenChanged.InvokeAsync(false);
+    }
+
+    // ── Swatch palette ──────────────────────────────────────────────────────
+
+    private readonly string[] _swatches =
+    [
+        "#E11D48", "#DC2626", "#EA580C", "#D97706",
+        "#CA8A04", "#65A30D", "#16A34A", "#059669",
+        "#0891B2", "#2563EB", "#4F46E5", "#7C3AED",
+        "#9333EA", "#C026D3", "#DB2777", "#64748B",
+        "#374151", "#1E40AF", "#1E3A8A", "#0C4A6E",
+        "#4339CA", "#1A7A52", "#92560F", "#0E7490"
+    ];
+
+    // ── Lifecycle ───────────────────────────────────────────────────────────
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Load labels the first time the drawer opens
+        if (Open && !Labels.Any() && !_loading)
+            await LoadLabelsAsync();
+    }
+
+    private async Task LoadLabelsAsync()
+    {
+        _loading = true;
+        var result = await LabelService.GetLabelsAsync(ProjectId);
+
+        if (result.Succeeded && result.Data is not null)
+        {
+            // Sync to parent — replace the list via callbacks is cleaner
+            // but since this is initial load we notify for each
+            foreach (var label in result.Data)
+                await OnLabelCreated.InvokeAsync(label);
+        }
+
+        _loading = false;
+    }
+
+    // ── Save (create or update) ─────────────────────────────────────────────
+
+    private async Task HandleSave()
+    {
+        try {
+            await _form.ValidateAsync();
+            if (!_formValid || string.IsNullOrWhiteSpace(_formName)) return;
+
+            _saving = true;
+            _showColorPicker = false;
+
+            if (_editingLabel is null)
+                await CreateLabel();
+            else
+                await UpdateLabel();
+
+        } finally {
+            _saving = false;
+        }
+    }
+
+    private async Task CreateLabel()
+    {
+        var request = new CreateLabelRequest
+        {
+            Name  = _formName.Trim(),
+            Color = _formColor
+        };
+
+        var result = await LabelService.CreateLabelAsync(ProjectId, request);
+
+        if (result.Succeeded && result.Data is not null)
+        {
+            await OnLabelCreated.InvokeAsync(result.Data);
+            Snackbar.Add($"Label \"{result.Data.Name}\" created.", Severity.Success);
+            ClearForm();
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to create label.", Severity.Error);
+        }
+    }
+
+    private async Task UpdateLabel()
+    {
+        var request = new UpdateLabelRequest
+        {
+            Name  = _formName.Trim(),
+            Color = _formColor
+        };
+
+        var result = await LabelService.UpdateLabelAsync(_editingLabel!.Id, request);
+
+        if (result.Succeeded && result.Data is not null)
+        {
+            await OnLabelUpdated.InvokeAsync(result.Data);
+            Snackbar.Add($"Label \"{result.Data.Name}\" updated.", Severity.Success);
+            CancelEdit();
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to update label.", Severity.Error);
+        }
+    }
+
+    // ── Edit ────────────────────────────────────────────────────────────────
+
+    private void BeginEdit(LabelDto label)
+    {
+        _editingLabel    = label;
+        _formName        = label.Name;
+        _formColor       = label.Color;
+        _showColorPicker = false;
+    }
+
+    private void CancelEdit()
+    {
+        _editingLabel = null;
+        ClearForm();
+    }
+
+    // ── Delete ──────────────────────────────────────────────────────────────
+
+    private void ConfirmDelete(LabelDto label)
+    {
+        _pendingDelete    = label;
+        _deleteDialogOpen = true;
+    }
+
+    private async Task HandleDelete()
+    {
+        if (_pendingDelete is null) return;
+
+        _deleting    = true;
+        _deletingId  = _pendingDelete.Id;
+
+        var result = await LabelService.DeleteLabelAsync(_pendingDelete.Id);
+
+        if (result.Succeeded)
+        {
+            await OnLabelDeleted.InvokeAsync(_pendingDelete.Id);
+            Snackbar.Add($"Label \"{_pendingDelete.Name}\" deleted.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to delete label.", Severity.Error);
+        }
+
+        _deleting         = false;
+        _deletingId       = Guid.Empty;
+        _deleteDialogOpen = false;
+        _pendingDelete    = null;
+    }
+
+    // ── Color picker ────────────────────────────────────────────────────────
+
+    private void ToggleColorPicker() => _showColorPicker = !_showColorPicker;
+
+    private void PickSwatch(string color)
+    {
+        _formColor       = color;
+        _showColorPicker = false;
+    }
+
+    private void OnHexInput(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString()?.Trim().TrimStart('#') ?? string.Empty;
+
+        // Only update when we have a full 6-char hex value
+        if (raw.Length == 6 && IsValidHex(raw))
+            _formColor = $"#{raw.ToUpperInvariant()}";
+    }
+
+    private static bool IsValidHex(string hex) =>
+        hex.All(c => (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'));
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private void ClearForm()
+    {
+        _formName  = string.Empty;
+        _formColor = "#6B7280";
+        _form.ResetAsync();
+    }
+}
