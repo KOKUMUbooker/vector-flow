@@ -45,6 +45,7 @@ public class DashboardController(
                 .ThenInclude(w => w.Projects)
             .OrderByDescending(m => m.JoinedAt)
             .Take(WorkspaceCap)
+            .AsNoTracking()
             .ToListAsync();
 
         var workspaceDtos = memberships.Select(m => new DashboardWorkspaceDto
@@ -71,6 +72,7 @@ public class DashboardController(
         var projects = await db.Projects
             .Where(p => workspaceIds.Contains(p.WorkspaceId))
             .Include(p => p.Issues.Where(i => i.Status != IssueStatus.Done))
+            .AsNoTracking()
             .ToListAsync();
 
         var recentProjects = projects
@@ -100,6 +102,7 @@ public class DashboardController(
             .OrderBy(i => i.DueDate == null ? 1 : 0) // nulls last
             .ThenBy(i => i.DueDate)
             .ThenByDescending(i => (int)i.Priority)
+            .AsNoTracking()
             .ToListAsync();
 
         // Map to shared DTO once, then build buckets from the in-memory list
@@ -172,6 +175,7 @@ public class DashboardController(
                 ExpiresAt = i.ExpiresAt,
                 Token = i.Token,
             })
+            .AsNoTracking()
             .ToListAsync();
 
         // ── 5. Stats ──────────────────────────────────────────────────────
@@ -201,6 +205,7 @@ public class DashboardController(
         var workspaceExists = await db.Workspaces
             .Where(w => w.Slug == workspaceSlug)
             .Select(w => new { w.Id })
+            .AsNoTracking()
             .SingleOrDefaultAsync();
 
         if (workspaceExists is null)
@@ -213,6 +218,7 @@ public class DashboardController(
         var currentUserRole = await db.WorkspaceMembers
                 .Where(m => m.UserId == userId && m.WorkspaceId == workspaceExists.Id)
                 .Select(r => new { r.Role })
+                .AsNoTracking()
                 .FirstOrDefaultAsync();
 
         if (currentUserRole is null) return Unauthorized();
@@ -269,6 +275,7 @@ public class DashboardController(
                   ProjectCount = w.Projects.Count,
                   CreatedAt = w.CreatedAt,
               })
+              .AsNoTracking()
               .FirstOrDefaultAsync();
 
         if (workspaceData is null) return NotFound();
@@ -303,7 +310,8 @@ public class DashboardController(
             .Where(p => p.Id == projectId)
             .Select(p => new DashboardProjectData
             {
-                Project = new ProjectDto {
+                Project = new ProjectDto
+                {
                     Id = p.Id,
                     Name = p.Name,
                     Description = p.Description,
@@ -359,6 +367,7 @@ public class DashboardController(
                        }).ToList()
                 }).ToList(),
             })
+            .AsNoTracking()
             .FirstOrDefaultAsync();
 
             if (projectData is null) return NotFound();
