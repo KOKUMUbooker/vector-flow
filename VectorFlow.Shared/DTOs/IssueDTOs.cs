@@ -27,8 +27,8 @@ public class UpdateIssueRequest
     public string? Title { get; set; } = string.Empty;
 
     public string? Description { get; set; }
-    public IssuePriority Priority { get; set; } 
-    public IssueType Type { get; set; }
+    public IssuePriority? Priority { get; set; } 
+    public IssueType? Type { get; set; }
     public DateTime? DueDate { get; set; }
     public List<Guid> LabelIds { get; set; } = [];
 }
