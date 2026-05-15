@@ -28,6 +28,8 @@ public interface IClientIssueService
 
     /// <summary> Updates the status only — called by the Kanban drag-and-drop. </summary>
     Task<ServiceResult<IssueDto>> UpdateIssueStatusAsync(Guid projectId, Guid issueId, UpdateIssueStatusRequest request);
+    // <summary> Update only the assignee </summary>
+    Task<ServiceResult<IssueDto>> UpdateIssueAssigneeAsync(Guid projectId, Guid issueId, UpdateIssueAssigneeRequest request);
 
     /// <summary> Updates the position within a Kanban column for card ordering. </summary>
     Task<ServiceResult<IssueDto>> UpdateIssuePositionAsync(Guid projectId, Guid issueId, UpdateIssuePositionRequest request);
