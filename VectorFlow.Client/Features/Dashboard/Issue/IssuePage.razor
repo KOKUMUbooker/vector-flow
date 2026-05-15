@@ -242,20 +242,20 @@ else
                                         @if (_editingCommentId == comment.Id)
                                         {
                                             <MudTextField @bind-Value="_commentEditDraft"
-                                                          Variant="Variant.Outlined"
-                                                          Lines="3"
-                                                          Margin="Margin.Dense"
-                                                          Class="comment-edit-field" />
+                                                Variant="Variant.Outlined"
+                                                Lines="3"
+                                                Margin="Margin.Dense"
+                                                Class="comment-edit-field" />
                                             <div class="comment-edit-actions">
                                                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                                           Size="Size.Small"
-                                                           OnClick="() => SaveEditComment(comment)"
-                                                           Disabled="_savingComment">
+                                                    Size="Size.Small"
+                                                    OnClick="() => SaveEditComment(comment)"
+                                                    Disabled="_savingComment">
                                                     @(_savingComment ? "Saving…" : "Save")
                                                 </MudButton>
                                                 <MudButton Variant="Variant.Text" Color="Color.Default"
-                                                           Size="Size.Small"
-                                                           OnClick="CancelEditComment">
+                                                    Size="Size.Small"
+                                                    OnClick="CancelEditComment">
                                                     Cancel
                                                 </MudButton>
                                             </div>
@@ -277,21 +277,21 @@ else
                         </div>
                         <div class="composer-input-wrap">
                             <MudTextField @bind-Value="_newCommentBody"
-                                          Placeholder="Leave a comment…"
-                                          Variant="Variant.Outlined"
-                                          Lines="3"
-                                          Margin="Margin.Dense"
-                                          Class="composer-field" />
+                                Placeholder="Leave a comment…"
+                                Variant="Variant.Outlined"
+                                Lines="3"
+                                Margin="Margin.Dense"
+                                Class="composer-field" />
                             <div class="composer-footer">
                                 <MudText Typo="Typo.caption" Class="mud-text-disabled">
                                     Markdown supported
                                 </MudText>
                                 <MudButton Variant="Variant.Filled"
-                                           Color="Color.Primary"
-                                           Size="Size.Small"
-                                           OnClick="SubmitComment"
-                                           Disabled="@(string.IsNullOrWhiteSpace(_newCommentBody) || _savingComment)"
-                                           Class="submit-comment-btn">
+                                    Color="Color.Primary"
+                                    Size="Size.Small"
+                                    OnClick="SubmitComment"
+                                    Disabled="@(string.IsNullOrWhiteSpace(_newCommentBody) || _savingComment)"
+                                    Class="submit-comment-btn">
                                     @(_savingComment ? "Posting…" : "Comment")
                                 </MudButton>
                             </div>
@@ -1144,13 +1144,26 @@ else
 
     private async Task SaveDescription()
     {
-        if (_issue is null) return;
-        _savingDescription = true;
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Description = _descriptionDraft });
-        await Task.Delay(400);
-        @* _issue              = _issue with { Description = _descriptionDraft, UpdatedAt = DateTime.UtcNow }; *@
-        _savingDescription  = false;
-        _editingDescription = false;
+        try
+        {
+            if (_issue is null) return;
+            _savingDescription = true;
+            var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+                new UpdateIssueRequest { Description = _descriptionDraft });
+            if (result.Succeeded)
+            {
+                _editingDescription = false;
+                _issue = result.Data!;
+                Snackbar.Add("Issue Description updated successfully",Severity.Success);
+                return;
+            }
+
+            Snackbar.Add("Failed to update issue description",Severity.Error);
+        }
+        finally
+        {
+            _savingDescription  = false;
+        }
     }
 
     // ── Status change ──────────────────────────────────────────────────
@@ -1158,10 +1171,19 @@ else
     {
         if (_issue is null || newStatus == _issue.Status) return;
         var old = _issue.Status;
-        @* _issue = _issue with { Status = newStatus, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.ChangeStatusAsync(ProjectId, IssueId, new IssueStatusRequest { Status = newStatus });
-        await Task.Delay(300);
-        //AddOptimisticActivity("changed status", StatusLabel(old), StatusLabel(newStatus));
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { Status = newStatus });
+        var log = new ActivityRow(_currentUserName, ActivityAction.StatusChanged, StatusLabel(old), StatusLabel(newStatus), DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue status updated successfully",Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to update issue status",Severity.Error);
     }
 
     // ── Priority change ────────────────────────────────────────────────
@@ -1169,29 +1191,60 @@ else
     {
         if (_issue is null || newPriority == _issue.Priority) return;
         var old = _issue.Priority;
-        @* _issue = _issue with { Priority = newPriority, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Priority = newPriority });
-        await Task.Delay(300);
-        //AddOptimisticActivity("changed priority", old.ToString(), newPriority.ToString());
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { Priority = newPriority });
+        var log = new ActivityRow(_currentUserName, ActivityAction.StatusChanged, old.ToString(), newPriority.ToString(), DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue priority updated successfully",Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to update issue priority",Severity.Error);
     }
 
     // ── Assignee change ────────────────────────────────────────────────
     private async Task ChangeAssignee(string? userId, string? displayName)
     {
         if (_issue is null) return;
-        @* _issue = _issue with { AssigneeId = userId, AssigneeDisplayName = displayName, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { AssigneeId = userId });
-        await Task.Delay(300);
-        //AddOptimisticActivity("changed assignee", "", displayName ?? "Unassigned");
+        var old = _issue.AssigneeDisplayName;
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { AssigneeId = userId });
+        var log = new ActivityRow(_currentUserName, ActivityAction.AssigneeChanged, old ?? "Unassigned", displayName ?? "Unassigned", DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            Snackbar.Add("Issue assignee changed successfully",Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to change assignee",Severity.Error);
     }
 
     // ── Due date change ────────────────────────────────────────────────
     private async Task ChangeDueDate(DateTime? newDate)
     {
         if (_issue is null) return;
-        @* _issue = _issue with { DueDate = newDate, UpdatedAt = DateTime.UtcNow }; *@
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { DueDate = newDate });
-        await Task.Delay(300);
+        var old = _issue.DueDate;
+        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+            new UpdateIssueRequest { DueDate = newDate });
+        var log = new ActivityRow(_currentUserName, ActivityAction.DueDateChanged, old.ToString() ?? "Unassigned", newDate.ToString() ?? "Unassigned", DateTime.UtcNow);
+        if (result.Succeeded)
+        {
+            _issue = result.Data!;
+            var action = newDate != null ? "updated" : "removed";
+            Snackbar.Add($"Issue DueDate {action} successfully", Severity.Success);
+            AddOptimisticActivity(log);
+            return;
+        }
+
+        UndoOptimisticActivity(log);
+        Snackbar.Add("Failed to update issue DueDate",Severity.Error);
     }
 
     // ── Comments ───────────────────────────────────────────────────────
@@ -1284,9 +1337,10 @@ else
     }
 
     // ── Optimistic activity push ───────────────────────────────────────
-    private void AddOptimisticActivity(ActivityAction verb, string from, string to) =>
-        _activity.Insert(0, new ActivityRow(_currentUserName, verb, from, to, DateTime.UtcNow));
+    private void AddOptimisticActivity(ActivityRow log) => _activity.Insert(0, log);
 
+    private void UndoOptimisticActivity(ActivityRow log) => _activity.Remove(log);
+       
     // ── Display helpers ────────────────────────────────────────────────
     private static string StatusCss(IssueStatus s) => s switch
     {
