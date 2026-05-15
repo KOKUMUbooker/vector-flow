@@ -93,7 +93,7 @@ else
                     </div>
                     <MudMenu Class="status-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
                         <ActivatorContent>
-                            <div class="status-chip status-@StatusCss(_issue.Status)" style="cursor:pointer">
+                            <div  class="status-chip status-@StatusCss(_issue.Status)" onclick="@context.ToggleAsync" style="cursor:pointer">
                                 <div class="status-dot"></div>
                                 @StatusLabel(_issue.Status)
                                 <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:12px; margin-left:2px" />
@@ -1184,8 +1184,8 @@ else
     {
         if (_issue is null || newStatus == _issue.Status) return;
         var old = _issue.Status;
-        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
-            new UpdateIssueRequest { Status = newStatus });
+        var result = await IssueService.UpdateIssueStatusAsync(ProjectId, IssueId, 
+            new UpdateIssueStatusRequest { Status = newStatus });
         var log = new ActivityRow(_currentUserName, ActivityAction.StatusChanged, StatusLabel(old), StatusLabel(newStatus), DateTime.UtcNow);
         if (result.Succeeded)
         {
@@ -1224,8 +1224,8 @@ else
     {
         if (_issue is null) return;
         var old = _issue.AssigneeDisplayName;
-        var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
-            new UpdateIssueRequest { AssigneeId = userId });
+        var result = await IssueService.UpdateIssueAssigneeAsync(ProjectId, IssueId, 
+            new UpdateIssueAssigneeRequest { AssigneeId = userId });
         var log = new ActivityRow(_currentUserName, ActivityAction.AssigneeChanged, old ?? "Unassigned", displayName ?? "Unassigned", DateTime.UtcNow);
         if (result.Succeeded)
         {
