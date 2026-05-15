@@ -27,12 +27,10 @@ public class UpdateIssueRequest
     public string? Title { get; set; } = string.Empty;
 
     public string? Description { get; set; }
-    public IssuePriority Priority { get; set; }
+    public IssuePriority Priority { get; set; } 
     public IssueType Type { get; set; }
-    public string? AssigneeId { get; set; }
     public DateTime? DueDate { get; set; }
     public List<Guid> LabelIds { get; set; } = [];
-    public IssueStatus? Status { get; set; }
 }
 
 /// <summary>
@@ -43,6 +41,14 @@ public class UpdateIssueStatusRequest
 {
     [Required]
     public IssueStatus Status { get; set; }
+}
+
+/// <summary>
+/// Separate request for assignee changes — allows for assigning and unassigning an issue to users
+/// </summary>
+public class UpdateIssueAssigneeRequest
+{
+    public string? AssigneeId { get; set; }
 }
 
 /// <summary>
