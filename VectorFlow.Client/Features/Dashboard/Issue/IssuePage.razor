@@ -1,11 +1,16 @@
 @page "/w/{Slug}/projects/{ProjectId:guid}/issues/{IssueId:guid}"
 @layout Features.Layout.MainLayout
+@using VectorFlow.Shared.DTOs
+@using VectorFlow.Shared.Enums
+@using VectorFlow.Client.Services
+@using VectorFlow.Client.Services.Interfaces
+@using System.Security.Claims;
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
-@* @inject IIssueService IssueService *@
+@inject IClientIssueService IssueService
+@inject IDashboardService DashboardService
 @* @inject ICommentService CommentService *@
 @* @inject IWorkspaceService WorkspaceService *@
-@* @inject IAuthService AuthService *@
 
 <PageTitle>@(_issue?.Key ?? "Issue") — VectorFlow</PageTitle>
 
@@ -368,12 +373,12 @@ else
                 <div class="sidebar-field">
                     <div class="sidebar-label">Due date</div>
                     <MudDatePicker Date="_issue.DueDate"
-                                   DateChanged="ChangeDueDate"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense"
-                                   Clearable="true"
-                                   Placeholder="No due date"
-                                   Class="sidebar-datepicker" />
+                        DateChanged="ChangeDueDate"
+                        Variant="Variant.Outlined"
+                        Margin="Margin.Dense"
+                        Clearable="true"
+                        Placeholder="No due date"
+                        Class="sidebar-datepicker" />
                 </div>
 
                 <!-- Labels -->
@@ -394,9 +399,9 @@ else
                             <span class="sidebar-unset">None</span>
                         }
                         <MudIconButton Icon="@Icons.Material.Outlined.Add"
-                                       Size="Size.Small"
-                                       Title="Add label"
-                                       Class="label-add-btn" />
+                            Size="Size.Small"
+                            Title="Add label"
+                            Class="label-add-btn" />
                     </div>
                 </div>
 
@@ -428,12 +433,12 @@ else
                 {
                     <div class="sidebar-field">
                         <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Error"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Outlined.DeleteOutline"
-                                   FullWidth="true"
-                                   OnClick="ConfirmDeleteIssue"
-                                   Class="delete-issue-btn">
+                            Color="Color.Error"
+                            Size="Size.Small"
+                            StartIcon="@Icons.Material.Outlined.DeleteOutline"
+                            FullWidth="true"
+                            OnClick="ConfirmDeleteIssue"
+                            Class="delete-issue-btn">
                             Delete issue
                         </MudButton>
                     </div>
@@ -1022,6 +1027,7 @@ else
     [Parameter] public string Slug       { get; set; } = string.Empty;
     [Parameter] public Guid   ProjectId  { get; set; }
     [Parameter] public Guid   IssueId    { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
 
     // ── Page state ─────────────────────────────────────────────────────
     private bool     _loading = true;
@@ -1034,7 +1040,7 @@ else
 
     private List<CommentDto>  _comments = [];
     private List<ActivityRow> _activity = [];
-    private List<MemberDto>   _members  = [];
+    private List<WorkspaceMemberDto>   _members  = [];
 
     // Editing flags
     private bool   _editingTitle;
@@ -1078,92 +1084,27 @@ else
 
         try
         {
-            // ── TODO: real calls ────────────────────────────────────────
-            // var me           = await AuthService.GetCurrentUserAsync();
-            // _currentUserId   = me.Id;
-            // _currentUserName = me.DisplayName;
-            //
-            // var workspace    = await WorkspaceService.GetBySlugAsync(Slug);
-            // _workspaceName   = workspace.Name;
-            // _canManage       = workspace.CurrentUserRole is WorkspaceRole.Owner or WorkspaceRole.Admin;
-            //
-            // var project      = await ProjectService.GetAsync(workspace.Id, ProjectId);
-            // _projectName     = project.Name;
-            //
-            // _issue           = await IssueService.GetAsync(ProjectId, IssueId);
-            // _comments        = await CommentService.GetByIssueAsync(IssueId);
-            // _activity        = (await IssueService.GetActivityAsync(ProjectId, IssueId))
-            //                        .Select(MapActivity).ToList();
-            // _members         = await WorkspaceService.GetMembersAsync(workspace.Id);
-            // ────────────────────────────────────────────────────────────
-
-            await Task.Delay(500);
-
-            _currentUserId   = "user-booker";
-            _currentUserName = "Booker K.";
-            _workspaceName   = "VectorFlow";
-            _projectName     = "VectorFlow Backend";
-            _canManage       = true;
-
-            _members =
-            [
-                new MemberDto { UserId = "user-booker", DisplayName = "Booker K.",  Email = "booker@vectorflow.dev", Role = WorkspaceRole.Owner,  IsOwner = true  },
-                new MemberDto { UserId = "user-jana",   DisplayName = "Jana S.",    Email = "jana@vectorflow.dev",   Role = WorkspaceRole.Admin,  IsOwner = false },
-                new MemberDto { UserId = "user-alex",   DisplayName = "Alex K.",    Email = "alex@vectorflow.dev",   Role = WorkspaceRole.Member, IsOwner = false },
-            ];
-
-            _issue = new IssueDto
+            if (AuthenticationState is null)
             {
-                Id                  = IssueId,
-                ProjectId           = ProjectId,
-                Key                 = "VF-05",
-                Title               = "Wire SignalR hub to issue service",
-                Description         = "The SignalR hub needs to be connected to the issue domain service so that all CRUD operations broadcast real-time events to connected clients.\n\nAcceptance criteria:\n- IssueCreated, IssueUpdated, IssueDeleted events fire correctly\n- Only members of the project receive events\n- Existing unit tests remain green",
-                Status              = IssueStatus.InProgress,
-                Priority            = IssuePriority.High,
-                Type                = IssueType.Feature,
-                AssigneeId          = "user-booker",
-                AssigneeDisplayName = "Booker K.",
-                ReporterId          = "user-jana",
-                ReporterDisplayName = "Jana S.",
-                DueDate             = DateTime.Today.AddDays(4),
-                Position            = 1024,
-                CreatedAt           = DateTime.UtcNow.AddDays(-5),
-                UpdatedAt           = DateTime.UtcNow.AddHours(-2),
-                CommentCount        = 2,
-                Labels              =
-                [
-                    new LabelDto { Id = Guid.NewGuid(), Name = "backend",  Color = "#4339CA" },
-                    new LabelDto { Id = Guid.NewGuid(), Name = "realtime", Color = "#1A7A52" }
-                ]
-            };
+                Snackbar.Add("User not found, please log in", Severity.Error);
+                return;
+            }
 
-            _activity =
-            [
-                new ActivityRow("Jana S.",   "created this issue",           "",         "",          DateTime.UtcNow.AddDays(-5)),
-                new ActivityRow("Booker K.", "changed status",               "Backlog",  "In Progress", DateTime.UtcNow.AddDays(-3)),
-                new ActivityRow("Booker K.", "changed priority",             "Medium",   "High",      DateTime.UtcNow.AddDays(-2)),
-                new ActivityRow("Jana S.",   "assigned this issue to",       "",         "Booker K.", DateTime.UtcNow.AddDays(-1)),
-                new ActivityRow("Booker K.", "set due date to",              "",         "May 12, 2025", DateTime.UtcNow.AddHours(-6)),
-            ];
+            var result = await DashboardService.GetDashboardIssueDataAsync(ProjectId,IssueId);
+            if (result.Succeeded)
+            {
+                var user = (await AuthenticationState).User;
+                _currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+                _currentUserName = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
 
-            _comments =
-            [
-                new CommentDto
-                {
-                    Id = Guid.NewGuid(), IssueId = IssueId,
-                    AuthorId = "user-jana", AuthorDisplayName = "Jana S.",
-                    Body = "Can we also make sure the hub group name is deterministic from the project ID? Something like `project-{projectId}` so it's easy to join from the client.",
-                    IsEdited = false, CreatedAt = DateTime.UtcNow.AddDays(-3), UpdatedAt = DateTime.UtcNow.AddDays(-3)
-                },
-                new CommentDto
-                {
-                    Id = Guid.NewGuid(), IssueId = IssueId,
-                    AuthorId = "user-booker", AuthorDisplayName = "Booker K.",
-                    Body = "Good call — I'll use `project-{projectId}`. Also planning to inject `IProjectHubBroadcaster` into the service layer so it stays testable.",
-                    IsEdited = true, CreatedAt = DateTime.UtcNow.AddDays(-2), UpdatedAt = DateTime.UtcNow.AddDays(-1)
-                },
-            ];
+                _workspaceName = result.Data!.WorkspaceName;
+                _canManage = result.Data.UserWorkspaceRole is WorkspaceRole.Owner or WorkspaceRole.Admin;
+                _projectName = result.Data.ProjectName;
+                _issue = result.Data.Issue;
+                _comments = result.Data.Comments;
+                _activity = result.Data.ActivityLogs.Select(MapActivity).ToList();
+                _members = result.Data.Members;
+            }
         }
         catch (Exception ex)
         {
@@ -1191,7 +1132,7 @@ else
         @* _issue       = _issue with { Title = _titleDraft, UpdatedAt = DateTime.UtcNow }; *@
         _savingTitle  = false;
         _editingTitle = false;
-        AddOptimisticActivity("changed title", _issue.Title, _titleDraft);
+        // AddOptimisticActivity("changed title", _issue.Title, _titleDraft);
     }
 
     // ── Description editing ────────────────────────────────────────────
@@ -1220,7 +1161,7 @@ else
         @* _issue = _issue with { Status = newStatus, UpdatedAt = DateTime.UtcNow }; *@
         // TODO: await IssueService.ChangeStatusAsync(ProjectId, IssueId, new IssueStatusRequest { Status = newStatus });
         await Task.Delay(300);
-        AddOptimisticActivity("changed status", StatusLabel(old), StatusLabel(newStatus));
+        //AddOptimisticActivity("changed status", StatusLabel(old), StatusLabel(newStatus));
     }
 
     // ── Priority change ────────────────────────────────────────────────
@@ -1231,7 +1172,7 @@ else
         @* _issue = _issue with { Priority = newPriority, UpdatedAt = DateTime.UtcNow }; *@
         // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Priority = newPriority });
         await Task.Delay(300);
-        AddOptimisticActivity("changed priority", old.ToString(), newPriority.ToString());
+        //AddOptimisticActivity("changed priority", old.ToString(), newPriority.ToString());
     }
 
     // ── Assignee change ────────────────────────────────────────────────
@@ -1241,7 +1182,7 @@ else
         @* _issue = _issue with { AssigneeId = userId, AssigneeDisplayName = displayName, UpdatedAt = DateTime.UtcNow }; *@
         // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { AssigneeId = userId });
         await Task.Delay(300);
-        AddOptimisticActivity("changed assignee", "", displayName ?? "Unassigned");
+        //AddOptimisticActivity("changed assignee", "", displayName ?? "Unassigned");
     }
 
     // ── Due date change ────────────────────────────────────────────────
@@ -1343,7 +1284,7 @@ else
     }
 
     // ── Optimistic activity push ───────────────────────────────────────
-    private void AddOptimisticActivity(string verb, string from, string to) =>
+    private void AddOptimisticActivity(ActivityAction verb, string from, string to) =>
         _activity.Insert(0, new ActivityRow(_currentUserName, verb, from, to, DateTime.UtcNow));
 
     // ── Display helpers ────────────────────────────────────────────────
@@ -1391,73 +1332,19 @@ else
     // ── Activity row model ─────────────────────────────────────────────
     private sealed record ActivityRow(
         string   ActorName,
-        string   Verb,
+        ActivityAction   Verb,
         string   From,
         string   To,
         DateTime OccurredAt
     );
 
-    // ── Inline stubs — delete once VectorFlow.Shared is referenced ─────
-    #region Shared stubs
-
-    private enum WorkspaceRole { Owner, Admin, Member }
-    private enum IssueStatus   { Backlog, Todo, InProgress, InReview, Done }
-    private enum IssuePriority { None, Low, Medium, High, Urgent }
-    private enum IssueType     { Task, Bug, Feature }
-
-    private sealed class IssueDto
+    private ActivityRow MapActivity(ActivityLogDto log)
     {
-        public Guid          Id                  { get; set; }
-        public Guid          ProjectId           { get; set; }
-        public string        Key                 { get; set; } = string.Empty;
-        public string        Title               { get; set; } = string.Empty;
-        public string?       Description         { get; set; }
-        public IssueStatus   Status              { get; set; }
-        public IssuePriority Priority            { get; set; }
-        public IssueType     Type                { get; set; }
-        public string?       AssigneeId          { get; set; }
-        public string?       AssigneeDisplayName { get; set; }
-        public string?       AssigneeAvatarUrl   { get; set; }
-        public string        ReporterId          { get; set; } = string.Empty;
-        public string        ReporterDisplayName { get; set; } = string.Empty;
-        public DateTime?     DueDate             { get; set; }
-        public double        Position            { get; set; }
-        public DateTime      CreatedAt           { get; set; }
-        public DateTime      UpdatedAt           { get; set; }
-        public int           CommentCount        { get; set; }
-        public List<LabelDto> Labels             { get; set; } = [];
+        return new ActivityRow(
+            log.ActorDisplayName, 
+            log.Action, 
+            log.FromValue ?? "", 
+            log.ToValue ?? "", 
+            log.CreatedAt);
     }
-
-    private sealed class LabelDto
-    {
-        public Guid   Id    { get; set; }
-        public string Name  { get; set; } = string.Empty;
-        public string Color { get; set; } = "#4339CA";
-    }
-
-    private sealed class CommentDto
-    {
-        public Guid     Id                 { get; set; }
-        public Guid     IssueId            { get; set; }
-        public string   AuthorId           { get; set; } = string.Empty;
-        public string   AuthorDisplayName  { get; set; } = string.Empty;
-        public string?  AuthorAvatarUrl    { get; set; }
-        public string   Body               { get; set; } = string.Empty;
-        public bool     IsEdited           { get; set; }
-        public DateTime CreatedAt          { get; set; }
-        public DateTime UpdatedAt          { get; set; }
-    }
-
-    private sealed class MemberDto
-    {
-        public string        UserId      { get; set; } = string.Empty;
-        public string        DisplayName { get; set; } = string.Empty;
-        public string        Email       { get; set; } = string.Empty;
-        public string?       AvatarUrl   { get; set; }
-        public WorkspaceRole Role        { get; set; }
-        public bool          IsOwner     { get; set; }
-        public DateTime      JoinedAt    { get; set; }
-    }
-
-    #endregion
 }
