@@ -1126,13 +1126,25 @@ else
     private async Task SaveTitle()
     {
         if (_issue is null || string.IsNullOrWhiteSpace(_titleDraft)) return;
-        _savingTitle = true;
-        // TODO: await IssueService.UpdateAsync(ProjectId, IssueId, new UpdateIssueRequest { Title = _titleDraft });
-        await Task.Delay(400);
-        @* _issue       = _issue with { Title = _titleDraft, UpdatedAt = DateTime.UtcNow }; *@
-        _savingTitle  = false;
-        _editingTitle = false;
-        // AddOptimisticActivity("changed title", _issue.Title, _titleDraft);
+        try
+        {
+            _savingTitle = true;    
+             var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
+                new UpdateIssueRequest { Title = _titleDraft });
+            if (result.Succeeded)
+            {
+                _editingTitle = false;
+                _issue = result.Data!;
+                Snackbar.Add("Issue title updated successfully",Severity.Success);
+                return;
+            }
+
+            Snackbar.Add("Failed to update issue title",Severity.Error);
+        }
+        finally
+        {
+            _savingTitle  = false;  
+        }
     }
 
     // ── Description editing ────────────────────────────────────────────
@@ -1146,7 +1158,7 @@ else
     {
         try
         {
-            if (_issue is null) return;
+            if (_issue is null || string.IsNullOrEmpty(_descriptionDraft)) return;
             _savingDescription = true;
             var result = await IssueService.UpdateIssueAsync(ProjectId, IssueId, 
                 new UpdateIssueRequest { Description = _descriptionDraft });
