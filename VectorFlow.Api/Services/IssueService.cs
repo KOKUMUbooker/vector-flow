@@ -307,6 +307,36 @@ public class IssueService(
         return IssueResult.Success(MapToDto(issue));
     }
 
+    // ── Update Assignee ───────────────────────────────────────────────────────
+
+    public async Task<IssueResult> UpdateIssueAssigneeAsync(
+        Guid issueId, UpdateIssueAssigneeRequest request, string requestingUserId)
+    {
+        var issue = await db.Issues
+            .Include(i => i.Assignee)
+            .Include(i => i.Reporter)
+            .Include(i => i.IssueLabels).ThenInclude(il => il.Label)
+            .Include(i => i.Comments)
+            .FirstOrDefaultAsync(i => i.Id == issueId);
+
+        if (issue is null) return IssueResult.Failure("Issue not found.");
+
+        if (!await IsMemberOfProjectWorkspaceAsync(issue.ProjectId, requestingUserId))
+            return IssueResult.Failure("You are not a member of this workspace.");
+
+        issue.AssigneeId = !string.IsNullOrEmpty(request.AssigneeId) ? request.AssigneeId : null;
+        issue.UpdatedAt = DateTime.UtcNow;
+
+        var newAssigneeName = (await db.Users.FindAsync(request.AssigneeId))?.DisplayName ?? "Unassigned";
+        var log = BuildLog(issueId, requestingUserId, ActivityAction.AssigneeChanged,
+            issue.Assignee?.DisplayName ?? "Unassigned", newAssigneeName);
+
+        await db.ActivityLogs.AddAsync(log);
+        await db.SaveChangesAsync();
+
+        return IssueResult.Success(MapToDto(issue));
+    }
+
     // ── Update position ───────────────────────────────────────────────────────
 
     public async Task<IssueResult> UpdateIssuePositionAsync(
