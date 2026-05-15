@@ -308,12 +308,13 @@ else
                 <div class="sidebar-field">
                     <div class="sidebar-label">Priority</div>
                     <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
-                        <ActivatorContent>
-                            <div class="sidebar-value sidebar-clickable">
+                        <ActivatorContent >
+                            <MudButton Variant="Variant.Outlined" EndIcon="@Icons.Material.Outlined.ExpandMore" class="sidebar-value sidebar-clickable" OnClick="@context.ToggleAsync">
                                 <div class="pri-dot pri-@PriorityCss(_issue.Priority)"></div>
-                                @_issue.Priority.ToString()
-                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:13px; margin-left:auto" />
-                            </div>
+                                <span style="margin-left:5px">
+                                    @_issue.Priority.ToString()
+                                </span>
+                            </MudButton>
                         </ActivatorContent>
                         <ChildContent>
                             @foreach (IssuePriority p in Enum.GetValues<IssuePriority>())
@@ -329,24 +330,24 @@ else
                     </MudMenu>
                 </div>
 
+
                 <!-- Assignee -->
                 <div class="sidebar-field">
                     <div class="sidebar-label">Assignee</div>
                     <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
                         <ActivatorContent>
-                            <div class="sidebar-value sidebar-clickable">
+                            <MudButton EndIcon="Icons.Material.Outlined.ExpandMore" class="sidebar-value sidebar-clickable" OnClick="@context.ToggleAsync">
                                 @if (!string.IsNullOrEmpty(_issue.AssigneeDisplayName))
                                 {
                                     <div class="assignee-avatar-sm">@GetInitials(_issue.AssigneeDisplayName)</div>
-                                    <span>@_issue.AssigneeDisplayName</span>
+                                    <span style="margin-left:5px">@_issue.AssigneeDisplayName</span>
                                 }
                                 else
                                 {
                                     <MudIcon Icon="@Icons.Material.Outlined.PersonAdd" Style="font-size:15px; color:var(--mud-palette-text-disabled)" />
-                                    <span class="sidebar-unset">Unassigned</span>
+                                    <span style="margin-left:5px" class="sidebar-unset">Unassigned</span>
                                 }
-                                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Style="font-size:13px; margin-left:auto" />
-                            </div>
+                            </MudButton>
                         </ActivatorContent>
                         <ChildContent>
                             <MudMenuItem OnClick="() => ChangeAssignee(null, null)">
