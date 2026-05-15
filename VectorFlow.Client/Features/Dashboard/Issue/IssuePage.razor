@@ -1347,9 +1347,13 @@ else
             "Delete issue",
             async () =>
             {
-                // TODO: await IssueService.DeleteAsync(ProjectId, IssueId);
-                await Task.Delay(600);
-                Nav.NavigateTo($"/w/{Slug}/projects/{ProjectId}");
+                var result = await IssueService.DeleteIssueAsync(ProjectId,IssueId);
+                if (result.Succeeded) {
+                    Snackbar.Add("Issue deleted successfully",Severity.Info);
+                    Nav.NavigateTo($"/w/{Slug}/projects/{ProjectId}");
+                    return;
+                }
+                Snackbar.Add(result.Error ?? "Failed to delete issue",Severity.Error);
             });
 
     // ── Confirm helper ─────────────────────────────────────────────────
