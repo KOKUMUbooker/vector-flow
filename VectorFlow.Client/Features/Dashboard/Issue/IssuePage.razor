@@ -227,14 +227,14 @@ else
                                             {
                                                 <div class="comment-actions">
                                                     <MudIconButton Icon="@Icons.Material.Outlined.Edit"
-                                                                   Size="Size.Small"
-                                                                   OnClick="() => StartEditComment(comment)"
-                                                                   Class="comment-action-btn" />
+                                                        Size="Size.Small"
+                                                        OnClick="() => StartEditComment(comment)"
+                                                        Class="comment-action-btn" />
                                                     <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
-                                                                   Size="Size.Small"
-                                                                   Color="Color.Error"
-                                                                   OnClick="() => ConfirmDeleteComment(comment)"
-                                                                   Class="comment-action-btn" />
+                                                        Size="Size.Small"
+                                                        Color="Color.Error"
+                                                        OnClick="() => ConfirmDeleteComment(comment)"
+                                                        Class="comment-action-btn" />
                                                 </div>
                                             }
                                         </div>
@@ -283,9 +283,11 @@ else
                                 Margin="Margin.Dense"
                                 Class="composer-field" />
                             <div class="composer-footer">
-                                <MudText Typo="Typo.caption" Class="mud-text-disabled">
-                                    Markdown supported
-                                </MudText>
+                                <div>
+                                    @* <MudText Typo="Typo.caption" Class="mud-text-disabled">
+                                        Markdown supported
+                                    </MudText> *@
+                                </div>
                                 <MudButton Variant="Variant.Filled"
                                     Color="Color.Primary"
                                     Size="Size.Small"

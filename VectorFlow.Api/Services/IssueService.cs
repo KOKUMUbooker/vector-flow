@@ -205,16 +205,16 @@ public class IssueService(
             issue.Title = request.Title.Trim();
         }
 
-        if (issue.Priority != request.Priority)
+        if (request.Priority != null && issue.Priority != request.Priority)
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.PriorityChanged,
                 issue.Priority.ToString(), request.Priority.ToString()));
-            issue.Priority = request.Priority;
+            issue.Priority = (IssuePriority)request.Priority;
         }
 
-        if (issue.Type != request.Type)
+        if (request.Type != null && issue.Type != request.Type)
         { 
-            issue.Type = request.Type;
+            issue.Type = (IssueType)request.Type;
             // Type changes are functional but not surfaced in the activity log
         }
 
