@@ -193,7 +193,7 @@ public class IssueService(
         var activityLogs = new List<ActivityLog>();
 
         // Track and log each changed field individually
-        if (issue.Title != request.Title.Trim())
+        if (request.Title != null && issue.Title != request.Title.Trim())
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.TitleChanged,
                 issue.Title, request.Title.Trim()));
@@ -228,7 +228,21 @@ public class IssueService(
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
                 issue.DueDate?.ToString("yyyy-MM-dd"), request.DueDate?.ToString("yyyy-MM-dd")));
-            issue.DueDate = request.DueDate;
+            if (request.DueDate != null)
+            {
+                issue.DueDate = DateTime.SpecifyKind(request.DueDate.Value, DateTimeKind.Utc);
+            }
+            else
+            {
+                issue.DueDate = request.DueDate;
+            }
+        }
+
+        if (request.Status is not null && issue.Status != request.Status)
+        {
+            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.StatusChanged,
+                issue.Status.ToString(), request.Status.ToString()));
+            issue.Status = (IssueStatus)request.Status;
         }
 
         // Sync labels — diff the current set against the requested set
