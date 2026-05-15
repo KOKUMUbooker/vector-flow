@@ -40,7 +40,6 @@ public class DashboardController(
         var memberships = await db.WorkspaceMembers
             .Where(m => m.UserId == userId)
             .Include(m => m.Workspace)
-                .ThenInclude(w => w.Members)
             .Include(m => m.Workspace)
                 .ThenInclude(w => w.Projects)
             .OrderByDescending(m => m.JoinedAt)
@@ -101,7 +100,7 @@ public class DashboardController(
             .Include(i => i.Assignee)
             .OrderBy(i => i.DueDate == null ? 1 : 0) // nulls last
             .ThenBy(i => i.DueDate)
-            .ThenByDescending(i => (int)i.Priority)
+            .ThenByDescending(i => i.Priority)
             .AsNoTracking()
             .ToListAsync();
 
