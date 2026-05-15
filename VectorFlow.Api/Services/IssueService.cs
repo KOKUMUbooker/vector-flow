@@ -218,27 +218,11 @@ public class IssueService(
             // Type changes are functional but not surfaced in the activity log
         }
 
-        if (request.AssigneeId != null && issue.AssigneeId != request.AssigneeId)
-        {
-            var newAssigneeName = (await db.Users.FindAsync(request.AssigneeId))?.DisplayName?? "Unassigned";
-
-            issue.AssigneeId = request.AssigneeId;
-            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.AssigneeChanged,
-                issue.Assignee?.DisplayName ?? "Unassigned", newAssigneeName));
-        }
-
         if (request.DueDate != null && issue.DueDate != request.DueDate)
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
                 issue.DueDate?.ToString("yyyy-MM-dd"), request.DueDate?.ToString("yyyy-MM-dd")));
                 issue.DueDate = DateTime.SpecifyKind(request.DueDate!.Value, DateTimeKind.Utc);
-        }
-
-        if (request.Status != null && issue.Status != request.Status)
-        {
-            activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.StatusChanged,
-                issue.Status.ToString(), request.Status.ToString()));
-            issue.Status = (IssueStatus)request.Status;
         }
 
         // Sync labels — diff the current set against the requested set
