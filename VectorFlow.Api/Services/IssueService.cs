@@ -192,8 +192,13 @@ public class IssueService(
 
         var activityLogs = new List<ActivityLog>();
 
+        if (!string.IsNullOrEmpty(request.Description) && request.Description != issue.Description)
+        {
+            issue.Description = request.Description;
+        }
+
         // Track and log each changed field individually
-        if (request.Title != null && issue.Title != request.Title.Trim())
+        if (!string.IsNullOrEmpty(request.Title) && issue.Title != request.Title.Trim())
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.TitleChanged,
                 issue.Title, request.Title.Trim()));
@@ -213,32 +218,23 @@ public class IssueService(
             // Type changes are functional but not surfaced in the activity log
         }
 
-        if (issue.AssigneeId != request.AssigneeId)
+        if (request.AssigneeId != null && issue.AssigneeId != request.AssigneeId)
         {
-            var newAssigneeName = request.AssigneeId is null
-                ? "Unassigned"
-                : (await db.Users.FindAsync(request.AssigneeId))?.DisplayName ?? request.AssigneeId;
+            var newAssigneeName = (await db.Users.FindAsync(request.AssigneeId))?.DisplayName?? "Unassigned";
 
+            issue.AssigneeId = request.AssigneeId;
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.AssigneeChanged,
                 issue.Assignee?.DisplayName ?? "Unassigned", newAssigneeName));
-            issue.AssigneeId = request.AssigneeId;
         }
 
-        if (issue.DueDate != request.DueDate)
+        if (request.DueDate != null && issue.DueDate != request.DueDate)
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.DueDateChanged,
                 issue.DueDate?.ToString("yyyy-MM-dd"), request.DueDate?.ToString("yyyy-MM-dd")));
-            if (request.DueDate != null)
-            {
-                issue.DueDate = DateTime.SpecifyKind(request.DueDate.Value, DateTimeKind.Utc);
-            }
-            else
-            {
-                issue.DueDate = request.DueDate;
-            }
+                issue.DueDate = DateTime.SpecifyKind(request.DueDate!.Value, DateTimeKind.Utc);
         }
 
-        if (request.Status is not null && issue.Status != request.Status)
+        if (request.Status != null && issue.Status != request.Status)
         {
             activityLogs.Add(BuildLog(issueId, requestingUserId, ActivityAction.StatusChanged,
                 issue.Status.ToString(), request.Status.ToString()));
