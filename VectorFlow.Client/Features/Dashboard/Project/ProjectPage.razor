@@ -5,6 +5,7 @@
 @using VectorFlow.Shared.DTOs
 @using VectorFlow.Shared.Enums
 @using VectorFlow.Client.Services.Interfaces
+@using VectorFlow.Client.Features.Dashboard.Project.Components
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject HttpClient Http
@@ -48,7 +49,7 @@ else if (_project is null)
             This project may have been deleted or you don't have access.
         </MudText>
         <MudButton Variant="Variant.Text" Color="Color.Primary" Class="mt-4"
-                   OnClick="@(() => Nav.NavigateTo($"/w/{WorkspaceSlug}"))">
+            OnClick="@(() => Nav.NavigateTo($"/w/{WorkspaceSlug}"))">
             Back to workspace
         </MudButton>
     </div>
@@ -82,17 +83,25 @@ else
         <div class="board-header-right">
             <MudTooltip Text="Refresh board">
                 <MudIconButton Icon="@Icons.Material.Outlined.Refresh"
-                               Size="Size.Small"
-                               OnClick="RefreshBoard"
-                               Color="Color.Default" />
+                    Size="Size.Small"
+                    OnClick="RefreshBoard"
+                    Color="Color.Default" />
             </MudTooltip>
             <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       Size="Size.Small"
-                       StartIcon="@Icons.Material.Outlined.Add"
-                       OnClick="OpenCreateIssue"
-                       Class="create-issue-btn">
+                Color="Color.Primary"
+                Size="Size.Small"
+                StartIcon="@Icons.Material.Outlined.Add"
+                OnClick="OpenCreateIssue"
+                Class="create-issue-btn">
                 New issue
+            </MudButton>
+             <MudButton Variant="Variant.Filled"
+                Color="Color.Primary"
+                Size="Size.Small"
+                StartIcon="@Icons.Material.Outlined.Add"
+                OnClick="@showLabelManagerDrawer"
+                Class="create-issue-btn">
+                Manage project labels
             </MudButton>
         </div>
     </div>
@@ -352,6 +361,14 @@ else
         </MudDropContainer>
     </div>
 }
+
+<LabelManagerDrawer 
+    @bind-Open="_showManageLabelsDrawer" 
+    Labels="_labels" 
+    OnLabelCreated="OnLabelCreated"
+    OnLabelDeleted="OnLabelDeleted"
+    OnLabelUpdated="OnLabelUpdated"
+    ProjectId="ProjectId"/>
 
 <!-- ── CREATE ISSUE DIALOG ────────────────────────────────────────── -->
 <MudDialog @bind-Visible="_createIssueOpen" Options="_dialogOptions">
@@ -744,6 +761,17 @@ else
     private bool HasActiveFilters =>
         _filterAssigneeId != null || _filterPriority != null ||
         _filterType != null || _filterLabelId != null;
+
+    // Label manager drawer
+    public bool             _showManageLabelsDrawer;
+    public void showLabelManagerDrawer () =>  _showManageLabelsDrawer = true;
+    public void OnOpenChange(bool show) => _showManageLabelsDrawer = show;
+    public void OnLabelCreated(LabelDto newLabel) => _labels.Add(newLabel);
+    public void OnLabelUpdated(LabelDto updatedLabel) {
+        var idx = _labels.IndexOf(updatedLabel);
+        if (idx >= 0) _labels[idx] = updatedLabel;
+    }
+    public void OnLabelDeleted(Guid labelId) =>_labels.RemoveAll(l => l.Id == labelId);
 
     // Create issue dialog
     private bool             _createIssueOpen;
