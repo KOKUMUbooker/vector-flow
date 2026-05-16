@@ -48,12 +48,7 @@
                     <div></div>
                 } *@
 
-                @*  <div class="d-none d-md-flex align-center gap-6">
-                    <MudLink StartIcon="@Icons.Material.Outlined.Dashboard" Href="/dashboard" Underline="Underline.None" Class="vf-nav-link">Dashboard</MudLink>
-                    <MudLink StartIcon="@Icons.Material.Outlined.WorkOutline" Href="/workspaces" Underline="Underline.None" Class="vf-nav-link">Workspaces</MudLink>
-                    <MudLink StartIcon="@Icons.Material.Outlined.Mail" Href="/invitations" Underline="Underline.None" Class="vf-nav-link">Invitations</MudLink>
-                </div> *@
-                <div class="d-none d-md-flex align-center gap-6">
+                <div class="d-none d-md-flex align-center">
                     <MudNavLink href="/dashboard"
                              class="vf-nav-link"
                              Match="NavLinkMatch.Prefix"
@@ -226,18 +221,6 @@
         font-size: 14px !important; font-weight: 600 !important;
         text-transform: none !important; border-radius: 8px !important;
         padding: 6px 18px !important;
-    }
-    .vf-nav-link {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: var(--mud-palette-text-secondary);
-        text-decoration: none;
-        transition: color 0.2s ease;
-    }
-
-    .vf-nav-link:hover {
-        color: var(--mud-palette-primary);
     }
 
     .vf-nav-link-active {
