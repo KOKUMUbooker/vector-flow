@@ -414,6 +414,12 @@ public class DashboardController(
                            Color = il.Label.Color
                        }).ToList()
                    },
+                   Labels = i.Project.Labels.Select(label => new LabelDto
+                   {
+                       Id = label.Id,
+                       Name = label.Name,
+                       Color = label.Color,
+                   }).ToList(),
                    Comments = i.Comments.Take(10).Select(c => new CommentDto
                    {
                        Id = c.Id,

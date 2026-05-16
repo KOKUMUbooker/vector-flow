@@ -1,0 +1,710 @@
+@using VectorFlow.Client.Services.Interfaces
+@using VectorFlow.Shared.DTOs
+@inject IClientLabelService LabelService
+@inject ISnackbar Snackbar
+
+<MudDrawer Open="Open"
+            OpenChanged="VisibleChanged"
+           Anchor="Anchor.End"
+           Elevation="1"
+           Variant="DrawerVariant.Temporary"
+           Width="420px"
+           Class="label-drawer">
+
+    <div class="drawer-shell">
+
+        @if (_view == DrawerView.List)
+        {
+            <!-- ══════════════════════════════════════════
+                 VIEW: LABEL LIST
+            ══════════════════════════════════════════ -->
+
+            <!-- Header -->
+            <div class="drawer-header">
+                <div class="drawer-header-left">
+                    <div class="drawer-icon-wrap">
+                        <MudIcon Icon="@Icons.Material.Outlined.Label" Class="drawer-icon" />
+                    </div>
+                    <div>
+                        <div class="drawer-title">Project labels</div>
+                        <div class="drawer-subtitle">
+                            @Labels.Count label@(Labels.Count != 1 ? "s" : "")
+                        </div>
+                    </div>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                            Size="Size.Small"
+                            OnClick="Close"
+                            Class="close-btn" />
+            </div>
+
+            <!-- Scrollable label list -->
+            <div class="drawer-body">
+                @if (!Labels.Any())
+                {
+                    <div class="list-empty">
+                        <div class="empty-icon-ring">
+                            <MudIcon Icon="@Icons.Material.Outlined.LabelOff" Class="empty-icon" />
+                        </div>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary mt-3">
+                            No labels yet.
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-disabled">
+                            Labels help categorise issues at a glance.
+                        </MudText>
+                    </div>
+                }
+                else
+                {
+                    <div class="label-list">
+                        @foreach (var label in Labels)
+                        {
+                            <div class="label-row" @key="label.Id">
+                                <div class="label-swatch" style="background:@label.Color"></div>
+                                <div class="label-chip"
+                                     style="background:@HexAlpha(label.Color, "1A");
+                                            border-color:@HexAlpha(label.Color, "55");
+                                            color:@label.Color">
+                                    @label.Name
+                                </div>
+                                <div class="label-row-actions">
+                                    <MudTooltip Text="Edit" Placement="Placement.Top">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.Edit"
+                                                       Size="Size.Small"
+                                                       Color="Color.Default"
+                                                       OnClick="() => GoToEdit(label)"
+                                                       Class="row-action-btn" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Delete" Placement="Placement.Top">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                                                       Size="Size.Small"
+                                                       Color="Color.Error"
+                                                       OnClick="() => ConfirmDelete(label)"
+                                                       Class="row-action-btn" />
+                                    </MudTooltip>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Pinned footer -->
+            <div class="drawer-footer">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Outlined.Add"
+                           OnClick="GoToCreate"
+                           Class="footer-btn">
+                    New label
+                </MudButton>
+            </div>
+        }
+        else
+        {
+            <!-- ══════════════════════════════════════════
+                 VIEW: CREATE / EDIT FORM
+            ══════════════════════════════════════════ -->
+
+            <!-- Header with back button -->
+            <div class="drawer-header">
+                <div class="drawer-header-left">
+                    <MudIconButton Icon="@Icons.Material.Outlined.ArrowBack"
+                                   Size="Size.Small"
+                                   OnClick="GoToList"
+                                   Class="back-btn" />
+                    <div>
+                        <div class="drawer-title">
+                            @(_view == DrawerView.Create ? "New label" : "Edit label")
+                        </div>
+                        <div class="drawer-subtitle">
+                            @(_view == DrawerView.Create
+                                ? "Fill in a name and pick a colour"
+                                : "Update the name or colour")
+                        </div>
+                    </div>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Outlined.Close"
+                               Size="Size.Small"
+                               OnClick="Close"
+                               Class="close-btn" />
+            </div>
+
+            <!-- Scrollable form body -->
+            <div class="drawer-body form-body">
+
+                <!-- Live preview -->
+                <div class="preview-strip">
+                    <div class="preview-label">Preview</div>
+                    <div class="preview-chip-wrap">
+                        <div class="label-swatch-lg" style="background:@_formColor"></div>
+                        <div class="label-chip-lg"
+                             style="background:@HexAlpha(_formColor, "1A");
+                                    border-color:@HexAlpha(_formColor, "55");
+                                    color:@_formColor">
+                            @(string.IsNullOrWhiteSpace(_formName) ? "Label preview" : _formName)
+                        </div>
+                    </div>
+                </div>
+
+                <MudDivider Class="form-divider" />
+
+                <MudForm @ref="_form" @bind-IsValid="_formValid" Class="label-form">
+
+                    <div class="field-group">
+                        <label class="field-label">Name</label>
+                        <MudTextField @bind-Value="_formName"
+                                      Placeholder="e.g. backend, urgent, UX"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Required="true"
+                                      RequiredError="Name is required"
+                                      MaxLength="50"
+                                      Class="vf-field"
+                                      Immediate="true" />
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">Colour</label>
+                        <MudText Typo="Typo.caption" Class="mud-text-disabled mb-1">
+                            Pick from the palette or type a hex value.
+                        </MudText>
+                        <MudColorPicker @bind-Text="_formColor"
+                                        Variant="Variant.Outlined"
+                                        Margin="Margin.Dense"
+                                        ColorPickerView="ColorPickerView.Palette"
+                                        PickerVariant="PickerVariant.Inline"
+                                        DisableAlpha="true"
+                                        DisableInputs="false"
+                                        Class="vf-color-picker" />
+                    </div>
+
+                </MudForm>
+            </div>
+
+            <!-- Pinned form footer -->
+            <div class="drawer-footer form-footer">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Default"
+                           OnClick="GoToList"
+                           Class="footer-cancel-btn">
+                    Cancel
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="HandleFormSubmit"
+                           Disabled="@(_submitting || !_formValid || string.IsNullOrWhiteSpace(_formName))"
+                           Class="footer-btn footer-submit-btn">
+                    @if (_submitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>@(_view == DrawerView.Create ? "Creating…" : "Saving…")</span>
+                    }
+                    else
+                    {
+                        <span>@(_view == DrawerView.Create ? "Create label" : "Save changes")</span>
+                    }
+                </MudButton>
+            </div>
+        }
+
+    </div>
+
+</MudDrawer>
+
+<!-- ── CONFIRM DELETE DIALOG ──────────────────────────────────────── -->
+<MudDialog @bind-Visible="_confirmDeleteOpen" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Delete label?</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2">
+            <strong>@_deletingLabel?.Name</strong> will be removed from all issues in this project.
+            This cannot be undone.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _confirmDeleteOpen = false"
+                   Variant="Variant.Text" Color="Color.Default">
+            Cancel
+        </MudButton>
+        <MudButton OnClick="ExecuteDelete"
+                   Variant="Variant.Filled" Color="Color.Error"
+                   Disabled="_deleting">
+            @if (_deleting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Delete
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    /* ── DRAWER CHROME ─────────────────────────────────────────────────── */
+    .label-drawer .mud-drawer-content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .drawer-shell {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        font-family: 'DM Sans', system-ui, sans-serif;
+    }
+
+    /* ── HEADER ────────────────────────────────────────────────────────── */
+    .drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 18px 20px 16px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        flex-shrink: 0;
+    }
+
+    .drawer-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .drawer-icon-wrap {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        background: var(--mud-palette-primary-lighten);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .drawer-icon  { color: var(--mud-palette-primary) !important; font-size: 17px !important; }
+
+    .drawer-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        line-height: 1.3;
+    }
+
+    .drawer-subtitle {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--mud-palette-text-disabled);
+        margin-top: 1px;
+    }
+
+    .back-btn  { margin-left: -4px; flex-shrink: 0; }
+    .close-btn { flex-shrink: 0; }
+
+    /* ── BODY (scrollable middle zone) ────────────────────────────────── */
+    .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+        padding: 16px 20px;
+    }
+
+    .form-body { padding: 20px; }
+
+    /* ── FOOTER (always pinned to bottom) ─────────────────────────────── */
+    .drawer-footer {
+        flex-shrink: 0;
+        padding: 14px 20px;
+        border-top: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-background-grey);
+    }
+
+    .footer-btn {
+        border-radius: 8px !important;
+        height: 40px !important;
+    }
+
+    .form-footer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .footer-cancel-btn { border-radius: 8px !important; }
+    .footer-submit-btn { flex: 1; }
+
+    /* ── LIST VIEW ─────────────────────────────────────────────────────── */
+    .list-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 52px 0;
+        gap: 4px;
+    }
+
+    .empty-icon-ring {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--mud-palette-background-grey);
+        border: 1px solid var(--mud-palette-divider);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-icon { color: var(--mud-palette-text-disabled) !important; font-size: 22px !important; }
+
+    .label-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .label-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 10px;
+        transition: border-color 0.15s, background 0.12s;
+        animation: row-in 0.25s ease both;
+    }
+
+    @@keyframes row-in {
+        from { opacity: 0; transform: translateX(8px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .label-row:hover {
+        border-color: var(--mud-palette-primary);
+    }
+
+    /* Colour swatch */
+    .label-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+
+    .label-swatch-lg {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        flex-shrink: 0;
+    }
+
+    /* Label chip */
+    .label-chip {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 9px;
+        border-radius: 99px;
+        border: 1px solid;
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .label-chip-lg {
+        font-family: 'DM Mono', monospace;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 4px 12px;
+        border-radius: 99px;
+        border: 1px solid;
+    }
+
+    /* Row actions — fade in on hover */
+    .label-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        flex-shrink: 0;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    .label-row:hover .label-row-actions { opacity: 1; }
+
+    .row-action-btn {
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    /* ── FORM VIEW ─────────────────────────────────────────────────────── */
+    .preview-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .preview-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--mud-palette-text-disabled);
+    }
+
+    .preview-chip-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 10px;
+    }
+
+    .form-divider { margin: 0 0 20px !important; }
+
+    .label-form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+
+    .field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        font-family: 'DM Sans', system-ui, sans-serif;
+        letter-spacing: 0.01em;
+    }
+
+    .vf-field .mud-input-outlined .mud-notched-outline       { border-radius: 8px !important; }
+    .vf-color-picker .mud-input-outlined .mud-notched-outline { border-radius: 8px !important; }
+</style>
+
+@code {
+    // ── Parameters ─────────────────────────────────────────────────────────
+
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    [Parameter] public Guid ProjectId { get; set; }
+
+    [Parameter] public List<LabelDto> Labels { get; set; } = [];
+
+    [Parameter] public EventCallback<LabelDto> OnLabelCreated { get; set; }
+    [Parameter] public EventCallback<LabelDto> OnLabelUpdated { get; set; }
+    [Parameter] public EventCallback<Guid>     OnLabelDeleted { get; set; }
+
+    // ── View state ─────────────────────────────────────────────────────────
+
+    private enum DrawerView { List, Create, Edit }
+
+    private DrawerView _view = DrawerView.List;
+
+    // ── Shared form state ──────────────────────────────────────────────────
+
+    private MudForm   _form      = null!;
+    private bool      _formValid;
+    private bool      _submitting;
+    private string    _formName  = string.Empty;
+    private string    _formColor = "#6B7280";
+
+    // Holds the label being edited; null when creating
+    private LabelDto? _editingLabel;
+
+    // ── Delete state ───────────────────────────────────────────────────────
+
+    private bool      _confirmDeleteOpen;
+    private bool      _deleting;
+    private LabelDto? _deletingLabel;
+
+    private readonly DialogOptions _dialogOpts = new()
+    {
+        MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseOnEscapeKey = true
+    };
+
+    // ── View navigation ────────────────────────────────────────────────────
+
+    private void GoToList()
+    {
+        _view         = DrawerView.List;
+        _editingLabel = null;
+        _formName     = string.Empty;
+        _formColor    = "#6B7280";
+    }
+
+    private void GoToCreate()
+    {
+        _editingLabel = null;
+        _formName     = string.Empty;
+        _formColor    = "#6B7280";
+        _view         = DrawerView.Create;
+    }
+
+    private void GoToEdit(LabelDto label)
+    {
+        _editingLabel = label;
+        _formName     = label.Name;
+        _formColor    = label.Color;
+        _view         = DrawerView.Edit;
+    }
+
+    private async Task Close()
+    {
+        GoToList();
+        await OpenChanged.InvokeAsync(false);
+    }
+
+    private async Task VisibleChanged(bool show)
+    {
+        await OpenChanged.InvokeAsync(show);
+    }
+
+    // ── Form submit — branches on current view ─────────────────────────────
+
+    private async Task HandleFormSubmit()
+    {
+        await _form.ValidateAsync();
+        if (!_formValid || string.IsNullOrWhiteSpace(_formName)) return;
+
+        _submitting = true;
+
+        if (_view == DrawerView.Create)
+            await CreateLabel();
+        else
+            await UpdateLabel();
+
+        _submitting = false;
+    }
+
+    private async Task CreateLabel()
+    {
+        var result = await LabelService.CreateLabelAsync(ProjectId, new CreateLabelRequest
+        {
+            Name  = _formName.Trim(),
+            Color = NormalizeHex(_formColor)
+        });
+
+        if (result.Succeeded && result.Data is not null)
+        {
+            await OnLabelCreated.InvokeAsync(result.Data);
+            Snackbar.Add($"Label \"{result.Data.Name}\" created.", Severity.Success);
+            GoToList();
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to create label.", Severity.Error);
+        }
+    }
+
+    private async Task UpdateLabel()
+    {
+        if (_editingLabel is null) return;
+
+        var result = await LabelService.UpdateLabelAsync(_editingLabel.Id, new UpdateLabelRequest
+        {
+            Name  = _formName.Trim(),
+            Color = NormalizeHex(_formColor)
+        });
+
+        if (result.Succeeded && result.Data is not null)
+        {
+            await OnLabelUpdated.InvokeAsync(result.Data);
+            Snackbar.Add("Label updated.", Severity.Success);
+            GoToList();
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to update label.", Severity.Error);
+        }
+    }
+
+    // ── Delete ─────────────────────────────────────────────────────────────
+
+    private void ConfirmDelete(LabelDto label)
+    {
+        _deletingLabel     = label;
+        _confirmDeleteOpen = true;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (_deletingLabel is null) return;
+
+        _deleting = true;
+
+        var result = await LabelService.DeleteLabelAsync(_deletingLabel.Id);
+
+        if (result.Succeeded)
+        {
+            await OnLabelDeleted.InvokeAsync(_deletingLabel.Id);
+            Snackbar.Add($"Label \"{_deletingLabel.Name}\" deleted.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to delete label.", Severity.Error);
+        }
+
+        _deleting          = false;
+        _confirmDeleteOpen = false;
+        _deletingLabel     = null;
+    }
+
+    // ── Colour helpers ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Appends an 8-bit alpha suffix to a hex colour so the template can build
+    /// translucent chip backgrounds/borders without hardcoding rgba values.
+    /// e.g. HexAlpha("#E11D48", "1A") → "#E11D481A"
+    /// </summary>
+    private static string HexAlpha(string hex, string alpha) =>
+        string.IsNullOrWhiteSpace(hex) ? $"#6B7280{alpha}" : $"{hex.TrimEnd()}{alpha}";
+
+    /// <summary>
+    /// MudColorPicker can emit "rgba(...)", shortened hex, or full hex.
+    /// Normalises to "#RRGGBB" for the API regex validator.
+    /// </summary>
+    private static string NormalizeHex(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "#6B7280";
+
+        if (raw.StartsWith('#') && raw.Length == 7)
+            return raw.ToUpperInvariant();
+
+        var stripped = raw.TrimStart('#');
+        if (stripped.Length == 6 && stripped.All(IsHexChar))
+            return $"#{stripped.ToUpperInvariant()}";
+
+        if (raw.StartsWith("rgba", StringComparison.OrdinalIgnoreCase) ||
+            raw.StartsWith("rgb",  StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var inner = raw[(raw.IndexOf('(') + 1)..raw.IndexOf(')')];
+                var parts = inner.Split(',');
+                int r = int.Parse(parts[0].Trim());
+                int g = int.Parse(parts[1].Trim());
+                int b = int.Parse(parts[2].Trim());
+                return $"#{r:X2}{g:X2}{b:X2}";
+            }
+            catch { /* fall through */ }
+        }
+
+        return "#6B7280";
+    }
+
+    private static bool IsHexChar(char c) =>
+        (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+}

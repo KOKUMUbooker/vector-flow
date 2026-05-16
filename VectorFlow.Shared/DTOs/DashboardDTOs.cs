@@ -123,6 +123,7 @@ public class DashboardFetchedIssueData
     public List<ActivityLogDto> ActivityLogs { get; set; } = new();
     public List<CommentDto> Comments { get; set; } = new();
     public string WorkspaceName { get; set; } = string.Empty;
+    public List<LabelDto> Labels { get; set; } = new List<LabelDto>();
     public string ProjectName { get; set; } = string.Empty;
     public virtual WorkspaceRole? UserWorkspaceRole { get; set; }
 }

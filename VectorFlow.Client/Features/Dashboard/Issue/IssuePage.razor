@@ -10,7 +10,6 @@
 @inject IClientIssueService IssueService
 @inject IDashboardService DashboardService
 @inject IClientCommentService CommentService
-@* @inject IWorkspaceService WorkspaceService *@
 
 <PageTitle>@(_issue?.Key ?? "Issue") — VectorFlow</PageTitle>
 
@@ -61,10 +60,10 @@ else
                 {
                     <div class="title-edit-wrap">
                         <MudTextField @bind-Value="_titleDraft"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense"
-                                      Class="title-field"
-                                      Immediate="true" />
+                            Variant="Variant.Outlined"
+                            Margin="Margin.Dense"
+                            Class="title-field"
+                            Immediate="true" />
                         <div class="title-edit-actions">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                        OnClick="SaveTitle" Disabled="_savingTitle">
@@ -410,7 +409,8 @@ else
                         {
                             @foreach (var label in _issue.Labels)
                             {
-                                <div class="label-chip" style="background:@label.Color+'22'; border-color:@label.Color+'44'; color:@label.Color">
+                                <div class="label-chip" 
+                                    style="@($"background:{label.Color}22; border-color:{label.Color}44; color:{label.Color}")">
                                     @label.Name
                                 </div>
                             }
@@ -419,10 +419,38 @@ else
                         {
                             <span class="sidebar-unset">None</span>
                         }
-                        <MudIconButton Icon="@Icons.Material.Outlined.Add"
-                            Size="Size.Small"
-                            Title="Add label"
-                            Class="label-add-btn" />
+                        <MudMenu>
+                             <ActivatorContent>
+                                   <MudIconButton Icon="@Icons.Material.Outlined.Add"
+                                        OnClick="@context.ToggleAsync"
+                                        Size="Size.Small"
+                                        Title="Add label"
+                                        Class="label-add-btn" />
+                            </ActivatorContent>
+                            <ChildContent>
+                              @foreach (var label in _labels)
+                                {
+                                    var selected = LabelExistsInIssueLabels(label);
+
+                                    <MudMenuItem OnClick="() => UpdateIssueLabel(label)">
+                                        <div class="d-flex align-center gap-2">
+                                            @if (selected)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Check"
+                                                         Size="Size.Small" />
+                                            }
+
+                                            <div class="label-chip"
+                                                 style="background:@(label.Color + "22");
+                                                        border-color:@(label.Color + "44");
+                                                        color:@label.Color">
+                                                @label.Name
+                                            </div>
+                                        </div>
+                                    </MudMenuItem>
+                                }
+                            </ChildContent>
+                        </MudMenu>
                     </div>
                 </div>
 
@@ -1061,7 +1089,13 @@ else
 
     private List<CommentDto>  _comments = [];
     private List<ActivityRow> _activity = [];
+    private List<LabelDto> _labels = [];
     private List<WorkspaceMemberDto>   _members  = [];
+
+    private bool LabelExistsInIssueLabels(LabelDto label)
+    {
+        return _issue?.Labels.Any(l => l.Id == label.Id) ?? false;
+    }
 
     // Editing flags
     private bool   _editingTitle;
@@ -1125,6 +1159,7 @@ else
                 _comments = result.Data.Comments;
                 _activity = result.Data.ActivityLogs.Select(MapActivity).ToList();
                 _members = result.Data.Members;
+                _labels = result.Data.Labels;
             }
         }
         catch (Exception ex)
@@ -1197,6 +1232,40 @@ else
         {
             _savingDescription  = false;
         }
+    }
+
+    // ── Update issue label ──────────────────────────────────────────────────
+    private async Task UpdateIssueLabel(LabelDto label)
+    {
+        if (_issue is null)
+        {
+            Snackbar.Add("No issue found, please reload the page", Severity.Error);
+            return;
+        }
+
+        var labels = _issue.Labels.ToList();
+
+        var exists = labels.Any(l => l.Id == label.Id);
+
+        if (exists) labels.RemoveAll(l => l.Id == label.Id);
+        else labels.Add(label);
+
+        var result = await IssueService.UpdateIssueAsync(
+            ProjectId,
+            IssueId,
+            new UpdateIssueRequest
+            {
+                LabelIds = labels.Select(l => l.Id).ToList()
+            });
+
+        if (result.Succeeded && result.Data is not null)
+        {
+            _issue = result.Data;
+            Snackbar.Add(  "Issue labels updated successfully", Severity.Success);
+            return;
+        }
+
+        Snackbar.Add( result.Error ?? "Failed to update issue labels", Severity.Error);
     }
 
     // ── Issue type change ──────────────────────────────────────────────────
