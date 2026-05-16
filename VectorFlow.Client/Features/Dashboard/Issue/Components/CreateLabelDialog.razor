@@ -1,0 +1,197 @@
+﻿@using VectorFlow.Client.Services.Interfaces
+@using VectorFlow.Shared.DTOs
+@inject IClientLabelService LabelService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IWorkspaceService WorkspaceService
+
+<MudDialog Visible="Open"
+           VisibleChanged="OnVisibleChanged" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Create a workspace</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+            Give your workspace a name. You can change this later.
+        </MudText>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <div class="drawer-body form-body">
+
+                <!-- Live preview -->
+                <div class="preview-strip">
+                    <div class="preview-label">Preview</div>
+                    <div class="preview-chip-wrap">
+                        <div class="label-swatch-lg" style="background:@_formColor"></div>
+                        <div class="label-chip-lg"
+                             style="background:@HexAlpha(_formColor, "1A");
+                            border-color:@HexAlpha(_formColor, "55");
+                            color:@_formColor">
+                            @(string.IsNullOrWhiteSpace(_formName) ? "Label preview" : _formName)
+                        </div>
+                    </div>
+                </div>
+
+                <MudDivider Class="form-divider" />
+
+                <MudForm @ref="_form" @bind-IsValid="_formValid" Class="label-form">
+
+                    <div class="field-group">
+                        <label class="field-label">Name</label>
+                        <MudTextField @bind-Value="_formName"
+                            Placeholder="e.g. backend, urgent, UX"
+                            Variant="Variant.Outlined"
+                            Margin="Margin.Dense"
+                            Required="true"
+                            RequiredError="Name is required"
+                            MaxLength="50"
+                            Class="vf-field"
+                            Immediate="true" />
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">Colour</label>
+                        <MudText Typo="Typo.caption" Class="mud-text-disabled mb-1">
+                            Pick from the palette or type a hex value.
+                        </MudText>
+                        <MudColorPicker @bind-Text="_formColor"
+                            Variant="Variant.Outlined"
+                            Margin="Margin.Dense"
+                            ColorPickerView="ColorPickerView.Palette"
+                            PickerVariant="PickerVariant.Inline"
+                            DisableAlpha="true"
+                            DisableInputs="false"
+                            Class="vf-color-picker" />
+                    </div>
+
+                </MudForm>
+            </div>
+
+           
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@CloseDialog"
+                   Variant="Variant.Text" Color="Color.Default">
+            Cancel
+        </MudButton>
+        <MudButton OnClick="HandleCreateWorkspace"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(_submitting || !_formValid)">
+            @if (_submitting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Creating…</span>
+            }
+            else
+            {
+                <span>Create workspace</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    [Parameter] public Guid ProjectId { get; set; }
+
+    [Parameter] public EventCallback<LabelDto> OnLabelCreated { get; set; }
+
+    private MudForm _form = null!;
+    private bool _formValid;
+    private bool _submitting;
+    private string _formName = string.Empty;
+    private string _formColor = "#6B7280";
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true
+    };
+
+    private async Task OnVisibleChanged(bool show)
+    {
+        await OpenChanged.InvokeAsync(show);
+    }
+
+    private async Task CloseDialog()
+    {
+        await OpenChanged.InvokeAsync(false);
+    }
+
+    private async Task HandleCreateWorkspace()
+    {
+        try
+        {
+            var result = await LabelService.CreateLabelAsync(ProjectId, new CreateLabelRequest
+            {
+                Name = _formName.Trim(),
+                Color = NormalizeHex(_formColor)
+            });
+
+            if (result.Succeeded && result.Data is not null)
+            {
+                await OnLabelCreated.InvokeAsync(result.Data);
+                Snackbar.Add($"Label \"{result.Data.Name}\" created.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.Error ?? "Failed to create label.", Severity.Error);
+            }
+        }
+        finally
+        {
+          
+        }
+    }
+
+    // ── Colour helpers ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Appends an 8-bit alpha suffix to a hex colour so the template can build
+    /// translucent chip backgrounds/borders without hardcoding rgba values.
+    /// e.g. HexAlpha("#E11D48", "1A") → "#E11D481A"
+    /// </summary>
+    private static string HexAlpha(string hex, string alpha) =>
+        string.IsNullOrWhiteSpace(hex) ? $"#6B7280{alpha}" : $"{hex.TrimEnd()}{alpha}";
+
+    /// <summary>
+    /// MudColorPicker can emit "rgba(...)", shortened hex, or full hex.
+    /// Normalises to "#RRGGBB" for the API regex validator.
+    /// </summary>
+    private static string NormalizeHex(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "#6B7280";
+
+        if (raw.StartsWith('#') && raw.Length == 7)
+            return raw.ToUpperInvariant();
+
+        var stripped = raw.TrimStart('#');
+        if (stripped.Length == 6 && stripped.All(IsHexChar))
+            return $"#{stripped.ToUpperInvariant()}";
+
+        if (raw.StartsWith("rgba", StringComparison.OrdinalIgnoreCase) ||
+            raw.StartsWith("rgb", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var inner = raw[(raw.IndexOf('(') + 1)..raw.IndexOf(')')];
+                var parts = inner.Split(',');
+                int r = int.Parse(parts[0].Trim());
+                int g = int.Parse(parts[1].Trim());
+                int b = int.Parse(parts[2].Trim());
+                return $"#{r:X2}{g:X2}{b:X2}";
+            }
+            catch { /* fall through */ }
+        }
+
+        return "#6B7280";
+    }
+
+    private static bool IsHexChar(char c) =>
+        (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+
+}
