@@ -861,12 +861,10 @@ else
     {
         try
         {
-            // TODO: replace with your actual API base URL from config
-            // var baseUrl = Configuration["ApiBaseUrl"] ?? Nav.BaseUri;
+            var url = $"{Nav.BaseUri}hubs/project";
 
             _hub = new HubConnectionBuilder()
-                .WithUrl($"{Nav.BaseUri.TrimEnd('/')}hubs/project",
-                    opts => opts.Cookies = /* pass cookies */ default!)
+                .WithUrl(url)
                 .WithAutomaticReconnect()
                 .Build();
 
@@ -952,8 +950,9 @@ else
             _hubConnected = true;
             StateHasChanged();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Exception msg : {ex.Message}");
             // Hub connection failure is non-fatal — board works via REST, just not live
             _hubConnected = false;
         }
