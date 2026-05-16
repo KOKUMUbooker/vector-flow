@@ -1,6 +1,7 @@
 @using System.Security.Claims
 @using Microsoft.Extensions.Identity.Core
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
 @using VectorFlow.Client.Services
 @using VectorFlow.Client.Services.Interfaces
 @using VectorFlow.Client.Theme
@@ -27,7 +28,7 @@
             <Authorized Context="authState">
 
 
-                @if (!string.IsNullOrEmpty(_currentWorkspace))
+                @* @if (!string.IsNullOrEmpty(_currentWorkspace))
                 {
                     <div class="workspace-crumb">
                         <MudIcon Icon="@Icons.Material.Outlined.GridView" Style="font-size:14px; opacity:0.5;" />
@@ -45,7 +46,53 @@
                 else
                 {
                     <div></div>
-                }
+                } *@
+
+                @*  <div class="d-none d-md-flex align-center gap-6">
+                    <MudLink StartIcon="@Icons.Material.Outlined.Dashboard" Href="/dashboard" Underline="Underline.None" Class="vf-nav-link">Dashboard</MudLink>
+                    <MudLink StartIcon="@Icons.Material.Outlined.WorkOutline" Href="/workspaces" Underline="Underline.None" Class="vf-nav-link">Workspaces</MudLink>
+                    <MudLink StartIcon="@Icons.Material.Outlined.Mail" Href="/invitations" Underline="Underline.None" Class="vf-nav-link">Invitations</MudLink>
+                </div> *@
+                <div class="d-none d-md-flex align-center gap-6">
+                    <MudNavLink href="/dashboard"
+                             class="vf-nav-link"
+                             Match="NavLinkMatch.Prefix"
+                             Ripple="false"
+                             ActiveClass="vf-nav-link-active">
+                             <div style="display:flex; flex-direction:row; align-items: center">
+                                <MudIcon Icon="@Icons.Material.Outlined.Dashboard"
+                                         Size="Size.Small"
+                                         Class="mr-1" />
+                                Dashboard
+                             </div>
+                    </MudNavLink>
+
+                    <MudNavLink href="/workspaces"
+                             class="vf-nav-link"
+                             Match="NavLinkMatch.Prefix"
+                             Ripple="false"
+                             ActiveClass="vf-nav-link-active">
+                             <div style="display:flex; flex-direction:row; align-items: center">
+                                <MudIcon Icon="@Icons.Material.Outlined.WorkOutline"
+                                         Size="Size.Small"
+                                         Class="mr-1" />
+                                Workspaces
+                            </div>
+                    </MudNavLink>
+
+                    <MudNavLink href="/invitations"
+                             class="vf-nav-link"
+                             Ripple="false"
+                             Match="NavLinkMatch.Prefix"
+                             ActiveClass="vf-nav-link-active">
+                             <div style="display:flex; flex-direction:row; align-items: center">
+                                <MudIcon Icon="@Icons.Material.Outlined.Mail"
+                                         Size="Size.Small"
+                                         Class="mr-1" />
+                                Invitations
+                            </div>
+                    </MudNavLink>
+                </div>
 
                 <div class="d-flex align-center gap-2">
                     <MudTooltip Text="@(_isDarkMode ? "Light mode" : "Dark mode")">
@@ -179,6 +226,23 @@
         font-size: 14px !important; font-weight: 600 !important;
         text-transform: none !important; border-radius: 8px !important;
         padding: 6px 18px !important;
+    }
+    .vf-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--mud-palette-text-secondary);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .vf-nav-link:hover {
+        color: var(--mud-palette-primary);
+    }
+
+    .vf-nav-link-active {
+        color: var(--mud-palette-primary);
+        font-weight: 600;
     }
     .workspace-crumb {
         display: flex; align-items: center; gap: 6px;
