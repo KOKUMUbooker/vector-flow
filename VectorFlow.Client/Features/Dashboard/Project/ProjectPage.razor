@@ -1165,7 +1165,6 @@ else
         }
     }
 
-    // ── Mock helper ────────────────────────────────────────────────────────
 
     private BoardIssue MapToBoardIssue(IssueDto i)
     {
@@ -1181,18 +1180,19 @@ else
             AssigneeId          = i.AssigneeId,
             AssigneeDisplayName = i.AssigneeDisplayName,
             DueDate             = i.DueDate,
-            IsOverdue           =  i.DueDate.HasValue &&  i.DueDate.Value.Date < DateTime.Today && i.Status != IssueStatus.Done,
-            Position            = _allIssues.Count(issue => issue.Status == i.Status) * 1000.0 + 1000,
-            Labels              = i.Type == IssueType.Bug
-                                    ? [
-                                        new BoardLabel(
-                                            _labels[0].Id,
-                                            _labels[0].Name,
-                                            _labels[0].Color,
-                                            _labels[0].Color + "20"
-                                        )
-                                    ]
-                                    : [],
+            IsOverdue           = i.DueDate.HasValue &&
+                                i.DueDate.Value.Date < DateTime.Today &&
+                                i.Status != IssueStatus.Done,
+
+            Position            = i.Position,
+
+            Labels              = i.Labels.Select(l => new BoardLabel(
+                                    l.Id,
+                                    l.Name,
+                                    l.Color,
+                                    l.Color + "20"
+                                )).ToList(),
+
             CommentCount        = i.CommentCount
         };
     }
