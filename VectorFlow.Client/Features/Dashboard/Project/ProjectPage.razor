@@ -257,9 +257,10 @@ else
                 {
                     <MudDropZone T="BoardIssue"
                             Identifier="@col.Status.ToString()"
-                            Class="kanban-column"
+                            Class="kanban-column kanban-col-inner"
+                            style="margin-bottom: 4px;"
                             AllowReorder="true">
-                        <MudPaper Elevation="0" Class="kanban-col-inner">
+                        <div>
                             <!-- Column header -->
                             <div class="col-header">
                                 <div class="col-header-left">
@@ -279,15 +280,16 @@ else
                             </div>
 
                             <!-- Issue cards rendered by MudBlazor drop zone -->
-                        </MudPaper>
+                        </div>
                     </MudDropZone>
                 }
             </ChildContent>
 
             <ItemRenderer>
                 <div class="issue-card @(context.IsOverdue ? "card-overdue" : "")"
-                     @onclick="() => NavigateToIssue(context)"
-                     @onclick:stopPropagation="true">
+                    style="margin-bottom: 4px"
+                    @onclick="() => NavigateToIssue(context)"
+                    @onclick:stopPropagation="true">
 
                     <!-- Card top: key + type icon -->
                     <div class="card-top">
@@ -750,7 +752,6 @@ else
     // Supporting data
     private List<WorkspaceMemberDto> _members = [];
     private List<LabelDto>  _labels  = [];
-    private Dictionary<Guid,string> LabelDict = new();
 
     // Active filters
     private string?       _filterAssigneeId;
@@ -785,17 +786,6 @@ else
     {
         MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true
     };
-
-    List<string> GetSelectedLabel(Guid labelId)
-    {
-        List<string> res = new();
-        foreach (var id in _newIssue.LabelIds)
-        {
-            if (LabelDict.ContainsKey(id)) res.Add(LabelDict.GetValueOrDefault(id)!);
-        }
-
-        return res;
-    }
 
     // SignalR
     private HubConnection? _hub;
@@ -834,11 +824,6 @@ else
                 _labels = result.Data.Labels;
                 _allIssues = result.Data.Issues.Select(MapToBoardIssue).ToList();
 
-                // Populate for name lookup in create issue form
-                foreach (var label in _labels)
-                {
-                    LabelDict.Add(label.Id, label.Name);
-                }
                 ApplyFilters();
                 return;
             }
@@ -1103,7 +1088,7 @@ else
             var result = await ClientIssueService.CreateIssueAsync(ProjectId,data);
             if (result.Succeeded)
             {
-                _allIssues.Add(MapToBoardIssue(result.Data!));
+                @* _allIssues.Add(MapToBoardIssue(result.Data!)); *@
                 ApplyFilters();
                 _createIssueOpen = false;
                 Snackbar.Add($"Issue {result.Data!.Key} created.", Severity.Success);
@@ -1197,7 +1182,7 @@ else
             AssigneeDisplayName = i.AssigneeDisplayName,
             DueDate             = i.DueDate,
             IsOverdue           =  i.DueDate.HasValue &&  i.DueDate.Value.Date < DateTime.Today && i.Status != IssueStatus.Done,
-            Position            = _allIssues.Count(i => i.Status == i.Status) * 1000.0 + 1000,
+            Position            = _allIssues.Count(issue => issue.Status == i.Status) * 1000.0 + 1000,
             Labels              = i.Type == IssueType.Bug
                                     ? [
                                         new BoardLabel(
